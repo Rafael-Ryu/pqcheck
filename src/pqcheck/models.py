@@ -29,6 +29,7 @@ class AlgorithmFamily(StrEnum):
 
 class QuantumRisk(StrEnum):
     SAFE = "quantum-safe"
+    # Reserved for hybrid PQC constructs (e.g., X25519MLKEM768) once detectors emit them.
     HYBRID = "hybrid"
     VULNERABLE = "quantum-vulnerable"
     BROKEN = "broken"

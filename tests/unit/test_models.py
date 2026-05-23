@@ -67,3 +67,8 @@ def test_confidence_bounded_0_to_1() -> None:
             algorithm="MD5", family=AlgorithmFamily.HASH, location=loc,
             evidence="x", detector_id="python-ast", confidence=1.5,
         )
+    with pytest.raises(ValidationError):
+        CryptoFinding(
+            algorithm="MD5", family=AlgorithmFamily.HASH, location=loc,
+            evidence="x", detector_id="python-ast", confidence=-0.1,
+        )
