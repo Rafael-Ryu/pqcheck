@@ -122,3 +122,34 @@ def test_crypto_dependency_accepts_missing_version() -> None:
         declared_in=Path("pyproject.toml"),
     )
     assert dep.version is None
+
+
+def test_crypto_dependency_rejects_malformed_purl() -> None:
+    with pytest.raises(ValidationError):
+        CryptoDependency(
+            purl="not-a-purl-at-all",
+            name="x",
+            ecosystem="pypi",
+            declared_in=Path("pyproject.toml"),
+        )
+
+
+def test_crypto_dependency_rejects_empty_scheme_purl() -> None:
+    with pytest.raises(ValidationError):
+        CryptoDependency(
+            purl="pkg:",
+            name="x",
+            ecosystem="pypi",
+            declared_in=Path("pyproject.toml"),
+        )
+
+
+def test_crypto_dependency_accepts_valid_maven_purl() -> None:
+    dep = CryptoDependency(
+        purl="pkg:maven/org.bouncycastle/bcprov-jdk18on@1.78",
+        name="bcprov-jdk18on",
+        version="1.78",
+        ecosystem="maven",
+        declared_in=Path("pom.xml"),
+    )
+    assert dep.purl.startswith("pkg:maven/")
