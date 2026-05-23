@@ -78,6 +78,20 @@ def test_resolve_attribute_chain_three_segments() -> None:
     )
 
 
+def test_resolve_attribute_unrecorded_base_returns_none() -> None:
+    r = ImportResolver()
+    r.add_module("other", "other")
+    tree = ast.parse("unknown.attr()")
+    call = tree.body[0].value
+    assert isinstance(call, ast.Call)
+    assert r.resolve_attribute(call.func) is None
+
+
+def test_relative_import_is_skipped() -> None:
+    r = _resolver("from . import sibling")
+    assert r.resolve_name("sibling") is None
+
+
 def test_unresolved_name_returns_none() -> None:
     tree = ast.parse("foo.bar()")
     r = ImportResolver()

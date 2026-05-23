@@ -40,10 +40,12 @@ class ImportResolver(ast.NodeVisitor):
     def resolve_attribute(self, node: ast.expr) -> str | None:
         """Resolve a Name or Attribute chain to its fully-qualified name.
 
-        Examples (with `hashlib` recorded as itself, `h` as alias):
+        Examples (with `hashlib` recorded as itself, `h` as alias for hashlib,
+        and `hashes` as alias for cryptography.hazmat.primitives.hashes):
           ast.parse("hashlib.md5").body[0].value           -> "hashlib.md5"
           ast.parse("h.md5").body[0].value                 -> "hashlib.md5"
-          ast.parse("hashes.MD5").body[0].value            -> "<resolved>.MD5"
+          ast.parse("hashes.MD5").body[0].value            ->
+              "cryptography.hazmat.primitives.hashes.MD5"
         """
         parts: list[str] = []
         current: ast.expr | None = node
@@ -62,15 +64,16 @@ class ImportResolver(ast.NodeVisitor):
 
     def visit_Import(self, node: ast.Import) -> None:
         for alias in node.names:
-            local = alias.asname or alias.name.split(".", 1)[0]
-            qualified = alias.name if alias.asname else alias.name.split(".", 1)[0]
+            root = alias.name.split(".", 1)[0]
+            local = alias.asname or root
+            qualified = alias.name if alias.asname else root
             self._names[local] = qualified
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
         module = node.module or ""
         # Skip relative imports — we cannot resolve them to a project-
         # independent qualified name, and crypto libs are never relative.
-        if node.level and node.level > 0:
+        if node.level:
             return
         for alias in node.names:
             if alias.name == "*":
