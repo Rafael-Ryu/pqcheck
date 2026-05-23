@@ -1,4 +1,4 @@
-from pqcheck.detectors.algorithms import AlgorithmHit, lookup_python_symbol
+from pqcheck.detectors.algorithms import AlgorithmHit, lookup_cipher_mode, lookup_python_symbol
 from pqcheck.models import AlgorithmFamily
 
 
@@ -78,3 +78,19 @@ def test_unknown_symbol_returns_none() -> None:
     assert lookup_python_symbol("os.getcwd") is None
     assert lookup_python_symbol("") is None
     assert lookup_python_symbol("nothing.at.all") is None
+
+
+def test_lookup_cipher_mode_cryptography_gcm() -> None:
+    assert (
+        lookup_cipher_mode("cryptography.hazmat.primitives.ciphers.modes.GCM")
+        == "GCM"
+    )
+
+
+def test_lookup_cipher_mode_pycryptodome_mode_attr() -> None:
+    assert lookup_cipher_mode("Crypto.Cipher.AES.MODE_GCM") == "GCM"
+
+
+def test_lookup_cipher_mode_unknown_returns_none() -> None:
+    assert lookup_cipher_mode("nothing.relevant") is None
+    assert lookup_cipher_mode("") is None

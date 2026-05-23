@@ -48,6 +48,10 @@ _PYTHON_SYMBOLS: dict[str, AlgorithmHit] = {
     "cryptography.hazmat.primitives.hashes.SHA384": AlgorithmHit("SHA-384", _HASH),
     "cryptography.hazmat.primitives.hashes.SHA512": AlgorithmHit("SHA-512", _HASH),
     "cryptography.hazmat.primitives.hashes.SHA3_256": AlgorithmHit("SHA3-256", _HASH),
+    "cryptography.hazmat.primitives.hashes.SHA3_384": AlgorithmHit("SHA3-384", _HASH),
+    "cryptography.hazmat.primitives.hashes.SHA3_512": AlgorithmHit("SHA3-512", _HASH),
+    "cryptography.hazmat.primitives.hashes.BLAKE2b": AlgorithmHit("BLAKE2B", _HASH),
+    "cryptography.hazmat.primitives.hashes.BLAKE2s": AlgorithmHit("BLAKE2S", _HASH),
     # ---- cryptography asymmetric keygens ----
     "cryptography.hazmat.primitives.asymmetric.rsa.generate_private_key":
         AlgorithmHit("RSA", _ASYM),
@@ -116,10 +120,11 @@ _PYCRYPTODOME_MODE_ATTRS: dict[str, str] = {
 
 
 def lookup_python_symbol(qualified_name: str) -> AlgorithmHit | None:
-    if not qualified_name:
-        return None
     return _PYTHON_SYMBOLS.get(qualified_name)
 
 
 def lookup_cipher_mode(qualified_name: str) -> str | None:
-    return _CIPHER_MODES.get(qualified_name) or _PYCRYPTODOME_MODE_ATTRS.get(qualified_name)
+    result = _CIPHER_MODES.get(qualified_name)
+    if result is not None:
+        return result
+    return _PYCRYPTODOME_MODE_ATTRS.get(qualified_name)
