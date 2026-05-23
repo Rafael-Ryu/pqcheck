@@ -48,6 +48,7 @@ _QUANTUM_MAP: dict[str, QuantumRisk] = {
     "X448": QuantumRisk.VULNERABLE,
     "AES": QuantumRisk.SAFE,
     "CHACHA20": QuantumRisk.SAFE,
+    "SHA-224": QuantumRisk.SAFE,
     "SHA-256": QuantumRisk.SAFE,
     "SHA-384": QuantumRisk.SAFE,
     "SHA-512": QuantumRisk.SAFE,

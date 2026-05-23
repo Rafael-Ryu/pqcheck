@@ -142,7 +142,7 @@ class PythonDetector(ast.NodeVisitor):
                         hit.canonical,
                         hit.family,
                         confidence=1.0,
-                        key_size=self._extract_key_size(node),
+                        key_size=self._extract_key_size(node, qualified),
                         curve=self._extract_curve(node) if hit.canonical == "ECDSA" else None,
                     )
                     emitted = True
@@ -217,7 +217,7 @@ class PythonDetector(ast.NodeVisitor):
         return lookup_cipher_mode(qualified)
 
     @staticmethod
-    def _extract_key_size(node: ast.Call) -> int | None:
+    def _extract_key_size(node: ast.Call, qualified: str | None) -> int | None:
         for kw in node.keywords:
             if kw.arg == "key_size" and isinstance(kw.value, ast.Constant):
                 value = kw.value.value
@@ -225,9 +225,23 @@ class PythonDetector(ast.NodeVisitor):
                 # doesn't surface as key_size=1 in a security-sensitive field.
                 if type(value) is int:
                     return value
+        # pycryptodome takes the bit length as the first positional arg.
+        pycryptodome_keygens = {
+            "Crypto.PublicKey.RSA.generate",
+            "Crypto.PublicKey.DSA.generate",
+        }
+        if (
+            qualified in pycryptodome_keygens
+            and node.args
+            and isinstance(node.args[0], ast.Constant)
+        ):
+            value = node.args[0].value
+            if type(value) is int:
+                return value
         return None
 
-    def _extract_curve(self, node: ast.Call) -> str | None:
+    @staticmethod
+    def _extract_curve(node: ast.Call) -> str | None:
         # Positional first arg or keyword `curve=`. Expected: an instance
         # construction like `ec.SECP256R1()` whose callee's last segment
         # is the curve name.

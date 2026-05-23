@@ -94,3 +94,13 @@ def test_lookup_cipher_mode_pycryptodome_mode_attr() -> None:
 def test_lookup_cipher_mode_unknown_returns_none() -> None:
     assert lookup_cipher_mode("nothing.relevant") is None
     assert lookup_cipher_mode("") is None
+
+
+def test_pycryptodome_sha3_256_resolves() -> None:
+    hit = lookup_python_symbol("Crypto.Hash.SHA3_256.new")
+    assert hit == AlgorithmHit(canonical="SHA3-256", family=AlgorithmFamily.HASH)
+
+
+def test_pycryptodome_blake2b_resolves() -> None:
+    hit = lookup_python_symbol("Crypto.Hash.BLAKE2b.new")
+    assert hit == AlgorithmHit(canonical="BLAKE2B", family=AlgorithmFamily.HASH)

@@ -392,6 +392,51 @@ def test_key_size_kwarg_with_bool_emits_none() -> None:
     assert findings[0].key_size is None
 
 
+def test_pycryptodome_rsa_positional_key_size_extracted() -> None:
+    # pycryptodome uses positional `bits` instead of a key_size kwarg.
+    findings = _scan(
+        "from Crypto.PublicKey import RSA\nRSA.generate(2048)\n"
+    )
+    assert len(findings) == 1
+    assert findings[0].algorithm == "RSA"
+    assert findings[0].key_size == 2048
+
+
+def test_pycryptodome_dsa_positional_key_size_extracted() -> None:
+    findings = _scan(
+        "from Crypto.PublicKey import DSA\nDSA.generate(3072)\n"
+    )
+    assert len(findings) == 1
+    assert findings[0].algorithm == "DSA"
+    assert findings[0].key_size == 3072
+
+
+def test_pycryptodome_rsa_positional_bool_first_arg_emits_none() -> None:
+    # Same bool/int-subclass guard for the positional path.
+    findings = _scan(
+        "from Crypto.PublicKey import RSA\nRSA.generate(True)\n"
+    )
+    assert len(findings) == 1
+    assert findings[0].key_size is None
+
+
+def test_pycryptodome_rsa_positional_non_constant_emits_none() -> None:
+    findings = _scan(
+        "from Crypto.PublicKey import RSA\nRSA.generate(bits_var)\n"
+    )
+    assert len(findings) == 1
+    assert findings[0].key_size is None
+
+
+def test_sha224_quantum_risk_is_safe() -> None:
+    # SHA-224 is detected by the catalog; ensure it surfaces as SAFE,
+    # not UNKNOWN.
+    findings = _scan("import hashlib\nhashlib.sha224(b'x')\n")
+    assert len(findings) == 1
+    assert findings[0].algorithm == "SHA-224"
+    assert findings[0].quantum_risk is QuantumRisk.SAFE
+
+
 def test_ec_with_other_kwarg_but_no_curve_kwarg_returns_no_curve() -> None:
     # keywords present but none is `curve` — loop exits without break, candidate stays None.
     src = (
