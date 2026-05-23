@@ -187,11 +187,11 @@ def test_detector_demotes_confidence_for_hashlib_new_string() -> None:
     assert findings[0].confidence == 0.7
 
 
-def test_detector_skips_cipher_wrapper() -> None:
-    # The Cipher(...) wrapper resolves to CIPHER-WRAPPER in the catalog,
-    # but Task 5 unwraps the inner algorithm+mode and emits a single
-    # finding. The nested algorithms.AES(...) call is NOT also emitted —
-    # de-duplication is part of the unwrap contract.
+def test_cipher_wrapper_unwraps_to_single_finding() -> None:
+    # CIPHER-WRAPPER is a catalog marker, never a real finding canonical:
+    # the wrapper is unwrapped into one finding for the inner algorithm,
+    # and the nested algorithms.X() Call is suppressed so generic_visit
+    # cannot re-emit it as a flat finding.
     src = (
         "from cryptography.hazmat.primitives.ciphers import "
         "Cipher, algorithms, modes\n"
