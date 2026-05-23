@@ -30,5 +30,5 @@ def scan(target: str = typer.Argument(..., help="Path to scan.")) -> None:
     raise typer.Exit(code=64)  # EX_USAGE: subcommand stubbed pre-alpha
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     app()
