@@ -12,6 +12,10 @@ pydantic, which the project already uses for CryptoFinding.
 from __future__ import annotations
 
 import ast
+from pathlib import Path
+
+from pqcheck.detectors.algorithms import lookup_python_symbol
+from pqcheck.models import AlgorithmFamily, CryptoFinding, SourceLocation
 
 
 class ImportResolver(ast.NodeVisitor):
@@ -82,3 +86,103 @@ class ImportResolver(ast.NodeVisitor):
             local = alias.asname or alias.name
             qualified = f"{module}.{alias.name}" if module else alias.name
             self._names[local] = qualified
+
+
+_DETECTOR_ID = "python-ast"
+
+# Lower-cased argument values accepted by hashlib.new("...") that map
+# directly to canonical algorithm names. Confidence is demoted because
+# the string argument could be runtime-computed (we only see literals).
+_HASHLIB_NEW_NAMES: dict[str, tuple[str, AlgorithmFamily]] = {
+    "md5": ("MD5", AlgorithmFamily.HASH),
+    "sha1": ("SHA-1", AlgorithmFamily.HASH),
+    "sha224": ("SHA-224", AlgorithmFamily.HASH),
+    "sha256": ("SHA-256", AlgorithmFamily.HASH),
+    "sha384": ("SHA-384", AlgorithmFamily.HASH),
+    "sha512": ("SHA-512", AlgorithmFamily.HASH),
+    "sha3_256": ("SHA3-256", AlgorithmFamily.HASH),
+    "sha3_384": ("SHA3-384", AlgorithmFamily.HASH),
+    "sha3_512": ("SHA3-512", AlgorithmFamily.HASH),
+    "blake2b": ("BLAKE2B", AlgorithmFamily.HASH),
+    "blake2s": ("BLAKE2S", AlgorithmFamily.HASH),
+}
+
+
+class PythonDetector(ast.NodeVisitor):
+    """Second pass: emit CryptoFinding per detected primitive use."""
+
+    def __init__(self, source_path: Path, source: str) -> None:
+        self._path = source_path
+        self._source_lines = source.splitlines()
+        self._imports = ImportResolver()
+        self.findings: list[CryptoFinding] = []
+
+    def visit(self, node: ast.AST) -> None:
+        # Pass 1: collect imports before walking calls.
+        if isinstance(node, ast.Module):
+            self._imports.visit(node)
+        super().visit(node)
+
+    def visit_Call(self, node: ast.Call) -> None:
+        qualified = self._imports.resolve_attribute(node.func)
+        if qualified is not None:
+            hit = lookup_python_symbol(qualified)
+            if hit is not None and hit.canonical != "CIPHER-WRAPPER":
+                self._emit(node, hit.canonical, hit.family, confidence=1.0)
+        # hashlib.new("md5") — string-based dispatch, demoted confidence.
+        if qualified == "hashlib.new":
+            self._emit_hashlib_new(node)
+        self.generic_visit(node)
+
+    def _emit_hashlib_new(self, node: ast.Call) -> None:
+        if not node.args:
+            return
+        first = node.args[0]
+        if not isinstance(first, ast.Constant) or not isinstance(first.value, str):
+            return
+        key = first.value.lower()
+        mapping = _HASHLIB_NEW_NAMES.get(key)
+        if mapping is None:
+            return
+        canonical, family = mapping
+        self._emit(node, canonical, family, confidence=0.7)
+
+    def _emit(
+        self,
+        node: ast.Call,
+        canonical: str,
+        family: AlgorithmFamily,
+        *,
+        confidence: float,
+        key_size: int | None = None,
+        curve: str | None = None,
+        mode: str | None = None,
+        padding: str | None = None,
+    ) -> None:
+        location = SourceLocation(
+            path=self._path,
+            line=node.lineno,
+            column=node.col_offset,
+            end_line=node.end_lineno,
+            end_column=node.end_col_offset,
+        )
+        self.findings.append(
+            CryptoFinding(
+                algorithm=canonical,
+                family=family,
+                key_size=key_size,
+                curve=curve,
+                mode=mode,
+                padding=padding,
+                location=location,
+                evidence=self._evidence(node),
+                detector_id=_DETECTOR_ID,
+                confidence=confidence,
+            )
+        )
+
+    def _evidence(self, node: ast.Call) -> str:
+        line_idx = node.lineno - 1
+        if 0 <= line_idx < len(self._source_lines):
+            return self._source_lines[line_idx].strip()
+        return ""  # pragma: no cover - empty file has no Call nodes to visit
