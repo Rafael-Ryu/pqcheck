@@ -1,0 +1,141 @@
+[project]
+name = "pqcheck"
+version = "0.0.1"
+description = "Post-quantum cryptography risk scanner for source code and dependency graphs."
+readme = "README.md"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [
+    { name = "CryptoCT Founders" },
+]
+keywords = [
+    "post-quantum",
+    "cryptography",
+    "pqc",
+    "sbom",
+    "cbom",
+    "sarif",
+    "security",
+    "supply-chain",
+    "lgpd",
+    "anpd",
+]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Security :: Cryptography",
+    "Topic :: Software Development :: Quality Assurance",
+    "Typing :: Typed",
+]
+# Pins below use compatible ranges (>=, <NEXT-MAJOR) rather than the strict
+# MAJOR.MINOR.* form in the original plan. Rationale: ecosystem moved past
+# several plan-era pins (sigstore 3.5 only ships pre-releases; pydantic 2.9
+# blocks sigstore 4.x). Exact reproducibility comes from uv.lock once the
+# lockfile is committed. Strict supply-chain discipline applies at the lock
+# layer, not at the abstract dependency layer.
+dependencies = [
+    "typer>=0.15,<1",
+    "rich>=13.9,<15",
+    "pydantic>=2.11,<3",
+    "pydantic-settings>=2.6,<3",
+    "tree-sitter>=0.23,<0.26",
+    "tree-sitter-java>=0.23,<0.26",
+    "tree-sitter-go>=0.23,<0.26",
+    "cyclonedx-python-lib>=8.5,<11",
+    "jsonschema>=4.23,<5",
+    "packageurl-python>=0.16,<1",
+    "lxml>=5.3,<7",
+    "PyYAML>=6.0,<7",
+    "pathspec>=0.12,<1",
+]
+
+[project.optional-dependencies]
+# sigstore 4.x dropped betterproto pre-release dep that blocked 3.5.x resolution.
+sigstore = ["sigstore>=4,<5"]
+# v0.1 ships NO oqs-python / liboqs in any production path.
+# verify-release uses Sigstore keyless (Fulcio ECDSA) only.
+# Native ML-DSA / ML-KEM verification deferred to v0.3+ via CIRCL-Go broker.
+dev = [
+    "pytest>=8.3,<9",
+    "pytest-cov>=6.0,<8",
+    "pytest-xdist>=3.6,<4",
+    "hypothesis>=6.115,<7",
+    "syrupy>=4.7,<5",
+    "ruff>=0.7,<1",
+    "mypy>=1.13,<2",
+    "types-lxml",
+    "types-PyYAML",
+]
+
+[project.urls]
+Homepage = "https://github.com/cryptoct/pqcheck"
+Repository = "https://github.com/cryptoct/pqcheck"
+Issues = "https://github.com/cryptoct/pqcheck/issues"
+"Meta-repository" = "https://github.com/cryptoct/cryptoct"
+"Security policy" = "https://github.com/cryptoct/pqcheck/blob/main/SECURITY.md"
+
+[project.scripts]
+pqcheck = "pqcheck.cli:app"
+
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pqcheck"]
+include = [
+    "src/pqcheck/schemas/*",
+    "src/pqcheck/grammars/*",
+    "src/pqcheck/bin/*/*",
+]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/",
+    "tests/",
+    "tools/",
+    "scripts/",
+    "README.md",
+    "LICENSE",
+    "SECURITY.md",
+    "CHANGELOG.md",
+    "pyproject.toml",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF", "S", "PL", "PTH"]
+ignore = ["S101", "PLR0913"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S", "PLR2004"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["src/pqcheck"]
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict-markers --cov=pqcheck --cov-fail-under=85"
+testpaths = ["tests"]
+markers = [
+    "integration: integration tests (deselect with '-m \"not integration\"')",
+    "corpus: precision corpus benchmark tests",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["pqcheck"]
+omit = ["src/pqcheck/grammars/*", "src/pqcheck/bin/*"]
