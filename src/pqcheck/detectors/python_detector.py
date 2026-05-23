@@ -28,11 +28,17 @@ class ImportResolver(ast.NodeVisitor):
     Star imports are recorded but not expanded — there is no way to know
     which names a `from X import *` binds without importing X. Files
     using star imports for crypto modules are flagged via has_star_import.
+
+    Bindings inside `def`/`class` blocks are still recorded (the visitor
+    has no per-scope name table) but are tagged `scoped` so PythonDetector
+    can demote confidence when the call site is at file level.
     """
 
     def __init__(self) -> None:
         self._names: dict[str, str] = {}
         self._star_imports: set[str] = set()
+        self._scoped_names: set[str] = set()
+        self._scope_depth = 0
 
     # ---- public API used by PythonDetector and tests ----
 
@@ -47,6 +53,9 @@ class ImportResolver(ast.NodeVisitor):
 
     def iter_star_imports(self) -> list[str]:
         return list(self._star_imports)
+
+    def is_scoped_binding(self, local: str) -> bool:
+        return local in self._scoped_names
 
     def resolve_attribute(self, node: ast.expr) -> str | None:
         """Resolve a Name or Attribute chain to its fully-qualified name.
@@ -73,12 +82,30 @@ class ImportResolver(ast.NodeVisitor):
 
     # ---- ast.NodeVisitor hooks ----
 
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        self._enter_scope(node)
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+        self._enter_scope(node)
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> None:
+        self._enter_scope(node)
+
+    def _enter_scope(self, node: ast.AST) -> None:
+        self._scope_depth += 1
+        try:
+            self.generic_visit(node)
+        finally:
+            self._scope_depth -= 1
+
     def visit_Import(self, node: ast.Import) -> None:
         for alias in node.names:
             root = alias.name.split(".", 1)[0]
             local = alias.asname or root
             qualified = alias.name if alias.asname else root
             self._names[local] = qualified
+            if self._scope_depth > 0:
+                self._scoped_names.add(local)
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
         module = node.module or ""
@@ -93,6 +120,8 @@ class ImportResolver(ast.NodeVisitor):
             local = alias.asname or alias.name
             qualified = f"{module}.{alias.name}" if module else alias.name
             self._names[local] = qualified
+            if self._scope_depth > 0:
+                self._scoped_names.add(local)
 
 
 _DETECTOR_ID = "python-ast"
@@ -124,12 +153,34 @@ class PythonDetector(ast.NodeVisitor):
         self._imports = ImportResolver()
         self.findings: list[CryptoFinding] = []
         self._suppressed_call_ids: set[int] = set()
+        self._scope_depth = 0
 
     def visit(self, node: ast.AST) -> None:
         # Pass 1: collect imports before walking calls.
         if isinstance(node, ast.Module):
             self._imports.visit(node)
         super().visit(node)
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        self._scope_depth += 1
+        try:
+            self.generic_visit(node)
+        finally:
+            self._scope_depth -= 1
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+        self._scope_depth += 1
+        try:
+            self.generic_visit(node)
+        finally:
+            self._scope_depth -= 1
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> None:
+        self._scope_depth += 1
+        try:
+            self.generic_visit(node)
+        finally:
+            self._scope_depth -= 1
 
     def visit_Call(self, node: ast.Call) -> None:
         if id(node) in self._suppressed_call_ids:
@@ -148,7 +199,7 @@ class PythonDetector(ast.NodeVisitor):
                         node,
                         hit.canonical,
                         hit.family,
-                        confidence=1.0,
+                        confidence=self._scope_adjusted_confidence(node, 1.0),
                         key_size=self._extract_key_size(node, qualified),
                         curve=self._extract_curve(node) if hit.canonical == "ECDSA" else None,
                         mode=self._extract_pycrypto_mode(node, qualified),
@@ -181,6 +232,30 @@ class PythonDetector(ast.NodeVisitor):
                 continue
             self._emit(node, hit.canonical, hit.family, confidence=0.7)
             return
+
+    def _scope_adjusted_confidence(self, node: ast.Call, base: float) -> float:
+        """Demote `base` when the binding was imported inside a function or
+        class but the call site is at file level. We only flag the
+        scope-mismatch direction (binding scoped, call at module top): the
+        opposite case is the common idiom (`import hashlib` at file level,
+        used inside functions) and must stay at full confidence.
+        """
+        if self._scope_depth > 0:
+            return base
+        base_name = self._base_name(node.func)
+        if base_name is not None and self._imports.is_scoped_binding(base_name):
+            return min(base, 0.7)
+        return base
+
+    @staticmethod
+    def _base_name(expr: ast.expr) -> str | None:
+        current: ast.expr = expr
+        while isinstance(current, ast.Attribute):
+            current = current.value
+        if isinstance(current, ast.Name):
+            return current.id
+        # Subscripted/dynamic callees short-circuit earlier in visit_Call.
+        return None  # pragma: no cover
 
     def _emit_hashlib_new(self, node: ast.Call) -> None:
         if not node.args:
