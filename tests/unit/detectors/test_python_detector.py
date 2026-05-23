@@ -162,6 +162,87 @@ def test_detector_finds_pycryptodome_aes() -> None:
     assert len(findings) == 1
     assert findings[0].algorithm == "AES"
     assert findings[0].family is AlgorithmFamily.SYMMETRIC_CIPHER
+    assert findings[0].mode == "GCM"
+
+
+def test_detector_finds_pycryptodome_aes_ecb_mode() -> None:
+    src = (
+        "from Crypto.Cipher import AES\n"
+        "AES.new(b'k' * 16, AES.MODE_ECB)\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "AES"
+    assert findings[0].mode == "ECB"
+
+
+def test_detector_finds_pycryptodome_des_ecb_mode() -> None:
+    src = (
+        "from Crypto.Cipher import DES\n"
+        "DES.new(b'k' * 8, DES.MODE_ECB)\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "DES"
+    assert findings[0].mode == "ECB"
+
+
+def test_detector_finds_pycryptodome_des3_cbc_mode() -> None:
+    src = (
+        "from Crypto.Cipher import DES3\n"
+        "DES3.new(b'k' * 24, DES3.MODE_CBC, iv=b'i' * 8)\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "3DES"
+    assert findings[0].mode == "CBC"
+
+
+def test_detector_pycryptodome_mode_as_kwarg() -> None:
+    src = (
+        "from Crypto.Cipher import AES\n"
+        "AES.new(b'k' * 16, mode=AES.MODE_GCM, nonce=b'n' * 12)\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].mode == "GCM"
+
+
+def test_detector_pycryptodome_unresolvable_mode_emits_none() -> None:
+    # Mode arg is an Attribute but the base name is not in the import map
+    # (e.g. used via a dynamic reference), so the qualified lookup fails.
+    src = (
+        "from Crypto.Cipher import AES\n"
+        "AES.new(b'k' * 16, some_module.MODE_ECB)\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "AES"
+    assert findings[0].mode is None
+
+
+def test_detector_pycryptodome_non_attribute_mode_emits_none() -> None:
+    # Mode arg is a Name (variable), not an Attribute — no qualified lookup
+    # possible, so mode is None.
+    src = (
+        "from Crypto.Cipher import AES\n"
+        "AES.new(b'k' * 16, some_mode)\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].mode is None
+
+
+def test_detector_pycryptodome_no_mode_arg_emits_none() -> None:
+    # Single-arg call (stream cipher pattern) — no mode to extract.
+    src = (
+        "from Crypto.Cipher import ChaCha20\n"
+        "ChaCha20.new(b'k' * 32)\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "CHACHA20"
+    assert findings[0].mode is None
 
 
 def test_detector_ignores_unknown_calls() -> None:
