@@ -18,7 +18,13 @@ import stat
 import tokenize
 from pathlib import Path
 
-from pqcheck.detectors.algorithms import AlgorithmHit, lookup_cipher_mode, lookup_python_symbol
+from pqcheck.detectors.algorithms import (
+    AlgorithmHit,
+    lookup_aead_mode,
+    lookup_cipher_mode,
+    lookup_python_symbol,
+    lookup_rsa_padding,
+)
 from pqcheck.models import AlgorithmFamily, CryptoFinding, SourceLocation
 
 
@@ -202,7 +208,11 @@ class PythonDetector(ast.NodeVisitor):
                         confidence=self._scope_adjusted_confidence(node, 1.0),
                         key_size=self._extract_key_size(node, qualified),
                         curve=self._extract_curve(node) if hit.canonical == "ECDSA" else None,
-                        mode=self._extract_pycrypto_mode(node, qualified),
+                        mode=(
+                            lookup_aead_mode(qualified)
+                            if hit.family is AlgorithmFamily.AEAD
+                            else self._extract_pycrypto_mode(node, qualified)
+                        ),
                     )
                     emitted = True
         # hashlib.new("md5") — string-based dispatch. Only runs when the
@@ -211,6 +221,12 @@ class PythonDetector(ast.NodeVisitor):
         if not emitted and qualified == "hashlib.new":
             self._emit_hashlib_new(node)
             emitted = True
+        # RSA padding constructors (cryptography.…asymmetric.padding.{OAEP,
+        # PSS, PKCS1v15}) emit an RSA finding with `padding` set. The
+        # family follows the padding role — PSS is signature, the others
+        # are encryption.
+        if not emitted and qualified is not None:
+            emitted = self._emit_rsa_padding(node, qualified)
         # Star-import fallback: `from <module> import *; MD5()` — the
         # callee is an ast.Name with no resolved binding, but a star
         # import in scope makes a catalog match plausible. Confidence is
@@ -219,6 +235,16 @@ class PythonDetector(ast.NodeVisitor):
         if not emitted and qualified is None and isinstance(node.func, ast.Name):
             self._emit_via_star_import(node, node.func.id)
         self.generic_visit(node)
+
+    def _emit_rsa_padding(self, node: ast.Call, qualified: str) -> bool:
+        result = lookup_rsa_padding(qualified)
+        if result is None:
+            return False
+        padding_name, family = result
+        self._emit(
+            node, "RSA", family, confidence=1.0, padding=padding_name,
+        )
+        return True
 
     def _emit_via_star_import(self, node: ast.Call, short_name: str) -> None:
         """Emit if `short_name` matches a catalog entry under any module

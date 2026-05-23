@@ -60,6 +60,16 @@ def test_quantum_risk_resolved_from_algorithm_name() -> None:
     assert unknown.quantum_risk is QuantumRisk.UNKNOWN
 
 
+def test_new_safe_primitives_resolve_to_safe() -> None:
+    loc = SourceLocation(path=Path("a.py"), line=1, column=0)
+    for algo in ("CHACHA20-POLY1305", "PBKDF2", "SCRYPT", "HKDF"):
+        f = CryptoFinding(
+            algorithm=algo, family=AlgorithmFamily.HASH, location=loc,
+            evidence="x", detector_id="python-ast",
+        )
+        assert f.quantum_risk is QuantumRisk.SAFE, algo
+
+
 def test_confidence_bounded_0_to_1() -> None:
     loc = SourceLocation(path=Path("a.py"), line=1, column=0)
     with pytest.raises(ValidationError):

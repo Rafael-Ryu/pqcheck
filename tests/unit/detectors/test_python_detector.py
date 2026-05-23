@@ -836,3 +836,126 @@ def test_function_scoped_from_import_demotes_file_level_call() -> None:
     by_line = {f.location.line: f for f in findings}
     assert by_line[3].confidence == 1.0
     assert by_line[5].confidence == 0.7
+
+
+def test_detector_finds_hmac() -> None:
+    src = (
+        "from cryptography.hazmat.primitives import hmac, hashes\n"
+        "hmac.HMAC(b'k', hashes.SHA256())\n"
+    )
+    findings = _scan(src)
+    by_algo = {f.algorithm for f in findings}
+    assert "HMAC" in by_algo
+    hmac_f = next(f for f in findings if f.algorithm == "HMAC")
+    assert hmac_f.family is AlgorithmFamily.MAC
+    # HMAC is rated by its inner hash; the standalone primitive lands as
+    # UNKNOWN until the policy engine inspects inner hash findings.
+    assert hmac_f.quantum_risk is QuantumRisk.UNKNOWN
+
+
+def test_detector_finds_pbkdf2() -> None:
+    src = (
+        "from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC\n"
+        "PBKDF2HMAC(algorithm=None, length=32, salt=b's', iterations=1)\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "PBKDF2"
+    assert findings[0].family is AlgorithmFamily.KDF
+    assert findings[0].quantum_risk is QuantumRisk.SAFE
+
+
+def test_detector_finds_scrypt() -> None:
+    src = (
+        "from cryptography.hazmat.primitives.kdf.scrypt import Scrypt\n"
+        "Scrypt(salt=b's', length=32, n=16384, r=8, p=1)\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "SCRYPT"
+    assert findings[0].family is AlgorithmFamily.KDF
+
+
+def test_detector_finds_hkdf() -> None:
+    src = (
+        "from cryptography.hazmat.primitives.kdf.hkdf import HKDF\n"
+        "HKDF(algorithm=None, length=32, salt=b's', info=b'i')\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "HKDF"
+    assert findings[0].family is AlgorithmFamily.KDF
+
+
+def test_detector_finds_chacha20poly1305() -> None:
+    src = (
+        "from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305\n"
+        "ChaCha20Poly1305(b'k' * 32)\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "CHACHA20-POLY1305"
+    assert findings[0].family is AlgorithmFamily.AEAD
+    assert findings[0].quantum_risk is QuantumRisk.SAFE
+
+
+def test_detector_finds_aesgcm_aead_with_mode() -> None:
+    src = (
+        "from cryptography.hazmat.primitives.ciphers.aead import AESGCM\n"
+        "AESGCM(b'k' * 32)\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "AES"
+    assert findings[0].family is AlgorithmFamily.AEAD
+    assert findings[0].mode == "GCM"
+
+
+def test_detector_finds_aesccm_aead_with_mode() -> None:
+    src = (
+        "from cryptography.hazmat.primitives.ciphers.aead import AESCCM\n"
+        "AESCCM(b'k' * 32)\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "AES"
+    assert findings[0].mode == "CCM"
+
+
+def test_detector_emits_rsa_with_oaep_padding() -> None:
+    # Calling padding.OAEP(...) is a strong signal of RSA-OAEP usage.
+    src = (
+        "from cryptography.hazmat.primitives.asymmetric import padding\n"
+        "from cryptography.hazmat.primitives import hashes\n"
+        "padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()),"
+        " algorithm=hashes.SHA256(), label=None)\n"
+    )
+    findings = _scan(src)
+    oaep_findings = [
+        f for f in findings if f.algorithm == "RSA" and f.padding == "OAEP"
+    ]
+    assert len(oaep_findings) == 1
+    assert oaep_findings[0].family is AlgorithmFamily.ASYMMETRIC_ENCRYPTION
+
+
+def test_detector_emits_rsa_with_pss_padding_as_signature() -> None:
+    src = (
+        "from cryptography.hazmat.primitives.asymmetric import padding\n"
+        "padding.PSS(mgf=None, salt_length=32)\n"
+    )
+    findings = _scan(src)
+    pss = [f for f in findings if f.algorithm == "RSA" and f.padding == "PSS"]
+    assert len(pss) == 1
+    assert pss[0].family is AlgorithmFamily.SIGNATURE
+
+
+def test_detector_emits_rsa_with_pkcs1v15_padding() -> None:
+    src = (
+        "from cryptography.hazmat.primitives.asymmetric import padding\n"
+        "padding.PKCS1v15()\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "RSA"
+    assert findings[0].padding == "PKCS1v15"
+    assert findings[0].family is AlgorithmFamily.ASYMMETRIC_ENCRYPTION

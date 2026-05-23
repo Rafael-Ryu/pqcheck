@@ -23,6 +23,9 @@ _ASYM = AlgorithmFamily.ASYMMETRIC_ENCRYPTION
 _SIG = AlgorithmFamily.SIGNATURE
 _KA = AlgorithmFamily.KEY_AGREEMENT
 _SYM = AlgorithmFamily.SYMMETRIC_CIPHER
+_MAC = AlgorithmFamily.MAC
+_KDF = AlgorithmFamily.KDF
+_AEAD = AlgorithmFamily.AEAD
 
 
 # Fully-qualified callee name → AlgorithmHit.
@@ -97,6 +100,20 @@ _PYTHON_SYMBOLS: dict[str, AlgorithmHit] = {
     "Crypto.PublicKey.RSA.generate": AlgorithmHit("RSA", _ASYM),
     "Crypto.PublicKey.DSA.generate": AlgorithmHit("DSA", _SIG),
     "Crypto.PublicKey.ECC.generate": AlgorithmHit("ECDSA", _SIG),
+    # ---- HMAC / KDFs (cryptography) ----
+    "cryptography.hazmat.primitives.hmac.HMAC": AlgorithmHit("HMAC", _MAC),
+    "cryptography.hazmat.primitives.kdf.pbkdf2.PBKDF2HMAC": AlgorithmHit("PBKDF2", _KDF),
+    "cryptography.hazmat.primitives.kdf.scrypt.Scrypt": AlgorithmHit("SCRYPT", _KDF),
+    "cryptography.hazmat.primitives.kdf.hkdf.HKDF": AlgorithmHit("HKDF", _KDF),
+    # ---- AEAD (cryptography) ----
+    # AESGCM / AESCCM use the canonical "AES" with family=AEAD; the mode
+    # comes from _AEAD_MODES below. ChaCha20Poly1305 is its own primitive
+    # (algorithm + auth tag) and keeps a distinct canonical name.
+    "cryptography.hazmat.primitives.ciphers.aead.AESGCM": AlgorithmHit("AES", _AEAD),
+    "cryptography.hazmat.primitives.ciphers.aead.AESCCM": AlgorithmHit("AES", _AEAD),
+    "cryptography.hazmat.primitives.ciphers.aead.ChaCha20Poly1305": AlgorithmHit(
+        "CHACHA20-POLY1305", _AEAD
+    ),
 }
 
 
@@ -138,6 +155,26 @@ _PYCRYPTODOME_MODE_ATTRS: dict[str, str] = {
 }
 
 
+# cryptography AEAD class → mode name. The class itself names the mode,
+# no extraction from arguments needed.
+_AEAD_MODES: dict[str, str] = {
+    "cryptography.hazmat.primitives.ciphers.aead.AESGCM": "GCM",
+    "cryptography.hazmat.primitives.ciphers.aead.AESCCM": "CCM",
+}
+
+
+# cryptography RSA padding class → (padding name, family). Detected at
+# Call sites for `padding.OAEP(...)`, `padding.PSS(...)`, and
+# `padding.PKCS1v15()`; the detector emits an RSA finding with `padding`
+# populated. OAEP and PKCS1v15 sit in ASYMMETRIC_ENCRYPTION (encrypt/
+# decrypt); PSS is signature-only.
+_RSA_PADDINGS: dict[str, tuple[str, AlgorithmFamily]] = {
+    "cryptography.hazmat.primitives.asymmetric.padding.OAEP": ("OAEP", _ASYM),
+    "cryptography.hazmat.primitives.asymmetric.padding.PSS": ("PSS", _SIG),
+    "cryptography.hazmat.primitives.asymmetric.padding.PKCS1v15": ("PKCS1v15", _ASYM),
+}
+
+
 def lookup_python_symbol(qualified_name: str) -> AlgorithmHit | None:
     return _PYTHON_SYMBOLS.get(qualified_name)
 
@@ -147,3 +184,11 @@ def lookup_cipher_mode(qualified_name: str) -> str | None:
     if result is not None:
         return result
     return _PYCRYPTODOME_MODE_ATTRS.get(qualified_name)
+
+
+def lookup_aead_mode(qualified_name: str) -> str | None:
+    return _AEAD_MODES.get(qualified_name)
+
+
+def lookup_rsa_padding(qualified_name: str) -> tuple[str, AlgorithmFamily] | None:
+    return _RSA_PADDINGS.get(qualified_name)
