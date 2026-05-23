@@ -381,6 +381,17 @@ def test_key_size_kwarg_with_non_int_constant_emits_none() -> None:
     assert findings[0].key_size is None
 
 
+def test_key_size_kwarg_with_bool_emits_none() -> None:
+    # bool is an int subclass; the extractor must not surface key_size=1 for True.
+    src = (
+        "from cryptography.hazmat.primitives.asymmetric import rsa\n"
+        "rsa.generate_private_key(public_exponent=65537, key_size=True)\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].key_size is None
+
+
 def test_ec_with_other_kwarg_but_no_curve_kwarg_returns_no_curve() -> None:
     # keywords present but none is `curve` — loop exits without break, candidate stays None.
     src = (

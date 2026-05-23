@@ -221,7 +221,9 @@ class PythonDetector(ast.NodeVisitor):
         for kw in node.keywords:
             if kw.arg == "key_size" and isinstance(kw.value, ast.Constant):
                 value = kw.value.value
-                if isinstance(value, int):
+                # bool is an int subclass — exclude it explicitly so key_size=True
+                # doesn't surface as key_size=1 in a security-sensitive field.
+                if type(value) is int:
                     return value
         return None
 
