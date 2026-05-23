@@ -315,7 +315,7 @@ def detect_python_file(path: Path) -> list[CryptoFinding]:
             break
         except UnicodeDecodeError:
             continue
-    if source is None:  # pragma: no cover - latin-1 is total over all byte sequences
+    if source is None:  # pragma: no cover - latin-1 (last fallback) is total over bytes
         return []
     try:
         tree = ast.parse(source, filename=str(path))

@@ -450,11 +450,11 @@ def test_detect_python_file_latin1_fallback(tmp_path: Path) -> None:
     assert findings[0].algorithm == "MD5"
 
 
-def test_detect_python_file_undecodable_returns_empty(tmp_path: Path) -> None:
+def test_detect_python_file_binary_content_returns_empty(tmp_path: Path) -> None:
     f = tmp_path / "x.py"
-    # Random bytes that decode in latin-1 but produce invalid Python.
+    # Binary bytes decode in latin-1 but the resulting text is unparseable;
+    # the SyntaxError guard — not the encoding fallback — is what fires.
     f.write_bytes(b"\xff\xfe\xfd not python at all \x00\x01\x02")
-    # latin-1 decodes fine; ast.parse raises SyntaxError → empty.
     assert detect_python_file(f) == []
 
 
