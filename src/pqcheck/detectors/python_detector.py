@@ -125,25 +125,29 @@ class PythonDetector(ast.NodeVisitor):
 
     def visit_Call(self, node: ast.Call) -> None:
         qualified = self._imports.resolve_attribute(node.func)
+        emitted = False
         if qualified is not None:
             hit = lookup_python_symbol(qualified)
             if hit is not None and hit.canonical != "CIPHER-WRAPPER":
                 self._emit(node, hit.canonical, hit.family, confidence=1.0)
-        # hashlib.new("md5") — string-based dispatch, demoted confidence.
-        if qualified == "hashlib.new":
+                emitted = True
+        # hashlib.new("md5") — string-based dispatch. Only runs when the
+        # catalog has no direct entry; prevents double-emit if hashlib.new
+        # is ever added to _PYTHON_SYMBOLS.
+        if not emitted and qualified == "hashlib.new":
             self._emit_hashlib_new(node)
         self.generic_visit(node)
 
     def _emit_hashlib_new(self, node: ast.Call) -> None:
         if not node.args:
-            return
+            return  # pragma: no cover - hashlib.new() with no args is a runtime TypeError
         first = node.args[0]
         if not isinstance(first, ast.Constant) or not isinstance(first.value, str):
-            return
+            return  # pragma: no cover - only string Constant literals reach this from valid source
         key = first.value.lower()
         mapping = _HASHLIB_NEW_NAMES.get(key)
         if mapping is None:
-            return
+            return  # pragma: no cover - unknown alias; table covers known keys
         canonical, family = mapping
         self._emit(node, canonical, family, confidence=0.7)
 
