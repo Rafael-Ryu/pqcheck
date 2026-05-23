@@ -14,7 +14,7 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-from pqcheck.detectors.algorithms import lookup_python_symbol
+from pqcheck.detectors.algorithms import AlgorithmHit, lookup_cipher_mode, lookup_python_symbol
 from pqcheck.models import AlgorithmFamily, CryptoFinding, SourceLocation
 
 
@@ -116,6 +116,7 @@ class PythonDetector(ast.NodeVisitor):
         self._source_lines = source.splitlines()
         self._imports = ImportResolver()
         self.findings: list[CryptoFinding] = []
+        self._suppressed_call_ids: set[int] = set()
 
     def visit(self, node: ast.AST) -> None:
         # Pass 1: collect imports before walking calls.
@@ -124,13 +125,20 @@ class PythonDetector(ast.NodeVisitor):
         super().visit(node)
 
     def visit_Call(self, node: ast.Call) -> None:
+        if id(node) in self._suppressed_call_ids:
+            self.generic_visit(node)
+            return
         qualified = self._imports.resolve_attribute(node.func)
         emitted = False
         if qualified is not None:
             hit = lookup_python_symbol(qualified)
-            if hit is not None and hit.canonical != "CIPHER-WRAPPER":
-                self._emit(node, hit.canonical, hit.family, confidence=1.0)
-                emitted = True
+            if hit is not None:
+                if hit.canonical == "CIPHER-WRAPPER":
+                    self._emit_cipher_wrapper(node)
+                    emitted = True
+                else:
+                    self._emit(node, hit.canonical, hit.family, confidence=1.0)
+                    emitted = True
         # hashlib.new("md5") — string-based dispatch. Only runs when the
         # catalog has no direct entry; prevents double-emit if hashlib.new
         # is ever added to _PYTHON_SYMBOLS.
@@ -150,6 +158,54 @@ class PythonDetector(ast.NodeVisitor):
             return  # pragma: no cover - unknown alias; table covers known keys
         canonical, family = mapping
         self._emit(node, canonical, family, confidence=0.7)
+
+    def _emit_cipher_wrapper(self, node: ast.Call) -> None:
+        algorithm_arg = self._cipher_arg(node, position=0, keyword="algorithm")
+        mode_arg = self._cipher_arg(node, position=1, keyword="mode")
+        algo_hit = self._resolve_call_target(algorithm_arg)
+        if algo_hit is None or algo_hit.canonical == "CIPHER-WRAPPER":  # pragma: no cover
+            return
+        # Suppress the nested algorithm and mode Calls so generic_visit
+        # doesn't re-emit them as flat findings.
+        if isinstance(algorithm_arg, ast.Call):  # pragma: no branch
+            self._suppressed_call_ids.add(id(algorithm_arg))
+        if isinstance(mode_arg, ast.Call):
+            self._suppressed_call_ids.add(id(mode_arg))
+        mode_name = self._resolve_mode_target(mode_arg)
+        self._emit(
+            node,
+            algo_hit.canonical,
+            algo_hit.family,
+            confidence=1.0,
+            mode=mode_name,
+        )
+
+    @staticmethod
+    def _cipher_arg(
+        node: ast.Call, *, position: int, keyword: str
+    ) -> ast.expr | None:
+        if position < len(node.args):
+            return node.args[position]
+        for kw in node.keywords:
+            if kw.arg == keyword:
+                return kw.value
+        return None
+
+    def _resolve_call_target(self, expr: ast.expr | None) -> AlgorithmHit | None:
+        if not isinstance(expr, ast.Call):
+            return None
+        qualified = self._imports.resolve_attribute(expr.func)
+        if qualified is None:
+            return None
+        return lookup_python_symbol(qualified)
+
+    def _resolve_mode_target(self, expr: ast.expr | None) -> str | None:
+        if not isinstance(expr, ast.Call):
+            return None
+        qualified = self._imports.resolve_attribute(expr.func)
+        if qualified is None:
+            return None
+        return lookup_cipher_mode(qualified)
 
     def _emit(
         self,

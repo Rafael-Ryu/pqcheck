@@ -188,17 +188,112 @@ def test_detector_demotes_confidence_for_hashlib_new_string() -> None:
 
 
 def test_detector_skips_cipher_wrapper() -> None:
-    # Cipher wrapper is recognized in the catalog as "CIPHER-WRAPPER" but
-    # Task 4 deliberately does NOT emit it — Task 5 handles the nested
-    # algorithm/mode extraction. This test pins that contract.
+    # The Cipher(...) wrapper resolves to CIPHER-WRAPPER in the catalog,
+    # but Task 5 unwraps the inner algorithm+mode and emits a single
+    # finding. The nested algorithms.AES(...) call is NOT also emitted —
+    # de-duplication is part of the unwrap contract.
     src = (
         "from cryptography.hazmat.primitives.ciphers import "
         "Cipher, algorithms, modes\n"
         "Cipher(algorithms.AES(b'k' * 32), modes.GCM(b'i' * 12))\n"
     )
     findings = _scan(src)
-    # algorithms.AES(...) is itself a Call resolving to AES — it WILL be
-    # emitted as a flat call finding in Task 4. modes.GCM(...) similarly.
-    # We assert no CIPHER-WRAPPER finding shows up, regardless of how
-    # many flat findings the inner calls generate.
+    assert len(findings) == 1
+    assert findings[0].algorithm == "AES"
     assert all(f.algorithm != "CIPHER-WRAPPER" for f in findings)
+
+
+def test_detector_finds_aes_gcm_cipher() -> None:
+    src = (
+        "from cryptography.hazmat.primitives.ciphers import "
+        "Cipher, algorithms, modes\n"
+        "Cipher(algorithms.AES(b'\\x00' * 32), modes.GCM(b'\\x00' * 12))\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    f = findings[0]
+    assert f.algorithm == "AES"
+    assert f.mode == "GCM"
+    assert f.family is AlgorithmFamily.SYMMETRIC_CIPHER
+
+
+def test_detector_finds_aes_ecb_weak_mode() -> None:
+    src = (
+        "from cryptography.hazmat.primitives.ciphers import "
+        "Cipher, algorithms, modes\n"
+        "Cipher(algorithms.AES(b'\\x00' * 32), modes.ECB())\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "AES"
+    assert findings[0].mode == "ECB"
+
+
+def test_detector_finds_3des_via_cipher_wrapper() -> None:
+    src = (
+        "from cryptography.hazmat.primitives.ciphers import "
+        "Cipher, algorithms, modes\n"
+        "Cipher(algorithms.TripleDES(b'\\x00' * 24), modes.CBC(b'\\x00' * 8))\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "3DES"
+    assert findings[0].mode == "CBC"
+
+
+def test_cipher_with_keyword_args() -> None:
+    src = (
+        "from cryptography.hazmat.primitives.ciphers import "
+        "Cipher, algorithms, modes\n"
+        "Cipher(algorithm=algorithms.AES(b'k'*32), mode=modes.GCM(b'i'*12))\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "AES"
+    assert findings[0].mode == "GCM"
+
+
+def test_cipher_without_resolvable_algorithm_skipped() -> None:
+    src = (
+        "from cryptography.hazmat.primitives.ciphers import Cipher\n"
+        "Cipher(some_unknown_thing(), other_thing())\n"
+    )
+    findings = _scan(src)
+    assert findings == []
+
+
+def test_cipher_with_no_args_skipped() -> None:
+    # Covers _cipher_arg returning None when neither positional nor keyword arg
+    # is present — also exercises the return None at end of _cipher_arg.
+    src = (
+        "from cryptography.hazmat.primitives.ciphers import Cipher\n"
+        "Cipher()\n"
+    )
+    findings = _scan(src)
+    assert findings == []
+
+
+def test_cipher_with_non_call_mode_emits_algorithm_without_mode() -> None:
+    # mode arg is a Name (variable), not a Call — _resolve_mode_target returns
+    # None, emits the finding with mode=None but algorithm resolved.
+    src = (
+        "from cryptography.hazmat.primitives.ciphers import Cipher, algorithms\n"
+        "my_mode = None\n"
+        "Cipher(algorithms.AES(b'k'*32), my_mode)\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "AES"
+    assert findings[0].mode is None
+
+
+def test_cipher_with_unresolvable_mode_call_emits_algorithm_without_mode() -> None:
+    # mode arg is a Call but its callee is not in the import map — mode is None.
+    src = (
+        "from cryptography.hazmat.primitives.ciphers import Cipher, algorithms\n"
+        "Cipher(algorithms.AES(b'k'*32), custom_mode())\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "AES"
+    assert findings[0].mode is None
