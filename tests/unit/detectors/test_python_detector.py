@@ -98,3 +98,11 @@ def test_unresolved_name_returns_none() -> None:
     call = tree.body[0].value
     assert isinstance(call, ast.Call)
     assert r.resolve_attribute(call.func) is None
+
+
+def test_resolve_attribute_chain_not_terminating_in_name_returns_none() -> None:
+    tree = ast.parse('"abc".upper()')
+    r = ImportResolver()
+    call = tree.body[0].value
+    assert isinstance(call, ast.Call)
+    assert r.resolve_attribute(call.func) is None
