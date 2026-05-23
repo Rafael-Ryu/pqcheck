@@ -163,7 +163,9 @@ class PythonDetector(ast.NodeVisitor):
         algorithm_arg = self._cipher_arg(node, position=0, keyword="algorithm")
         mode_arg = self._cipher_arg(node, position=1, keyword="mode")
         algo_hit = self._resolve_call_target(algorithm_arg)
-        if algo_hit is None or algo_hit.canonical == "CIPHER-WRAPPER":  # pragma: no cover
+        if algo_hit is None:
+            return
+        if algo_hit.canonical == "CIPHER-WRAPPER":  # pragma: no cover - catalog has no nested
             return
         # Suppress the nested algorithm and mode Calls so generic_visit
         # doesn't re-emit them as flat findings.
