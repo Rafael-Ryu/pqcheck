@@ -285,3 +285,42 @@ class PythonDetector(ast.NodeVisitor):
         if 0 <= line_idx < len(self._source_lines):
             return self._source_lines[line_idx].strip()
         return ""  # pragma: no cover - empty file has no Call nodes to visit
+
+
+_MAX_FILE_BYTES = 2 * 1024 * 1024  # 2 MiB cap — skip generated/oversized files.
+
+
+def detect_python_file(path: Path) -> list[CryptoFinding]:
+    """Detect Python crypto primitive usage in `path`.
+
+    Returns an empty list (never raises) for: missing file, file > 2 MiB,
+    encoding failure on both UTF-8 and Latin-1, or a SyntaxError during
+    parsing. The scanner orchestrator surfaces these as `files_skipped`
+    rather than aborting the whole scan.
+    """
+    try:
+        size = path.stat().st_size
+    except OSError:
+        return []
+    if size > _MAX_FILE_BYTES:
+        return []
+    try:
+        raw = path.read_bytes()
+    except OSError:  # pragma: no cover - TOCTOU: stat succeeded but read failed
+        return []
+    source: str | None = None
+    for encoding in ("utf-8", "latin-1"):
+        try:
+            source = raw.decode(encoding)
+            break
+        except UnicodeDecodeError:
+            continue
+    if source is None:  # pragma: no cover - latin-1 is total over all byte sequences
+        return []
+    try:
+        tree = ast.parse(source, filename=str(path))
+    except SyntaxError:
+        return []
+    detector = PythonDetector(source_path=path, source=source)
+    detector.visit(tree)
+    return detector.findings

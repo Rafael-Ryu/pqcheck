@@ -1,7 +1,7 @@
 import ast
 from pathlib import Path
 
-from pqcheck.detectors.python_detector import ImportResolver, PythonDetector
+from pqcheck.detectors.python_detector import ImportResolver, PythonDetector, detect_python_file
 from pqcheck.models import AlgorithmFamily, CryptoFinding, QuantumRisk
 
 
@@ -412,3 +412,51 @@ def test_ec_with_subscript_callee_curve_returns_no_curve() -> None:
     findings = _scan(src)
     assert len(findings) == 1
     assert findings[0].curve is None
+
+
+def test_detect_python_file_finds_md5(tmp_path: Path) -> None:
+    f = tmp_path / "x.py"
+    f.write_text("import hashlib\nhashlib.md5(b'x')\n", encoding="utf-8")
+    findings = detect_python_file(f)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "MD5"
+    assert findings[0].location.path == f
+
+
+def test_detect_python_file_empty_returns_empty(tmp_path: Path) -> None:
+    f = tmp_path / "x.py"
+    f.write_text("", encoding="utf-8")
+    assert detect_python_file(f) == []
+
+
+def test_detect_python_file_syntax_error_returns_empty(tmp_path: Path) -> None:
+    f = tmp_path / "broken.py"
+    f.write_text("def (:\n", encoding="utf-8")
+    assert detect_python_file(f) == []
+
+
+def test_detect_python_file_too_large_returns_empty(tmp_path: Path) -> None:
+    f = tmp_path / "huge.py"
+    f.write_bytes(b"# pad\n" * (400 * 1024))  # ~2.4 MiB
+    assert detect_python_file(f) == []
+
+
+def test_detect_python_file_latin1_fallback(tmp_path: Path) -> None:
+    f = tmp_path / "x.py"
+    # Latin-1 byte 0xe9 ('é') is invalid UTF-8 start byte alone.
+    f.write_bytes(b"# coment\xe9\nimport hashlib\nhashlib.md5(b'x')\n")
+    findings = detect_python_file(f)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "MD5"
+
+
+def test_detect_python_file_undecodable_returns_empty(tmp_path: Path) -> None:
+    f = tmp_path / "x.py"
+    # Random bytes that decode in latin-1 but produce invalid Python.
+    f.write_bytes(b"\xff\xfe\xfd not python at all \x00\x01\x02")
+    # latin-1 decodes fine; ast.parse raises SyntaxError → empty.
+    assert detect_python_file(f) == []
+
+
+def test_detect_python_file_missing_returns_empty(tmp_path: Path) -> None:
+    assert detect_python_file(tmp_path / "nope.py") == []
