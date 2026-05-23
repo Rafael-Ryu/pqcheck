@@ -114,6 +114,7 @@ include = [
 target-version = "py312"
 line-length = 100
 src = ["src", "tests"]
+extend-exclude = ["tests/fixtures"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF", "S", "PL", "PTH"]
@@ -138,4 +139,8 @@ markers = [
 [tool.coverage.run]
 branch = true
 source = ["pqcheck"]
-omit = ["src/pqcheck/grammars/*", "src/pqcheck/bin/*"]
+omit = [
+    "src/pqcheck/grammars/*",
+    "src/pqcheck/bin/*",
+    "tests/fixtures/*",
+]
