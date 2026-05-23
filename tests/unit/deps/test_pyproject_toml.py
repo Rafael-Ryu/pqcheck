@@ -150,6 +150,37 @@ dependencies = ["cryptography", 42, true]
     assert [d.name for d in deps] == ["cryptography"]
 
 
+def test_parse_build_system_requires_emits_deps(tmp_path: Path) -> None:
+    # PEP 518: [build-system].requires lists build-time deps. They ship
+    # cryptography code into every wheel built from source, so they
+    # must surface in the CBOM.
+    f = _write(tmp_path, """
+[build-system]
+requires = ["setuptools", "cryptography>=43"]
+build-backend = "setuptools.build_meta"
+""")
+    deps = parse(f)
+    names = sorted(d.name for d in deps)
+    assert names == ["cryptography", "setuptools"]
+
+
+def test_parse_build_system_requires_deduped_with_runtime(tmp_path: Path) -> None:
+    # The same package can appear in both [project.dependencies] and
+    # [build-system].requires (e.g. cryptography); PEP 503 dedup keeps
+    # only one finding.
+    f = _write(tmp_path, """
+[project]
+name = "demo"
+dependencies = ["cryptography>=43"]
+
+[build-system]
+requires = ["cryptography>=43"]
+build-backend = "setuptools.build_meta"
+""")
+    deps = parse(f)
+    assert [d.name for d in deps] == ["cryptography"]
+
+
 def test_parse_deduplicates_case_insensitively(tmp_path: Path) -> None:
     f = _write(tmp_path, """
 [project]
