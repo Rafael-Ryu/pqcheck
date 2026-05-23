@@ -197,12 +197,14 @@ def test_parse_missing_file_returns_empty_list(tmp_path: Path) -> None:
 
 
 def test_parse_rejects_external_entity_payload(tmp_path: Path) -> None:
-    # /etc/passwd is the canonical XXE target. If the parser resolves the
-    # entity, &xxe; expands and ends up as the groupId text. We assert
-    # the parser does NOT expand it: either the parse fails (returns [])
-    # OR the dependency is emitted with the raw &xxe; reference preserved
-    # / blanked. We accept either failure mode but FORBID the expanded
-    # payload showing up.
+    # /etc/passwd is the canonical XXE target. Two failure modes the parser
+    # must NOT exhibit:
+    #   1. Silent expansion: groupId becomes the file contents and a dep is
+    #      emitted with /etc/passwd lines smuggled into the PURL/name.
+    #   2. Crashing.
+    # The acceptable behavior is: parser returns either [] (entity skipped,
+    # group_id empty -> dep filtered by guard) OR a list whose entries
+    # contain no expanded-payload markers.
     payload = """<?xml version="1.0"?>
 <!DOCTYPE foo [ <!ENTITY xxe SYSTEM "file:///etc/passwd"> ]>
 <project>
@@ -216,21 +218,24 @@ def test_parse_rejects_external_entity_payload(tmp_path: Path) -> None:
 </project>
 """
     f = _write(tmp_path, payload)
+    # Sanity: confirm the fixture actually contains the entity declaration,
+    # otherwise this test is vacuous because the corpus was tampered with.
+    assert "<!ENTITY xxe SYSTEM" in f.read_text()
     deps = parse(f)
+    # Whether or not a dep is emitted, no expanded-payload markers may appear
+    # anywhere in the output. /etc/passwd on Linux always starts with "root:".
     for dep in deps:
-        # No file contents leaked into the dep tree.
         assert "root:" not in dep.purl
         assert "root:" not in dep.name
-        # group_id either stays empty (entity not resolved) or contains
-        # the raw entity ref text. We do not allow /etc/passwd contents.
-        assert "/etc/passwd" not in dep.purl
+        assert "root:" not in (dep.version or "")
 
 
 def test_parse_rejects_billion_laughs_payload(tmp_path: Path) -> None:
-    # Classic billion-laughs: 10 nested entities each expanding 10x.
-    # With resolve_entities=False, the parser never expands lol9, so the
-    # whole document either parses cheaply (entity refs untouched) or
-    # fails fast. EITHER way it must complete quickly without OOMing.
+    # Classic billion-laughs: 5 nested entities each expanding 10x. If the
+    # parser expands lol5, the document blows up to ~100KB of "lol" and
+    # would inflate further with deeper nesting; in the secure path, lol5 is
+    # left as a literal entity reference (or skipped). We assert both that
+    # the work finishes promptly AND that no exploded payload reached output.
     payload = """<?xml version="1.0"?>
 <!DOCTYPE lolz [
  <!ENTITY lol "lol">
@@ -250,15 +255,21 @@ def test_parse_rejects_billion_laughs_payload(tmp_path: Path) -> None:
 </project>
 """
     f = _write(tmp_path, payload)
+    # Sanity: the fixture must actually contain nested entity definitions,
+    # otherwise this test would be vacuous if a future edit removed them.
+    assert "<!ENTITY lol5" in f.read_text()
     start = time.perf_counter()
     deps = parse(f)
     elapsed = time.perf_counter() - start
-    # Hard cap: should finish in well under 1 second on any laptop. If
-    # expansion ran, this hits multi-seconds and gigabytes of RAM.
+    # Hard cap: should finish in well under 1 second. If expansion ran, this
+    # hits multi-seconds and gigabytes of RAM.
     assert elapsed < 1.0
+    # If a dep was emitted, no entry's text may carry a bloomed payload.
+    # 100 chars is a comfortable upper bound for any legitimate Maven artifact
+    # ID; full expansion would be at least 10,000 chars.
     for dep in deps:
-        # No expansion: the artifactId never blooms into 100k "lol"s.
         assert len(dep.name) < 100
+        assert "lol" * 50 not in dep.name
 
 
 def test_parse_oversized_file_returns_empty_list(tmp_path: Path) -> None:
