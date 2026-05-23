@@ -297,3 +297,107 @@ def test_cipher_with_unresolvable_mode_call_emits_algorithm_without_mode() -> No
     assert len(findings) == 1
     assert findings[0].algorithm == "AES"
     assert findings[0].mode is None
+
+
+def test_rsa_extracts_key_size() -> None:
+    src = (
+        "from cryptography.hazmat.primitives.asymmetric import rsa\n"
+        "rsa.generate_private_key(public_exponent=65537, key_size=2048)\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].key_size == 2048
+
+
+def test_rsa_without_key_size_kwarg_emits_none() -> None:
+    src = (
+        "from cryptography.hazmat.primitives.asymmetric import rsa\n"
+        "rsa.generate_private_key(public_exponent=65537, key_size=size)\n"
+    )
+    findings = _scan(src)
+    assert findings[0].key_size is None
+
+
+def test_ec_extracts_curve_name() -> None:
+    src = (
+        "from cryptography.hazmat.primitives.asymmetric import ec\n"
+        "ec.generate_private_key(curve=ec.SECP256R1())\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].curve == "SECP256R1"
+
+
+def test_ec_with_positional_curve() -> None:
+    src = (
+        "from cryptography.hazmat.primitives.asymmetric import ec\n"
+        "ec.generate_private_key(ec.SECP384R1())\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].curve == "SECP384R1"
+
+
+def test_ec_with_no_args_returns_no_curve() -> None:
+    src = (
+        "from cryptography.hazmat.primitives.asymmetric import ec\n"
+        "ec.generate_private_key()\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].curve is None
+
+
+def test_ec_with_non_call_curve_kwarg_returns_no_curve() -> None:
+    src = (
+        "from cryptography.hazmat.primitives.asymmetric import ec\n"
+        "ec.generate_private_key(curve=some_variable)\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].curve is None
+
+
+def test_ec_with_unqualified_curve_name() -> None:
+    # curve=SECP256R1() — no module qualifier, func is ast.Name not ast.Attribute
+    src = (
+        "from cryptography.hazmat.primitives.asymmetric import ec\n"
+        "from cryptography.hazmat.primitives.asymmetric.ec import SECP256R1\n"
+        "ec.generate_private_key(curve=SECP256R1())\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].curve == "SECP256R1"
+
+
+def test_key_size_kwarg_with_non_int_constant_emits_none() -> None:
+    # key_size=2048.0 is a Constant but not an int — treated as non-literal.
+    src = (
+        "from cryptography.hazmat.primitives.asymmetric import rsa\n"
+        "rsa.generate_private_key(public_exponent=65537, key_size=2048.0)\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].key_size is None
+
+
+def test_ec_with_other_kwarg_but_no_curve_kwarg_returns_no_curve() -> None:
+    # keywords present but none is `curve` — loop exits without break, candidate stays None.
+    src = (
+        "from cryptography.hazmat.primitives.asymmetric import ec\n"
+        "ec.generate_private_key(backend=default_backend())\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].curve is None
+
+
+def test_ec_with_subscript_callee_curve_returns_no_curve() -> None:
+    # curve=CURVES[0]() — func is ast.Subscript, neither Attribute nor Name.
+    src = (
+        "from cryptography.hazmat.primitives.asymmetric import ec\n"
+        "ec.generate_private_key(curve=CURVES[0]())\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].curve is None

@@ -137,7 +137,14 @@ class PythonDetector(ast.NodeVisitor):
                     self._emit_cipher_wrapper(node)
                     emitted = True
                 else:
-                    self._emit(node, hit.canonical, hit.family, confidence=1.0)
+                    self._emit(
+                        node,
+                        hit.canonical,
+                        hit.family,
+                        confidence=1.0,
+                        key_size=self._extract_key_size(node),
+                        curve=self._extract_curve(node) if hit.canonical == "ECDSA" else None,
+                    )
                     emitted = True
         # hashlib.new("md5") — string-based dispatch. Only runs when the
         # catalog has no direct entry; prevents double-emit if hashlib.new
@@ -208,6 +215,34 @@ class PythonDetector(ast.NodeVisitor):
         if qualified is None:
             return None
         return lookup_cipher_mode(qualified)
+
+    @staticmethod
+    def _extract_key_size(node: ast.Call) -> int | None:
+        for kw in node.keywords:
+            if kw.arg == "key_size" and isinstance(kw.value, ast.Constant):
+                value = kw.value.value
+                if isinstance(value, int):
+                    return value
+        return None
+
+    def _extract_curve(self, node: ast.Call) -> str | None:
+        # Positional first arg or keyword `curve=`. Expected: an instance
+        # construction like `ec.SECP256R1()` whose callee's last segment
+        # is the curve name.
+        candidate: ast.expr | None = None
+        if node.args:
+            candidate = node.args[0]
+        for kw in node.keywords:
+            if kw.arg == "curve":
+                candidate = kw.value
+                break
+        if not isinstance(candidate, ast.Call):
+            return None
+        if isinstance(candidate.func, ast.Attribute):
+            return candidate.func.attr
+        if isinstance(candidate.func, ast.Name):
+            return candidate.func.id
+        return None
 
     def _emit(
         self,
