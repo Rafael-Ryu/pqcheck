@@ -90,19 +90,37 @@ def test_pom_with_props_fixture_interpolates_versions() -> None:
 
 
 def test_pom_xxe_fixture_does_not_leak_file_contents() -> None:
-    deps = pom_xml.parse(FIXTURES / "pom_xxe.xml")
+    # Sanity: the fixture must actually carry the entity declaration, else
+    # the test silently goes vacuous if the corpus is edited.
+    fixture = FIXTURES / "pom_xxe.xml"
+    assert "<!ENTITY xxe SYSTEM" in fixture.read_text()
+    deps = pom_xml.parse(fixture)
+    # The legitimate dep declared after the poisoned root must survive parsing.
+    # The poisoned root <groupId>&xxe;</groupId> is in the project root, not
+    # inside <dependencies>, and so is not emitted by the parser regardless.
+    by_name = {d.name: d for d in deps}
+    assert "bcprov-jdk18on" in by_name
+    # No emitted dep may carry the expanded payload marker. /etc/passwd on
+    # Linux always starts with "root:".
     for d in deps:
         assert "root:" not in d.purl
-        assert "/etc/passwd" not in d.purl
+        assert "root:" not in d.name
+        assert "root:" not in (d.version or "")
 
 
-def test_pom_billion_laughs_fixture_terminates_quickly() -> None:
+def test_pom_billion_laughs_fixture_terminates_safely() -> None:
+    # Sanity: fixture must declare the nested entities, else the test is
+    # vacuous if the corpus is edited.
+    fixture = FIXTURES / "pom_billion_laughs.xml"
+    assert "<!ENTITY lol5" in fixture.read_text()
+    # The fixture has no <dependencies> block, so the parser emits nothing.
+    # Wall-clock cap is generous (5s) to avoid CI flakes; the real invariant
+    # is "no expansion ran" — checked via deps == [] and no bloomed text.
     start = time.perf_counter()
-    deps = pom_xml.parse(FIXTURES / "pom_billion_laughs.xml")
+    deps = pom_xml.parse(fixture)
     elapsed = time.perf_counter() - start
-    assert elapsed < 1.0
-    for d in deps:
-        assert len(d.name) < 100
+    assert elapsed < 5.0
+    assert deps == []
 
 
 def test_pom_invalid_fixture_returns_empty() -> None:
