@@ -31,13 +31,16 @@ def parse(path: Path) -> list[CryptoDependency]:
     except (tomllib.TOMLDecodeError, UnicodeDecodeError):
         return []
 
-    seen: set[str] = set()
+    seen: set[str] = set()  # keyed on PEP 503 lowercased name for dedup
     deps: list[CryptoDependency] = []
     for raw_name in _iter_requirement_strings(data):
         name = extract_pep508_name(raw_name)
-        if name is None or name in seen:
+        if name is None:
             continue
-        seen.add(name)
+        key = name.lower()
+        if key in seen:
+            continue
+        seen.add(key)
         deps.append(
             CryptoDependency(
                 purl=pypi_purl(name, None),

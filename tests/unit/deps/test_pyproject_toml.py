@@ -148,3 +148,19 @@ dependencies = ["cryptography", 42, true]
 """)
     deps = parse(f)
     assert [d.name for d in deps] == ["cryptography"]
+
+
+def test_parse_deduplicates_case_insensitively(tmp_path: Path) -> None:
+    f = _write(tmp_path, """
+[project]
+name = "demo"
+dependencies = ["Cryptography"]
+[project.optional-dependencies]
+test = ["cryptography", "CRYPTOGRAPHY"]
+""")
+    deps = parse(f)
+    # All three spellings normalize to the same PyPI package.
+    assert len(deps) == 1
+    # First-seen casing wins — "Cryptography" appeared in [project.dependencies].
+    assert deps[0].name == "Cryptography"
+    assert deps[0].purl == "pkg:pypi/cryptography"
