@@ -66,8 +66,37 @@ def _iter_requirement_strings(data: dict[str, Any]) -> Iterable[str]:
 
     groups = data.get("dependency-groups")
     if isinstance(groups, dict):
-        for group_value in groups.values():
-            yield from _string_items(group_value)
+        yield from _expand_dependency_groups(groups)
+
+
+def _expand_dependency_groups(groups: dict[str, Any]) -> Iterable[str]:
+    """Yield every PEP 508 requirement reachable from any group in
+    `groups`, following PEP 735 `{include-group = "X"}` references. Each
+    group contributes its strings at most once, so cycles cannot loop.
+    """
+    expanded: set[str] = set()
+    for group_name in groups:
+        yield from _expand_one_group(group_name, groups, expanded)
+
+
+def _expand_one_group(
+    group_name: str,
+    groups: dict[str, Any],
+    expanded: set[str],
+) -> Iterable[str]:
+    if group_name in expanded:
+        return
+    expanded.add(group_name)
+    items = groups.get(group_name)
+    if not isinstance(items, list):
+        return
+    for item in items:
+        if isinstance(item, str):
+            yield item
+        elif isinstance(item, dict):
+            included = item.get("include-group")
+            if isinstance(included, str):
+                yield from _expand_one_group(included, groups, expanded)
 
     build_system = data.get("build-system")
     if isinstance(build_system, dict):
