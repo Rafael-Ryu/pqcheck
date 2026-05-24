@@ -18,6 +18,7 @@ from pqcheck.deps.base import safe_read_bytes
 from pqcheck.detectors.algorithms import (
     AlgorithmHit,
     hashlib_new_table,
+    is_known_ec_curve,
     lookup_cipher_mode,
     lookup_python_symbol,
 )
@@ -104,6 +105,19 @@ _DETECTOR_ID = "python-ast"
 # hand-maintained table. Confidence is demoted at emit time because the string
 # argument could be runtime-computed; we only resolve literals.
 _HASHLIB_NEW_NAMES: dict[str, AlgorithmHit] = hashlib_new_table()
+
+# pycryptodome key generators take the bit length as the first positional arg
+# or a `bits=` keyword.
+_PYCRYPTODOME_KEYGENS: frozenset[str] = frozenset(
+    {"Crypto.PublicKey.RSA.generate", "Crypto.PublicKey.DSA.generate"}
+)
+
+# pycryptodome block-cipher `.new` callees that take a MODE_* second argument.
+# Stream ciphers (ChaCha20, ARC4) take a nonce there, not a mode, so they are
+# deliberately excluded from mode extraction.
+_PYCRYPTODOME_BLOCK_CIPHER_NEW: frozenset[str] = frozenset(
+    {"Crypto.Cipher.AES.new", "Crypto.Cipher.DES.new", "Crypto.Cipher.DES3.new"}
+)
 
 
 class PythonDetector(ast.NodeVisitor):
@@ -231,20 +245,16 @@ class PythonDetector(ast.NodeVisitor):
 
     @staticmethod
     def _extract_key_size(node: ast.Call, qualified: str | None) -> int | None:
+        # cryptography keygens take `key_size=`; pycryptodome takes `bits=` or a
+        # first positional. bool is an int subclass — exclude it explicitly so
+        # key_size=True doesn't surface as 1 in a security-sensitive field.
         for kw in node.keywords:
-            if kw.arg == "key_size" and isinstance(kw.value, ast.Constant):
+            if kw.arg in ("key_size", "bits") and isinstance(kw.value, ast.Constant):
                 value = kw.value.value
-                # bool is an int subclass — exclude it explicitly so key_size=True
-                # doesn't surface as key_size=1 in a security-sensitive field.
                 if type(value) is int:
                     return value
-        # pycryptodome takes the bit length as the first positional arg.
-        pycryptodome_keygens = {
-            "Crypto.PublicKey.RSA.generate",
-            "Crypto.PublicKey.DSA.generate",
-        }
         if (
-            qualified in pycryptodome_keygens
+            qualified in _PYCRYPTODOME_KEYGENS
             and node.args
             and isinstance(node.args[0], ast.Constant)
         ):
@@ -256,11 +266,11 @@ class PythonDetector(ast.NodeVisitor):
     def _extract_pycrypto_mode(self, node: ast.Call, qualified: str) -> str | None:
         """Return the mode for `Crypto.Cipher.<X>.new(key, X.MODE_Y, ...)`.
 
-        Only fires for pycryptodome cipher `new` callees. The mode argument
-        is the second positional argument or the `mode=` keyword, and must
-        resolve to an attribute like `AES.MODE_ECB`.
+        Only fires for pycryptodome block-cipher `new` callees. The mode
+        argument is the second positional argument or the `mode=` keyword, and
+        must resolve to an attribute like `AES.MODE_ECB`.
         """
-        if not (qualified.startswith("Crypto.Cipher.") and qualified.endswith(".new")):
+        if qualified not in _PYCRYPTODOME_BLOCK_CIPHER_NEW:
             return None
         mode_position = 1
         candidate: ast.expr | None = None
@@ -280,8 +290,9 @@ class PythonDetector(ast.NodeVisitor):
     @staticmethod
     def _extract_curve(node: ast.Call) -> str | None:
         # Positional first arg or keyword `curve=`. Expected: an instance
-        # construction like `ec.SECP256R1()` whose callee's last segment
-        # is the curve name.
+        # construction like `ec.SECP256R1()` whose callee's last segment is the
+        # curve name. The name is validated against the known-curve set so a
+        # non-curve callee cannot leak a junk value into the finding.
         candidate: ast.expr | None = None
         if node.args:
             candidate = node.args[0]
@@ -291,10 +302,13 @@ class PythonDetector(ast.NodeVisitor):
                 break
         if not isinstance(candidate, ast.Call):
             return None
+        name: str | None = None
         if isinstance(candidate.func, ast.Attribute):
-            return candidate.func.attr
-        if isinstance(candidate.func, ast.Name):
-            return candidate.func.id
+            name = candidate.func.attr
+        elif isinstance(candidate.func, ast.Name):
+            name = candidate.func.id
+        if name is not None and is_known_ec_curve(name):
+            return name
         return None
 
     def _emit(

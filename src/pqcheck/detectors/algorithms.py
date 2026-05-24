@@ -57,6 +57,9 @@ _PYTHON_SYMBOLS: dict[str, AlgorithmHit] = {
         AlgorithmHit("RSA", _ASYM),
     "cryptography.hazmat.primitives.asymmetric.dsa.generate_private_key":
         AlgorithmHit("DSA", _SIG),
+    # ec.generate_private_key backs both ECDSA signing and ECDH key agreement;
+    # we classify it ECDSA/signature by convention. Both are quantum-vulnerable,
+    # so the QuantumRisk verdict is identical either way.
     "cryptography.hazmat.primitives.asymmetric.ec.generate_private_key":
         AlgorithmHit("ECDSA", _SIG),
     "cryptography.hazmat.primitives.asymmetric.dh.generate_parameters": AlgorithmHit("DH", _KA),
@@ -143,6 +146,23 @@ _HASHLIB_PREFIX = "hashlib."
 # Marker canonical that is never emitted as a finding — the visitor unwraps
 # it into the concrete inner algorithm. Excluded from the emittable set.
 CIPHER_WRAPPER = "CIPHER-WRAPPER"
+
+
+# Named elliptic curves exposed by cryptography.hazmat.primitives.asymmetric.ec.
+# The detector only records a curve when the extracted name matches one of
+# these, so a non-curve callee cannot leak a junk value into a finding.
+_EC_CURVES: frozenset[str] = frozenset(
+    {
+        "SECP192R1", "SECP224R1", "SECP256K1", "SECP256R1", "SECP384R1", "SECP521R1",
+        "SECT163K1", "SECT163R2", "SECT233K1", "SECT233R1", "SECT283K1", "SECT283R1",
+        "SECT409K1", "SECT409R1", "SECT571K1", "SECT571R1",
+        "BrainpoolP256R1", "BrainpoolP384R1", "BrainpoolP512R1",
+    }
+)
+
+
+def is_known_ec_curve(name: str) -> bool:
+    return name in _EC_CURVES
 
 
 def lookup_python_symbol(qualified_name: str) -> AlgorithmHit | None:

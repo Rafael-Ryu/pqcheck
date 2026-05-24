@@ -531,6 +531,49 @@ def test_pycryptodome_rsa_positional_non_constant_emits_none() -> None:
     assert findings[0].key_size is None
 
 
+def test_pycryptodome_rsa_bits_keyword_key_size_extracted() -> None:
+    # pycryptodome also accepts the bit length as a `bits=` keyword.
+    findings = _scan(
+        "from Crypto.PublicKey import RSA\nRSA.generate(bits=2048)\n"
+    )
+    assert len(findings) == 1
+    assert findings[0].algorithm == "RSA"
+    assert findings[0].key_size == 2048
+
+
+def test_pycryptodome_dsa_bits_keyword_key_size_extracted() -> None:
+    findings = _scan(
+        "from Crypto.PublicKey import DSA\nDSA.generate(bits=3072)\n"
+    )
+    assert len(findings) == 1
+    assert findings[0].key_size == 3072
+
+
+def test_ec_unknown_curve_name_emits_none() -> None:
+    # A non-curve callee in the curve position must not leak a junk value.
+    src = (
+        "from cryptography.hazmat.primitives.asymmetric import ec\n"
+        "ec.generate_private_key(helper())\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "ECDSA"
+    assert findings[0].curve is None
+
+
+def test_stream_cipher_new_does_not_extract_mode() -> None:
+    # ChaCha20.new's second positional is a nonce, not a mode. Even when it
+    # happens to resolve to a MODE_* attribute, no mode may be attached.
+    src = (
+        "from Crypto.Cipher import ChaCha20, AES\n"
+        "ChaCha20.new(b'k' * 32, AES.MODE_GCM)\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "CHACHA20"
+    assert findings[0].mode is None
+
+
 def test_sha224_quantum_risk_is_safe() -> None:
     # SHA-224 is detected by the catalog; ensure it surfaces as SAFE,
     # not UNKNOWN.
