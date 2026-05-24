@@ -7,34 +7,57 @@ small by composing these primitives.
 
 from __future__ import annotations
 
+import os
 import re
+import stat
 from pathlib import Path
 
 from packageurl import PackageURL
 
 MAX_FILE_BYTES = 5 * 1024 * 1024
+_READ_CHUNK = 64 * 1024
 
 
 def safe_read_bytes(path: Path) -> bytes | None:
     """Read a file as bytes, returning None on any error or oversize.
 
-    Failure modes (return None): path missing, path is a directory,
-    OS read error, file larger than MAX_FILE_BYTES. Callers treat None
-    as "skip this file" — never raise. Matches the scanner's per-file
-    exception-swallowing contract.
+    Failure modes (return None): missing path, symlink, non-regular file
+    (FIFO/device/socket/directory), file larger than MAX_FILE_BYTES, or
+    a file that grows between fstat and read past the cap. Callers treat
+    None as "skip this file" — never raise. Matches the scanner's
+    per-file exception-swallowing contract.
+
+    Open uses O_NOFOLLOW (reject symlinks) and O_NONBLOCK (FIFO opens
+    return immediately) so a malicious repo cannot block the scanner
+    via a symlink to /dev/zero or an unopened FIFO. fstat + read run
+    against the same fd to close the TOCTOU between size check and
+    read.
     """
     try:
-        if not path.is_file():
-            return None
-        size = path.stat().st_size
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
     except OSError:
         return None
-    if size > MAX_FILE_BYTES:
-        return None
     try:
-        return path.read_bytes()
-    except OSError:  # pragma: no cover - TOCTOU: stat succeeded but read failed
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode):
+            return None
+        if info.st_size > MAX_FILE_BYTES:
+            return None
+        chunks: list[bytes] = []
+        budget = MAX_FILE_BYTES + 1
+        while budget > 0:
+            chunk = os.read(fd, min(budget, _READ_CHUNK))
+            if not chunk:
+                break
+            chunks.append(chunk)
+            budget -= len(chunk)
+        if budget == 0:
+            return None
+    except OSError:  # pragma: no cover - fstat/read on an open fd is well-defined
         return None
+    finally:
+        os.close(fd)
+    return b"".join(chunks)
 
 
 def pypi_purl(name: str, version: str | None) -> str:
