@@ -12,7 +12,8 @@ from __future__ import annotations
 from enum import StrEnum
 from pathlib import Path
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field
+from packageurl import PackageURL
+from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
 
 
 class AlgorithmFamily(StrEnum):
@@ -118,3 +119,15 @@ class CryptoDependency(BaseModel):
     ecosystem: str = Field(min_length=1)
     declared_in: Path
     introduces_algorithms: tuple[str, ...] = ()
+
+    @field_validator("purl")
+    @classmethod
+    def _purl_must_round_trip(cls, value: str) -> str:
+        # Round-trip through packageurl-python so malformed strings (e.g.
+        # "not-a-purl", missing scheme, bad type) fail at model-construction
+        # time rather than slipping into the CBOM / SARIF outputs.
+        try:
+            PackageURL.from_string(value)
+        except ValueError as exc:
+            raise ValueError(f"invalid PURL: {value!r}") from exc
+        return value
