@@ -1,0 +1,14 @@
+[project]
+name = "fixture-demo"
+dependencies = ["cryptography>=43.0.0"]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.7",
+    "mypy>=1.13",
+    {include-group = "test"},
+]
+test = [
+    "pytest>=8.0",
+    "ecdsa",
+]
