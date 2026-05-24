@@ -1,0 +1,6 @@
+issue	branch	status	pr
+33	fix/pyproject-groups-build-requires	pr-open	https://github.com/Rafael-Ryu/pqcheck/pull/38
+34	fix/python-detector-safe-read	pr-open	https://github.com/Rafael-Ryu/pqcheck/pull/39
+37	fix/pycryptodome-mode-constants	pr-open	https://github.com/Rafael-Ryu/pqcheck/pull/40
+36	fix/hashlib-new-aliases	pr-open	https://github.com/Rafael-Ryu/pqcheck/pull/41
+35	fix/crypto-star-imports	pr-open	https://github.com/Rafael-Ryu/pqcheck/pull/42

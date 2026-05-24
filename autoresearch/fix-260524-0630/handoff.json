@@ -1,0 +1,49 @@
+{
+  "subcommand": "fix",
+  "date": "2026-05-24",
+  "base_branch": "develop",
+  "base_commit": "e991a2be97da0752714ca7d78e4373b1f207f36e",
+  "status": "prs_opened",
+  "prs": [
+    {
+      "issue": 33,
+      "pr": 38,
+      "branch": "fix/pyproject-groups-build-requires",
+      "url": "https://github.com/Rafael-Ryu/pqcheck/pull/38",
+      "commit": "fix(deps): keep build-system requires outside PEP 735 groups",
+      "labels": ["bug", "false-negative"]
+    },
+    {
+      "issue": 34,
+      "pr": 39,
+      "branch": "fix/python-detector-safe-read",
+      "url": "https://github.com/Rafael-Ryu/pqcheck/pull/39",
+      "commit": "fix(detectors): read python sources through capped fd",
+      "labels": ["bug", "security"]
+    },
+    {
+      "issue": 37,
+      "pr": 40,
+      "branch": "fix/pycryptodome-mode-constants",
+      "url": "https://github.com/Rafael-Ryu/pqcheck/pull/40",
+      "commit": "fix(detectors): extract pycryptodome mode constants",
+      "labels": ["bug", "false-negative"]
+    },
+    {
+      "issue": 36,
+      "pr": 41,
+      "branch": "fix/hashlib-new-aliases",
+      "url": "https://github.com/Rafael-Ryu/pqcheck/pull/41",
+      "commit": "fix(detectors): normalize hashlib.new aliases",
+      "labels": ["bug", "false-negative"]
+    },
+    {
+      "issue": 35,
+      "pr": 42,
+      "branch": "fix/crypto-star-imports",
+      "url": "https://github.com/Rafael-Ryu/pqcheck/pull/42",
+      "commit": "fix(detectors): emit findings from crypto star imports",
+      "labels": ["bug", "false-negative"]
+    }
+  ]
+}

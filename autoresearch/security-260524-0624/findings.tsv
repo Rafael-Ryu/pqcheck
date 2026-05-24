@@ -1,0 +1,6 @@
+id	severity	type	title	evidence	status
+AR-001	high	bug	pyproject parser crashes on PEP 735 dependency groups and misses build-system requirements	uv run pytest: 7 failed, 175 passed; uv run ruff check .: F821 Undefined name data; uv run mypy: Name "data" is not defined	https://github.com/Rafael-Ryu/pqcheck/issues/33
+AR-002	high	security	detect_python_file can hang on symlinks to non-regular files	timeout 2s symlink-to-/dev/zero reproduction exits 124	https://github.com/Rafael-Ryu/pqcheck/issues/34
+AR-003	medium	detection	PyCryptodome AES mode constants are not emitted	Detector emits AES mode=None for AES.MODE_ECB and AES.MODE_GCM	https://github.com/Rafael-Ryu/pqcheck/issues/37
+AR-004	medium	detection	hashlib.new valid dashed/OpenSSL aliases are ignored	Detector emits only hashlib.new('sha1'), not hashlib.new('sha-1') or hashlib.new('SHA-256')	https://github.com/Rafael-Ryu/pqcheck/issues/36
+AR-005	low	detection	Crypto star imports are recorded but not surfaced	from hashlib import *; md5(...) emits no finding while direct import does	https://github.com/Rafael-Ryu/pqcheck/issues/35

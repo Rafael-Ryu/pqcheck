@@ -138,8 +138,39 @@ _PYCRYPTODOME_MODE_ATTRS: dict[str, str] = {
 }
 
 
+_HASHLIB_PREFIX = "hashlib."
+
+# Marker canonical that is never emitted as a finding — the visitor unwraps
+# it into the concrete inner algorithm. Excluded from the emittable set.
+CIPHER_WRAPPER = "CIPHER-WRAPPER"
+
+
 def lookup_python_symbol(qualified_name: str) -> AlgorithmHit | None:
     return _PYTHON_SYMBOLS.get(qualified_name)
+
+
+def hashlib_new_table() -> dict[str, AlgorithmHit]:
+    """Map each `hashlib.new("name")` string argument to its AlgorithmHit.
+
+    Derived from the `hashlib.*` catalog entries so the string-dispatch path
+    in the detector shares a single source of truth with direct-call lookups.
+    Keys are the hashlib constructor suffixes (``md5``, ``sha3_256`` …), which
+    match the normalized argument accepted by ``hashlib.new``.
+    """
+    return {
+        name[len(_HASHLIB_PREFIX) :]: hit
+        for name, hit in _PYTHON_SYMBOLS.items()
+        if name.startswith(_HASHLIB_PREFIX)
+    }
+
+
+def emittable_canonicals() -> set[str]:
+    """Canonical names a detector can attach to a finding.
+
+    Excludes the CIPHER_WRAPPER marker. Used by the invariant test that
+    guards against catalog / QuantumRisk-map drift.
+    """
+    return {hit.canonical for hit in _PYTHON_SYMBOLS.values()} - {CIPHER_WRAPPER}
 
 
 def lookup_cipher_mode(qualified_name: str) -> str | None:
