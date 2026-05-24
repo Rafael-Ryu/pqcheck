@@ -758,3 +758,81 @@ def test_star_import_does_not_double_emit_with_direct_call() -> None:
     )
     assert len(findings) == 1
     assert findings[0].confidence == 1.0
+
+
+def test_function_scoped_import_with_file_level_call_demotes_confidence() -> None:
+    # Regression for #8: `import hashlib` inside a function used to leak
+    # into the file-level resolver, so `hashlib.md5(b'y')` at the top
+    # level was emitted with confidence=1.0 — even though that call would
+    # NameError at runtime. Demote to 0.7 to signal the uncertainty.
+    src = (
+        "def f():\n"
+        "    import hashlib\n"
+        "    return hashlib.md5(b'x')\n"
+        "\n"
+        "hashlib.md5(b'y')\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 2
+    by_line = {f.location.line: f for f in findings}
+    # Call at line 3 is inside the function — same scope as the import,
+    # so full confidence.
+    assert by_line[3].confidence == 1.0
+    # Call at line 5 is at file level but the binding came from a
+    # function-scoped import.
+    assert by_line[5].confidence == 0.7
+
+
+def test_file_level_import_with_function_call_keeps_full_confidence() -> None:
+    # Opposite direction (file-level import, call inside function) is the
+    # common idiom and must stay at confidence=1.0.
+    src = (
+        "import hashlib\n"
+        "def f():\n"
+        "    return hashlib.md5(b'x')\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].confidence == 1.0
+
+
+def test_class_scoped_import_is_treated_as_scoped_binding() -> None:
+    src = (
+        "class C:\n"
+        "    import hashlib\n"
+        "\n"
+        "hashlib.md5(b'x')\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].confidence == 0.7
+
+
+def test_async_function_scoped_import_demotes_file_level_call() -> None:
+    src = (
+        "async def f():\n"
+        "    import hashlib\n"
+        "    return hashlib.md5(b'x')\n"
+        "\n"
+        "hashlib.md5(b'y')\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 2
+    by_line = {f.location.line: f for f in findings}
+    assert by_line[3].confidence == 1.0
+    assert by_line[5].confidence == 0.7
+
+
+def test_function_scoped_from_import_demotes_file_level_call() -> None:
+    src = (
+        "def f():\n"
+        "    from hashlib import md5\n"
+        "    return md5(b'x')\n"
+        "\n"
+        "md5(b'y')\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 2
+    by_line = {f.location.line: f for f in findings}
+    assert by_line[3].confidence == 1.0
+    assert by_line[5].confidence == 0.7
