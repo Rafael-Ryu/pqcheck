@@ -42,6 +42,9 @@ _CATALOG: dict[tuple[str, str], tuple[str, ...]] = {
     ("pypi", "pyopenssl"): ("RSA", "ECDSA", "AES", "SHA-256"),
     ("pypi", "bcrypt"): (),  # BCRYPT is a KDF; not in QuantumRisk map; flagged via family
     ("pypi", "passlib"): ("MD5", "SHA-1", "SHA-256", "SHA-512"),
+    ("pypi", "paramiko"): ("RSA", "DSA", "ECDSA", "AES", "SHA-1", "SHA-256"),
+    ("pypi", "pyjwt"): ("RSA", "ECDSA", "SHA-256", "SHA-384", "SHA-512"),
+    ("pypi", "python-jose"): ("RSA", "ECDSA", "AES", "SHA-256"),
     # ---- Maven ----
     ("maven", "bcprov-jdk18on"): (
         "RSA", "DSA", "ECDSA", "DH", "ED25519", "ED448", "X25519", "X448",
@@ -53,6 +56,9 @@ _CATALOG: dict[tuple[str, str], tuple[str, ...]] = {
     ("maven", "bctls-jdk18on"): ("RSA", "ECDSA", "AES", "CHACHA20", "SHA-256"),
     ("maven", "tink"): ("AES", "ECDSA", "ED25519", "X25519", "SHA-256"),
     ("maven", "tink-android"): ("AES", "ECDSA", "ED25519", "X25519", "SHA-256"),
+    ("maven", "jjwt"): ("RSA", "ECDSA", "SHA-256", "SHA-384", "SHA-512"),
+    ("maven", "nimbus-jose-jwt"): ("RSA", "ECDSA", "AES", "SHA-256"),
+    ("maven", "commons-codec"): ("MD5", "SHA-1", "SHA-256"),
 }
 
 
