@@ -138,6 +138,72 @@ def test_parse_unresolvable_property_emits_none_version(tmp_path: Path) -> None:
     assert deps[0].purl == "pkg:maven/org.bouncycastle/bcprov-jdk18on"
 
 
+def test_parse_resolves_nested_property_reference(tmp_path: Path) -> None:
+    # Maven resolves properties recursively: ${a} where a=${b} and b=1.2
+    # must yield 1.2, not the literal token ${b}.
+    f = _write(tmp_path, """<?xml version="1.0"?>
+<project>
+  <properties>
+    <a>${b}</a>
+    <b>1.2</b>
+  </properties>
+  <dependencies>
+    <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bcprov-jdk18on</artifactId>
+      <version>${a}</version>
+    </dependency>
+  </dependencies>
+</project>
+""")
+    deps = parse(f)
+    assert deps[0].version == "1.2"
+    assert deps[0].purl.endswith("@1.2")
+
+
+def test_parse_cyclic_property_reference_emits_none(tmp_path: Path) -> None:
+    # a -> b -> a never resolves; fail closed rather than loop or leak a token.
+    f = _write(tmp_path, """<?xml version="1.0"?>
+<project>
+  <properties>
+    <a>${b}</a>
+    <b>${a}</b>
+  </properties>
+  <dependencies>
+    <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bcprov-jdk18on</artifactId>
+      <version>${a}</version>
+    </dependency>
+  </dependencies>
+</project>
+""")
+    deps = parse(f)
+    assert deps[0].version is None
+    assert deps[0].purl == "pkg:maven/org.bouncycastle/bcprov-jdk18on"
+
+
+def test_parse_entity_bearing_version_emits_none(tmp_path: Path) -> None:
+    # An internal entity inside <version> is not expanded (XXE hardening).
+    # The value must NOT be silently truncated to the leading text "1.0-";
+    # fail closed to version=None instead.
+    f = _write(tmp_path, """<?xml version="1.0"?>
+<!DOCTYPE project [<!ENTITY ver "9.9">]>
+<project>
+  <dependencies>
+    <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bcprov-jdk18on</artifactId>
+      <version>1.0-&ver;-end</version>
+    </dependency>
+  </dependencies>
+</project>
+""")
+    deps = parse(f)
+    assert deps[0].version is None
+    assert "1.0-" not in deps[0].purl
+
+
 def test_parse_skips_dependency_with_missing_artifact_id(tmp_path: Path) -> None:
     f = _write(tmp_path, """<?xml version="1.0"?>
 <project>
