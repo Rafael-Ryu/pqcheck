@@ -12,6 +12,8 @@ pydantic, which the project already uses for CryptoFinding.
 from __future__ import annotations
 
 import ast
+import os
+import stat
 from pathlib import Path
 
 from pqcheck.detectors.algorithms import AlgorithmHit, lookup_cipher_mode, lookup_python_symbol
@@ -302,25 +304,25 @@ class PythonDetector(ast.NodeVisitor):
 
 
 _MAX_FILE_BYTES = 2 * 1024 * 1024  # 2 MiB cap — skip generated/oversized files.
+_READ_CHUNK = 64 * 1024
 
 
 def detect_python_file(path: Path) -> list[CryptoFinding]:
     """Detect Python crypto primitive usage in `path`.
 
-    Returns an empty list (never raises) for: missing file, file > 2 MiB,
+    Returns an empty list (never raises) for: missing file, symlink,
+    non-regular file (device, FIFO, socket, directory), file > 2 MiB,
     encoding failure on both UTF-8 and Latin-1, or a SyntaxError during
-    parsing. The scanner orchestrator surfaces these as `files_skipped`
-    rather than aborting the whole scan.
+    parsing.
+
+    The path is opened with O_NOFOLLOW and the size/regular-file check
+    runs against the open fd; this rejects symlinks (a previously fatal
+    case: a symlink to /dev/zero blocked the read forever) and closes
+    the TOCTOU between size check and read. The read is itself capped
+    so a file that grows between fstat and read cannot exceed the limit.
     """
-    try:
-        size = path.stat().st_size
-    except OSError:
-        return []
-    if size > _MAX_FILE_BYTES:
-        return []
-    try:
-        raw = path.read_bytes()
-    except OSError:  # pragma: no cover - TOCTOU: stat succeeded but read failed
+    raw = _read_capped(path)
+    if raw is None:
         return []
     source: str | None = None
     for encoding in ("utf-8", "latin-1"):
@@ -338,3 +340,34 @@ def detect_python_file(path: Path) -> list[CryptoFinding]:
     detector = PythonDetector(source_path=path, source=source)
     detector.visit(tree)
     return detector.findings
+
+
+def _read_capped(path: Path) -> bytes | None:
+    # O_NONBLOCK ensures opening a FIFO (or any path whose target would
+    # otherwise block on open) returns immediately; the S_ISREG guard
+    # below then rejects it. For regular files O_NONBLOCK is inert.
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except OSError:
+        return None
+    try:
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode):
+            return None
+        if info.st_size > _MAX_FILE_BYTES:
+            return None
+        chunks: list[bytes] = []
+        budget = _MAX_FILE_BYTES + 1
+        while budget > 0:
+            chunk = os.read(fd, min(budget, _READ_CHUNK))
+            if not chunk:
+                break
+            chunks.append(chunk)
+            budget -= len(chunk)
+        if budget == 0:
+            return None
+    except OSError:  # pragma: no cover - fstat/read on an open fd is well-defined
+        return None
+    finally:
+        os.close(fd)
+    return b"".join(chunks)
