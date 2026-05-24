@@ -220,18 +220,22 @@ class PythonDetector(ast.NodeVisitor):
 
     @staticmethod
     def _extract_key_size(node: ast.Call, qualified: str | None) -> int | None:
+        # pycryptodome takes the bit length as `bits=` (keyword) or as the
+        # first positional arg. cryptography uses `key_size=`.
+        pycryptodome_keygens = {
+            "Crypto.PublicKey.RSA.generate",
+            "Crypto.PublicKey.DSA.generate",
+        }
+        keywords = {"key_size"}
+        if qualified in pycryptodome_keygens:
+            keywords.add("bits")
         for kw in node.keywords:
-            if kw.arg == "key_size" and isinstance(kw.value, ast.Constant):
+            if kw.arg in keywords and isinstance(kw.value, ast.Constant):
                 value = kw.value.value
                 # bool is an int subclass — exclude it explicitly so key_size=True
                 # doesn't surface as key_size=1 in a security-sensitive field.
                 if type(value) is int:
                     return value
-        # pycryptodome takes the bit length as the first positional arg.
-        pycryptodome_keygens = {
-            "Crypto.PublicKey.RSA.generate",
-            "Crypto.PublicKey.DSA.generate",
-        }
         if (
             qualified in pycryptodome_keygens
             and node.args

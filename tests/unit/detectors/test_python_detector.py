@@ -431,6 +431,39 @@ def test_pycryptodome_rsa_positional_non_constant_emits_none() -> None:
     assert findings[0].key_size is None
 
 
+def test_pycryptodome_rsa_bits_keyword_extracted() -> None:
+    findings = _scan("from Crypto.PublicKey import RSA\nRSA.generate(bits=2048)\n")
+    assert len(findings) == 1
+    assert findings[0].algorithm == "RSA"
+    assert findings[0].key_size == 2048
+
+
+def test_pycryptodome_dsa_bits_keyword_extracted() -> None:
+    findings = _scan("from Crypto.PublicKey import DSA\nDSA.generate(bits=3072)\n")
+    assert len(findings) == 1
+    assert findings[0].algorithm == "DSA"
+    assert findings[0].key_size == 3072
+
+
+def test_pycryptodome_rsa_bits_keyword_bool_emits_none() -> None:
+    findings = _scan("from Crypto.PublicKey import RSA\nRSA.generate(bits=True)\n")
+    assert len(findings) == 1
+    assert findings[0].key_size is None
+
+
+def test_cryptography_rsa_bits_keyword_is_ignored() -> None:
+    # `bits=` is a pycryptodome convention; cryptography uses `key_size=`.
+    # A bits=… kwarg passed to cryptography.rsa.generate_private_key must
+    # NOT be picked up as key_size — that would surface a wrong field.
+    src = (
+        "from cryptography.hazmat.primitives.asymmetric import rsa\n"
+        "rsa.generate_private_key(public_exponent=65537, bits=2048)\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].key_size is None
+
+
 def test_sha224_quantum_risk_is_safe() -> None:
     # SHA-224 is detected by the catalog; ensure it surfaces as SAFE,
     # not UNKNOWN.
