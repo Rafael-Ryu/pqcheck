@@ -705,3 +705,56 @@ def test_detect_python_file_caps_growth_during_read(
         fake_read,
     )
     assert detect_python_file(f) == []
+
+
+def test_star_import_emits_finding_with_demoted_confidence() -> None:
+    findings = _scan("from hashlib import *\nmd5(b'x')\n")
+    assert len(findings) == 1
+    assert findings[0].algorithm == "MD5"
+    # Demoted because we cannot prove the name `md5` actually binds to
+    # the catalogued symbol at static-analysis time.
+    assert findings[0].confidence == 0.7
+
+
+def test_star_import_resolves_short_name_from_cryptography_hashes() -> None:
+    findings = _scan(
+        "from cryptography.hazmat.primitives.hashes import *\nMD5()\n"
+    )
+    assert len(findings) == 1
+    assert findings[0].algorithm == "MD5"
+    assert findings[0].confidence == 0.7
+
+
+def test_star_import_safe_when_module_not_catalogued() -> None:
+    # `from os import *` is harmless — no crypto entries under os.*
+    findings = _scan("from os import *\ngetcwd()\n")
+    assert findings == []
+
+
+def test_star_import_unrelated_short_name_emits_nothing() -> None:
+    # Star import is in scope but the call name doesn't appear in any
+    # catalogued module under that module.
+    findings = _scan("from hashlib import *\nnot_a_hash(b'x')\n")
+    assert findings == []
+
+
+def test_star_import_does_not_emit_cipher_wrapper_marker() -> None:
+    # The Cipher() wrapper depends on resolving algorithms.X and modes.Y,
+    # which a star import does not expose qualified. Skip the wrapper
+    # rather than emit "CIPHER-WRAPPER" or a partial finding.
+    findings = _scan(
+        "from cryptography.hazmat.primitives.ciphers import *\n"
+        "Cipher(some_algo, some_mode)\n"
+    )
+    assert findings == []
+
+
+def test_star_import_does_not_double_emit_with_direct_call() -> None:
+    # Both a star import and an explicit hashlib.md5(...) — the direct
+    # call should be the only finding (the star fallback only runs when
+    # the qualified resolution fails).
+    findings = _scan(
+        "import hashlib\nfrom hashlib import *\nhashlib.md5(b'x')\n"
+    )
+    assert len(findings) == 1
+    assert findings[0].confidence == 1.0

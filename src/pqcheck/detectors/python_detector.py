@@ -45,6 +45,9 @@ class ImportResolver(ast.NodeVisitor):
     def has_star_import(self, module: str) -> bool:
         return module in self._star_imports
 
+    def iter_star_imports(self) -> list[str]:
+        return list(self._star_imports)
+
     def resolve_attribute(self, node: ast.expr) -> str | None:
         """Resolve a Name or Attribute chain to its fully-qualified name.
 
@@ -156,7 +159,28 @@ class PythonDetector(ast.NodeVisitor):
         # is ever added to _PYTHON_SYMBOLS.
         if not emitted and qualified == "hashlib.new":
             self._emit_hashlib_new(node)
+            emitted = True
+        # Star-import fallback: `from <module> import *; MD5()` — the
+        # callee is an ast.Name with no resolved binding, but a star
+        # import in scope makes a catalog match plausible. Confidence is
+        # demoted: at static-analysis time we cannot prove the name
+        # actually binds to the catalogued symbol.
+        if not emitted and qualified is None and isinstance(node.func, ast.Name):
+            self._emit_via_star_import(node, node.func.id)
         self.generic_visit(node)
+
+    def _emit_via_star_import(self, node: ast.Call, short_name: str) -> None:
+        """Emit if `short_name` matches a catalog entry under any module
+        present in `from <module> import *`. Skips CIPHER-WRAPPER because
+        the wrapper unwrap logic depends on resolving `algorithms.X` /
+        `modes.Y`, which star imports do not expose qualified.
+        """
+        for module in self._imports.iter_star_imports():
+            hit = lookup_python_symbol(f"{module}.{short_name}")
+            if hit is None or hit.canonical == "CIPHER-WRAPPER":
+                continue
+            self._emit(node, hit.canonical, hit.family, confidence=0.7)
+            return
 
     def _emit_hashlib_new(self, node: ast.Call) -> None:
         if not node.args:
