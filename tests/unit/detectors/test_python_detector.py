@@ -1,5 +1,8 @@
 import ast
+import os
 from pathlib import Path
+
+import pytest
 
 from pqcheck.detectors.python_detector import ImportResolver, PythonDetector, detect_python_file
 from pqcheck.models import AlgorithmFamily, CryptoFinding, QuantumRisk
@@ -505,3 +508,50 @@ def test_detect_python_file_binary_content_returns_empty(tmp_path: Path) -> None
 
 def test_detect_python_file_missing_returns_empty(tmp_path: Path) -> None:
     assert detect_python_file(tmp_path / "nope.py") == []
+
+
+def test_detect_python_file_rejects_symlink_to_regular_file(tmp_path: Path) -> None:
+    target = tmp_path / "real.py"
+    target.write_text("import hashlib\nhashlib.md5(b'x')\n", encoding="utf-8")
+    link = tmp_path / "link.py"
+    link.symlink_to(target)
+    assert detect_python_file(link) == []
+
+
+def test_detect_python_file_rejects_symlink_to_dev_zero(tmp_path: Path) -> None:
+    # Regression: stat() follows a symlink and reports st_size=0 for
+    # /dev/zero; a later read would block forever.
+    if not Path("/dev/zero").exists():
+        pytest.skip("/dev/zero unavailable on this platform")
+    link = tmp_path / "zero.py"
+    link.symlink_to("/dev/zero")
+    assert detect_python_file(link) == []
+
+
+def test_detect_python_file_rejects_fifo(tmp_path: Path) -> None:
+    fifo = tmp_path / "pipe.py"
+    os.mkfifo(fifo)
+    assert detect_python_file(fifo) == []
+
+
+def test_detect_python_file_rejects_directory(tmp_path: Path) -> None:
+    d = tmp_path / "dir.py"
+    d.mkdir()
+    assert detect_python_file(d) == []
+
+
+def test_detect_python_file_caps_growth_during_read(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    f = tmp_path / "x.py"
+    f.write_text("# small\n", encoding="utf-8")
+    big = b"a" * 65536
+
+    def fake_read(fd: int, n: int) -> bytes:
+        return big[:n]
+
+    monkeypatch.setattr(
+        "pqcheck.detectors.python_detector.os.read",
+        fake_read,
+    )
+    assert detect_python_file(f) == []
