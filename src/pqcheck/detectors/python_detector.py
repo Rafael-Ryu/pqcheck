@@ -159,7 +159,7 @@ class PythonDetector(ast.NodeVisitor):
         first = node.args[0]
         if not isinstance(first, ast.Constant) or not isinstance(first.value, str):
             return  # pragma: no cover - only string Constant literals reach this from valid source
-        key = first.value.lower()
+        key = _normalize_hashlib_new_name(first.value)
         mapping = _HASHLIB_NEW_NAMES.get(key)
         if mapping is None:
             return  # pragma: no cover - unknown alias; table covers known keys
@@ -299,6 +299,15 @@ class PythonDetector(ast.NodeVisitor):
         if 0 <= line_idx < len(self._source_lines):
             return self._source_lines[line_idx].strip()
         return ""  # pragma: no cover - empty file has no Call nodes to visit
+
+
+def _normalize_hashlib_new_name(name: str) -> str:
+    key = name.lower()
+    if key.startswith("sha3-"):
+        return key.replace("-", "_", 1)
+    if key.startswith("sha-"):
+        return key.replace("-", "", 1)
+    return key
 
 
 _MAX_FILE_BYTES = 2 * 1024 * 1024  # 2 MiB cap — skip generated/oversized files.
