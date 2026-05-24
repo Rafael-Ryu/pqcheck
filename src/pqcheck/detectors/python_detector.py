@@ -35,7 +35,9 @@ class ImportResolver(ast.NodeVisitor):
 
     def __init__(self) -> None:
         self._names: dict[str, str] = {}
-        self._star_imports: set[str] = set()
+        # Insertion-ordered (dict keys) so star-import resolution follows
+        # source order deterministically rather than set hash order.
+        self._star_imports: dict[str, None] = {}
 
     # ---- public API used by PythonDetector and tests ----
 
@@ -91,7 +93,7 @@ class ImportResolver(ast.NodeVisitor):
             return
         for alias in node.names:
             if alias.name == "*":
-                self._star_imports.add(module)
+                self._star_imports[module] = None
                 continue
             local = alias.asname or alias.name
             qualified = f"{module}.{alias.name}" if module else alias.name
@@ -174,6 +176,7 @@ class PythonDetector(ast.NodeVisitor):
         self.generic_visit(node)
 
     def _emit_via_star_import(self, node: ast.Call, short_name: str) -> None:
+        # First catalog match wins, in source order of the star imports.
         for module in self._imports.iter_star_imports():
             hit = lookup_python_symbol(f"{module}.{short_name}")
             if hit is None or hit.canonical == "CIPHER-WRAPPER":

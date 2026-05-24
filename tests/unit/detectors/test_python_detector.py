@@ -733,6 +733,28 @@ def test_star_import_does_not_emit_cipher_wrapper_marker() -> None:
     assert findings == []
 
 
+def test_star_import_resolution_follows_source_order() -> None:
+    # Two star imports both bind `new`; the first in source order wins,
+    # deterministically (not set hash order).
+    findings = _scan(
+        "from Crypto.Hash.MD5 import *\n"
+        "from Crypto.Hash.SHA256 import *\n"
+        "new(b'x')\n"
+    )
+    assert len(findings) == 1
+    assert findings[0].algorithm == "MD5"
+
+
+def test_star_import_resolution_reversed_source_order() -> None:
+    findings = _scan(
+        "from Crypto.Hash.SHA256 import *\n"
+        "from Crypto.Hash.MD5 import *\n"
+        "new(b'x')\n"
+    )
+    assert len(findings) == 1
+    assert findings[0].algorithm == "SHA-256"
+
+
 def test_star_import_does_not_double_emit_with_direct_call() -> None:
     findings = _scan(
         "import hashlib\nfrom hashlib import *\nhashlib.md5(b'x')\n"
