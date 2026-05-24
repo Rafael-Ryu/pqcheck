@@ -1,4 +1,7 @@
+import os
 from pathlib import Path
+
+import pytest
 
 from pqcheck.deps.base import (
     MAX_FILE_BYTES,
@@ -78,3 +81,47 @@ def test_safe_read_bytes_returns_none_for_missing_file(tmp_path: Path) -> None:
 
 def test_safe_read_bytes_returns_none_for_directory(tmp_path: Path) -> None:
     assert safe_read_bytes(tmp_path) is None
+
+
+def test_safe_read_bytes_rejects_symlink_to_regular_file(tmp_path: Path) -> None:
+    # Symlink to a real file outside the scan target must be rejected — the
+    # emitted declared_in would otherwise point at the link, hiding the
+    # actual source.
+    target = tmp_path / "real.toml"
+    target.write_bytes(b"[project]\nname = 'x'\n")
+    link = tmp_path / "link.toml"
+    link.symlink_to(target)
+    assert safe_read_bytes(link) is None
+
+
+def test_safe_read_bytes_rejects_symlink_to_dev_zero(tmp_path: Path) -> None:
+    # Regression: symlink whose target is /dev/zero must not block the
+    # read. O_NOFOLLOW makes os.open raise ELOOP/EMLINK; the S_ISREG
+    # check is the second line of defense.
+    if not Path("/dev/zero").exists():
+        pytest.skip("/dev/zero unavailable on this platform")
+    link = tmp_path / "zero.toml"
+    link.symlink_to("/dev/zero")
+    assert safe_read_bytes(link) is None
+
+
+def test_safe_read_bytes_rejects_fifo(tmp_path: Path) -> None:
+    fifo = tmp_path / "pipe.toml"
+    os.mkfifo(fifo)
+    assert safe_read_bytes(fifo) is None
+
+
+def test_safe_read_bytes_caps_growth_during_read(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # If a file grows between fstat and read past the cap, the loop must
+    # bail with None rather than OOM.
+    f = tmp_path / "small.toml"
+    f.write_bytes(b"# small\n")
+    big = b"a" * 65536
+
+    def fake_read(fd: int, n: int) -> bytes:
+        return big[:n]
+
+    monkeypatch.setattr("pqcheck.deps.base.os.read", fake_read)
+    assert safe_read_bytes(f) is None
