@@ -650,10 +650,9 @@ def test_detect_python_file_caps_growth_during_read(
     def fake_read(fd: int, n: int) -> bytes:
         return big[:n]
 
-    monkeypatch.setattr(
-        "pqcheck.detectors.python_detector.os.read",
-        fake_read,
-    )
+    # The hardened read now lives in pqcheck.deps.base (shared with the deps
+    # parsers); patch os.read there.
+    monkeypatch.setattr("pqcheck.deps.base.os.read", fake_read)
     assert detect_python_file(f) == []
 
 

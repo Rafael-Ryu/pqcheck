@@ -18,20 +18,23 @@ MAX_FILE_BYTES = 5 * 1024 * 1024
 _READ_CHUNK = 64 * 1024
 
 
-def safe_read_bytes(path: Path) -> bytes | None:
+def safe_read_bytes(path: Path, max_bytes: int = MAX_FILE_BYTES) -> bytes | None:
     """Read a file as bytes, returning None on any error or oversize.
 
-    Failure modes (return None): missing path, symlink, non-regular file
-    (FIFO/device/socket/directory), file larger than MAX_FILE_BYTES, or
-    a file that grows between fstat and read past the cap. Callers treat
-    None as "skip this file" — never raise. Matches the scanner's
-    per-file exception-swallowing contract.
+    Failure modes (return None): missing path, symlink as the final path
+    component, non-regular file (FIFO/device/socket/directory), file larger
+    than `max_bytes`, or a file that grows between fstat and read past the
+    cap. Callers treat None as "skip this file" — never raise. Matches the
+    scanner's per-file exception-swallowing contract.
 
-    Open uses O_NOFOLLOW (reject symlinks) and O_NONBLOCK (FIFO opens
-    return immediately) so a malicious repo cannot block the scanner
-    via a symlink to /dev/zero or an unopened FIFO. fstat + read run
-    against the same fd to close the TOCTOU between size check and
-    read.
+    Open uses O_NOFOLLOW (reject a symlinked target file; symlinked parent
+    directories are the walker's responsibility) and O_NONBLOCK (FIFO opens
+    return immediately) so a malicious repo cannot block the scanner via a
+    symlink to /dev/zero or an unopened FIFO. fstat + read run against the
+    same fd to close the TOCTOU between size check and read.
+
+    `max_bytes` lets callers impose a tighter cap (e.g. source files use a
+    smaller limit than dependency manifests) without duplicating this body.
     """
     try:
         fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
@@ -41,10 +44,10 @@ def safe_read_bytes(path: Path) -> bytes | None:
         info = os.fstat(fd)
         if not stat.S_ISREG(info.st_mode):
             return None
-        if info.st_size > MAX_FILE_BYTES:
+        if info.st_size > max_bytes:
             return None
         chunks: list[bytes] = []
-        budget = MAX_FILE_BYTES + 1
+        budget = max_bytes + 1
         while budget > 0:
             chunk = os.read(fd, min(budget, _READ_CHUNK))
             if not chunk:
