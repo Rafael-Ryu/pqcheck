@@ -141,13 +141,25 @@ def _direct_dependency_children(parent: etree._Element) -> list[etree._Element]:
 
 
 def _resolve_version(version_raw: str | None, properties: dict[str, str]) -> str | None:
+    """Substitute every ${name} token in `version_raw` using `properties`.
+
+    Returns None if any referenced property is missing — fail closed
+    rather than emit a half-substituted version. A version without any
+    ${...} token is returned as-is.
+    """
     if version_raw is None:
         return None
-    match = _PROPERTY_REF_RE.fullmatch(version_raw)
-    if match is None:
-        # Either a literal version or a string with embedded refs we don't
-        # try to resolve mid-token. Return as-is unless it looks unresolved.
-        if _PROPERTY_REF_RE.search(version_raw):
-            return None
-        return version_raw
-    return properties.get(match.group(1))
+    unresolved = False
+
+    def _sub(match: re.Match[str]) -> str:
+        nonlocal unresolved
+        value = properties.get(match.group(1))
+        if value is None:
+            unresolved = True
+            return match.group(0)
+        return value
+
+    result = _PROPERTY_REF_RE.sub(_sub, version_raw)
+    if unresolved:
+        return None
+    return result

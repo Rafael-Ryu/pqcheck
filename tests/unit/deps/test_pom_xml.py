@@ -79,6 +79,48 @@ def test_parse_resolves_in_file_property_interpolation(tmp_path: Path) -> None:
     assert deps[0].purl.endswith("@1.78")
 
 
+def test_parse_resolves_embedded_property_in_version(tmp_path: Path) -> None:
+    # Maven supports ${prop} embedded inside a larger version string, e.g.
+    # "${jackson.version}-RELEASE". The detector must substitute, not return None.
+    f = _write(tmp_path, """<?xml version="1.0"?>
+<project>
+  <properties>
+    <jackson.version>2.15.0</jackson.version>
+  </properties>
+  <dependencies>
+    <dependency>
+      <groupId>com.fasterxml.jackson</groupId>
+      <artifactId>jackson-core</artifactId>
+      <version>${jackson.version}-RELEASE</version>
+    </dependency>
+  </dependencies>
+</project>
+""")
+    deps = parse(f)
+    assert deps[0].version == "2.15.0-RELEASE"
+    assert deps[0].purl.endswith("@2.15.0-RELEASE")
+
+
+def test_parse_unresolvable_embedded_property_emits_none(tmp_path: Path) -> None:
+    # Fail-closed: any unresolved ${name} in the version forces version=None.
+    f = _write(tmp_path, """<?xml version="1.0"?>
+<project>
+  <properties>
+    <jackson.version>2.15.0</jackson.version>
+  </properties>
+  <dependencies>
+    <dependency>
+      <groupId>com.fasterxml.jackson</groupId>
+      <artifactId>jackson-core</artifactId>
+      <version>${jackson.version}-${missing.suffix}</version>
+    </dependency>
+  </dependencies>
+</project>
+""")
+    deps = parse(f)
+    assert deps[0].version is None
+
+
 def test_parse_unresolvable_property_emits_none_version(tmp_path: Path) -> None:
     f = _write(tmp_path, """<?xml version="1.0"?>
 <project>
