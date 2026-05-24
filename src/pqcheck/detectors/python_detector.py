@@ -144,6 +144,7 @@ class PythonDetector(ast.NodeVisitor):
                         confidence=1.0,
                         key_size=self._extract_key_size(node, qualified),
                         curve=self._extract_curve(node) if hit.canonical == "ECDSA" else None,
+                        mode=self._extract_pycrypto_mode(node, qualified),
                     )
                     emitted = True
         # hashlib.new("md5") — string-based dispatch. Only runs when the
@@ -239,6 +240,30 @@ class PythonDetector(ast.NodeVisitor):
             if type(value) is int:
                 return value
         return None
+
+    def _extract_pycrypto_mode(self, node: ast.Call, qualified: str) -> str | None:
+        """Return the mode for `Crypto.Cipher.<X>.new(key, X.MODE_Y, ...)`.
+
+        Only fires for pycryptodome cipher `new` callees. The mode argument
+        is the second positional argument or the `mode=` keyword, and must
+        resolve to an attribute like `AES.MODE_ECB`.
+        """
+        if not (qualified.startswith("Crypto.Cipher.") and qualified.endswith(".new")):
+            return None
+        mode_position = 1
+        candidate: ast.expr | None = None
+        if len(node.args) > mode_position:
+            candidate = node.args[mode_position]
+        for kw in node.keywords:
+            if kw.arg == "mode":
+                candidate = kw.value
+                break
+        if not isinstance(candidate, ast.Attribute):
+            return None
+        mode_qualified = self._imports.resolve_attribute(candidate)
+        if mode_qualified is None:
+            return None
+        return lookup_cipher_mode(mode_qualified)
 
     @staticmethod
     def _extract_curve(node: ast.Call) -> str | None:

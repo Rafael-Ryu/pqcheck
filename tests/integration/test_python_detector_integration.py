@@ -59,6 +59,10 @@ def test_mixed_pycryptodome_separates_banned_from_acceptable() -> None:
     safe = {f.algorithm for f in findings if f.quantum_risk is QuantumRisk.SAFE}
     assert {"DES", "MD5", "RSA"} <= banned
     assert {"SHA-256", "AES"} <= safe
+    aes = next(f for f in findings if f.algorithm == "AES")
+    des = next(f for f in findings if f.algorithm == "DES")
+    assert aes.mode == "GCM"
+    assert des.mode == "ECB"
 
 
 @pytest.mark.integration
