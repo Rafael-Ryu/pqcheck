@@ -187,6 +187,30 @@ def test_detector_demotes_confidence_for_hashlib_new_string() -> None:
     assert findings[0].confidence == 0.7
 
 
+def test_detector_finds_hashlib_new_dashed_sha1_alias() -> None:
+    findings = _scan("import hashlib\nhashlib.new('sha-1')\n")
+    assert len(findings) == 1
+    assert findings[0].algorithm == "SHA-1"
+    assert findings[0].confidence == 0.7
+
+
+def test_detector_finds_hashlib_new_uppercase_dashed_sha256_alias() -> None:
+    findings = _scan("import hashlib\nhashlib.new('SHA-256')\n")
+    assert len(findings) == 1
+    assert findings[0].algorithm == "SHA-256"
+
+
+def test_detector_finds_hashlib_new_dashed_sha3_alias() -> None:
+    findings = _scan("import hashlib\nhashlib.new('sha3-256')\n")
+    assert len(findings) == 1
+    assert findings[0].algorithm == "SHA3-256"
+
+
+def test_detector_ignores_unknown_hashlib_new_literal() -> None:
+    findings = _scan("import hashlib\nhashlib.new('shake_128')\n")
+    assert findings == []
+
+
 def test_cipher_wrapper_unwraps_to_single_finding() -> None:
     # CIPHER-WRAPPER is a catalog marker, never a real finding canonical:
     # the wrapper is unwrapped into one finding for the inner algorithm,
