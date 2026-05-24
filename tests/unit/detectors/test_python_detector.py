@@ -612,6 +612,37 @@ def test_detect_python_file_latin1_fallback(tmp_path: Path) -> None:
     assert findings[0].algorithm == "MD5"
 
 
+def test_detect_python_file_honors_pep263_cp1252_cookie(tmp_path: Path) -> None:
+    # Regression for #11: a CP1252-specific byte (0x82 = curly single quote)
+    # mid-string is not valid UTF-8 and would be misdecoded as Latin-1
+    # without the PEP 263 cookie. The cookie wins, the source decodes
+    # correctly, and the crypto call is still detected.
+    f = tmp_path / "legacy.py"
+    f.write_bytes(
+        b"# -*- coding: cp1252 -*-\n"
+        b"_label = 'doesn\x82t'\n"
+        b"import hashlib\n"
+        b"hashlib.md5(b'x')\n"
+    )
+    findings = detect_python_file(f)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "MD5"
+
+
+def test_detect_python_file_invalid_pep263_cookie_falls_back(tmp_path: Path) -> None:
+    # `# coding: bogus-encoding` is a syntactically valid cookie but the
+    # codec is unknown — LookupError on decode forces the latin-1 fallback.
+    f = tmp_path / "bad_cookie.py"
+    f.write_bytes(
+        b"# coding: bogus-encoding\n"
+        b"import hashlib\n"
+        b"hashlib.md5(b'x')\n"
+    )
+    findings = detect_python_file(f)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "MD5"
+
+
 def test_detect_python_file_binary_content_returns_empty(tmp_path: Path) -> None:
     f = tmp_path / "x.py"
     # Binary bytes decode in latin-1 but the resulting text is unparseable;

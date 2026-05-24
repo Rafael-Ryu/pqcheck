@@ -12,8 +12,10 @@ pydantic, which the project already uses for CryptoFinding.
 from __future__ import annotations
 
 import ast
+import io
 import os
 import stat
+import tokenize
 from pathlib import Path
 
 from pqcheck.detectors.algorithms import AlgorithmHit, lookup_cipher_mode, lookup_python_symbol
@@ -345,25 +347,22 @@ def detect_python_file(path: Path) -> list[CryptoFinding]:
 
     Returns an empty list (never raises) for: missing file, symlink,
     non-regular file (device, FIFO, socket, directory), file > 2 MiB,
-    encoding failure on both UTF-8 and Latin-1, or a SyntaxError during
-    parsing.
+    encoding failure on both the PEP 263 declared codec (or UTF-8
+    default) and Latin-1, or a SyntaxError during parsing.
 
     The path is opened with O_NOFOLLOW and the size/regular-file check
     runs against the open fd; this rejects symlinks (a previously fatal
     case: a symlink to /dev/zero blocked the read forever) and closes
     the TOCTOU between size check and read. The read is itself capped
     so a file that grows between fstat and read cannot exceed the limit.
+    Encoding is resolved via tokenize.detect_encoding so PEP 263
+    cookies like `# coding: cp1252` are honored before falling back to
+    Latin-1.
     """
     raw = _read_capped(path)
     if raw is None:
         return []
-    source: str | None = None
-    for encoding in ("utf-8", "latin-1"):
-        try:
-            source = raw.decode(encoding)
-            break
-        except UnicodeDecodeError:
-            continue
+    source = _decode_python_source(raw)
     if source is None:  # pragma: no cover - latin-1 (last fallback) is total over bytes
         return []
     try:
@@ -404,3 +403,23 @@ def _read_capped(path: Path) -> bytes | None:
     finally:
         os.close(fd)
     return b"".join(chunks)
+
+
+def _decode_python_source(raw: bytes) -> str | None:
+    """Decode `raw` to text honoring a PEP 263 encoding cookie.
+
+    `tokenize.detect_encoding` reads the first one or two lines, returns
+    the cookie-declared codec (or 'utf-8' as the documented default) and
+    handles the UTF-8 BOM. We try that codec first; latin-1 is the final
+    fallback for files that neither declare a cookie nor parse as UTF-8.
+    """
+    try:
+        detected, _bom_lines = tokenize.detect_encoding(io.BytesIO(raw).readline)
+    except SyntaxError:
+        detected = "utf-8"
+    for encoding in (detected, "latin-1"):
+        try:
+            return raw.decode(encoding)
+        except (UnicodeDecodeError, LookupError):
+            continue
+    return None  # pragma: no cover - latin-1 (last fallback) is total over bytes
