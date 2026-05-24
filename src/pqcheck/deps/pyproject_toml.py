@@ -6,9 +6,10 @@ Emits CryptoDependency per distinct package name across:
   - [dependency-groups.<group>]
   - [build-system].requires       (PEP 518)
 
-Versions are NOT pinned in pyproject.toml — every emitted dependency
-has version=None. For exact versions, the scanner orchestrator combines
-the pyproject result with the matching uv.lock result.
+This parser records only distribution names; any version specifier in a
+PEP 508 string is discarded, so every emitted dependency has version=None.
+Exact versions come from the matching uv.lock result, which the scanner
+orchestrator combines with the pyproject result.
 """
 
 from __future__ import annotations

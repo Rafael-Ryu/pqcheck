@@ -5,8 +5,9 @@ Two passes over the file's AST:
   2. PythonDetector visits every Call and resolves its callee against
      the catalog in pqcheck.detectors.algorithms.
 
-Both passes are stdlib-only (ast module). No third-party deps beyond
-pydantic, which the project already uses for CryptoFinding.
+AST walking uses only the stdlib `ast` module. Findings are pydantic
+CryptoFinding models, and the hardened file read is shared with the
+dependency parsers via pqcheck.deps.base.
 """
 
 from __future__ import annotations
@@ -324,7 +325,6 @@ class PythonDetector(ast.NodeVisitor):
         key_size: int | None = None,
         curve: str | None = None,
         mode: str | None = None,
-        padding: str | None = None,
     ) -> None:
         location = SourceLocation(
             path=self._path,
@@ -340,7 +340,6 @@ class PythonDetector(ast.NodeVisitor):
                 key_size=key_size,
                 curve=curve,
                 mode=mode,
-                padding=padding,
                 location=location,
                 evidence=self._evidence(node),
                 detector_id=_DETECTOR_ID,

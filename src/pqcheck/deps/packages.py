@@ -40,7 +40,10 @@ _CATALOG: dict[tuple[str, str], tuple[str, ...]] = {
     ("pypi", "ecdsa"): ("ECDSA",),
     ("pypi", "pynacl"): ("ED25519", "X25519", "CHACHA20"),
     ("pypi", "pyopenssl"): ("RSA", "ECDSA", "AES", "SHA-256"),
-    ("pypi", "bcrypt"): (),  # BCRYPT is a KDF; not in QuantumRisk map; flagged via family
+    # bcrypt surfaces only its KDF, which has no QuantumRisk-mapped algorithm.
+    # Empty tuple is currently indistinguishable from an absent entry; kept so
+    # the package is on record for when a KDF-family signal lands.
+    ("pypi", "bcrypt"): (),
     ("pypi", "passlib"): ("MD5", "SHA-1", "SHA-256", "SHA-512"),
     ("pypi", "paramiko"): ("RSA", "DSA", "ECDSA", "AES", "SHA-1", "SHA-256"),
     ("pypi", "pyjwt"): ("RSA", "ECDSA", "SHA-256", "SHA-384", "SHA-512"),

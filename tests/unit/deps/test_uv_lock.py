@@ -9,6 +9,19 @@ def _write(tmp_path: Path, content: str) -> Path:
     return f
 
 
+def test_parse_empty_version_string_normalizes_to_none(tmp_path: Path) -> None:
+    f = _write(tmp_path, """
+version = 1
+
+[[package]]
+name = "cryptography"
+version = ""
+""")
+    deps = parse(f)
+    assert deps[0].version is None
+    assert deps[0].purl == "pkg:pypi/cryptography"
+
+
 def test_parse_basic_uv_lock(tmp_path: Path) -> None:
     f = _write(tmp_path, """
 version = 1

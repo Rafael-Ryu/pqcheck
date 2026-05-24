@@ -43,7 +43,9 @@ def parse(path: Path) -> list[CryptoDependency]:
         if not isinstance(name, str) or not name:
             continue
         version_raw = entry.get("version")
-        version = version_raw if isinstance(version_raw, str) else None
+        # Empty/blank version normalizes to None (matches the pom parser) so an
+        # empty version qualifier never reaches the PURL.
+        version = version_raw if isinstance(version_raw, str) and version_raw else None
         key = (name.lower(), version)
         if key in seen:
             continue
