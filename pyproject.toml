@@ -98,6 +98,9 @@ include = [
 ]
 
 [tool.hatch.build.targets.sdist]
+# SECURITY.md and CHANGELOG.md are added here when they land (private dev
+# rule: do not create those files yet — adding them to the include list
+# pre-bakes a target we don't have). See issue #10.
 include = [
     "src/",
     "tests/",
@@ -105,8 +108,6 @@ include = [
     "scripts/",
     "README.md",
     "LICENSE",
-    "SECURITY.md",
-    "CHANGELOG.md",
     "pyproject.toml",
 ]
 
