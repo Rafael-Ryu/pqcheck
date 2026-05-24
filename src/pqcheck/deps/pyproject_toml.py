@@ -68,6 +68,10 @@ def _iter_requirement_strings(data: dict[str, Any]) -> Iterable[str]:
     if isinstance(groups, dict):
         yield from _expand_dependency_groups(groups)
 
+    build_system = data.get("build-system")
+    if isinstance(build_system, dict):
+        yield from _string_items(build_system.get("requires"))
+
 
 def _expand_dependency_groups(groups: dict[str, Any]) -> Iterable[str]:
     """Yield every PEP 508 requirement reachable from any group in
@@ -97,10 +101,6 @@ def _expand_one_group(
             included = item.get("include-group")
             if isinstance(included, str):
                 yield from _expand_one_group(included, groups, expanded)
-
-    build_system = data.get("build-system")
-    if isinstance(build_system, dict):
-        yield from _string_items(build_system.get("requires"))
 
 
 def _string_items(value: Any) -> Iterable[str]:
