@@ -113,14 +113,28 @@ _CIPHER_MODES: dict[str, str] = {
 }
 
 
-# pycryptodome AES.MODE_* attribute → mode name.
+# pycryptodome <Cipher>.MODE_* attribute → mode name. Block ciphers only;
+# stream ciphers (ChaCha20, ARC4) do not take a mode argument.
 _PYCRYPTODOME_MODE_ATTRS: dict[str, str] = {
+    # AES
     "Crypto.Cipher.AES.MODE_GCM": "GCM",
     "Crypto.Cipher.AES.MODE_CBC": "CBC",
     "Crypto.Cipher.AES.MODE_ECB": "ECB",
     "Crypto.Cipher.AES.MODE_CTR": "CTR",
     "Crypto.Cipher.AES.MODE_OFB": "OFB",
     "Crypto.Cipher.AES.MODE_CFB": "CFB",
+    # DES
+    "Crypto.Cipher.DES.MODE_CBC": "CBC",
+    "Crypto.Cipher.DES.MODE_ECB": "ECB",
+    "Crypto.Cipher.DES.MODE_CTR": "CTR",
+    "Crypto.Cipher.DES.MODE_OFB": "OFB",
+    "Crypto.Cipher.DES.MODE_CFB": "CFB",
+    # DES3 (TripleDES)
+    "Crypto.Cipher.DES3.MODE_CBC": "CBC",
+    "Crypto.Cipher.DES3.MODE_ECB": "ECB",
+    "Crypto.Cipher.DES3.MODE_CTR": "CTR",
+    "Crypto.Cipher.DES3.MODE_OFB": "OFB",
+    "Crypto.Cipher.DES3.MODE_CFB": "CFB",
 }
 
 
