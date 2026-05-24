@@ -655,3 +655,45 @@ def test_detect_python_file_caps_growth_during_read(
         fake_read,
     )
     assert detect_python_file(f) == []
+
+
+def test_star_import_emits_finding_with_demoted_confidence() -> None:
+    findings = _scan("from hashlib import *\nmd5(b'x')\n")
+    assert len(findings) == 1
+    assert findings[0].algorithm == "MD5"
+    assert findings[0].confidence == 0.7
+
+
+def test_star_import_resolves_short_name_from_cryptography_hashes() -> None:
+    findings = _scan(
+        "from cryptography.hazmat.primitives.hashes import *\nMD5()\n"
+    )
+    assert len(findings) == 1
+    assert findings[0].algorithm == "MD5"
+    assert findings[0].confidence == 0.7
+
+
+def test_star_import_safe_when_module_not_catalogued() -> None:
+    findings = _scan("from os import *\ngetcwd()\n")
+    assert findings == []
+
+
+def test_star_import_unrelated_short_name_emits_nothing() -> None:
+    findings = _scan("from hashlib import *\nnot_a_hash(b'x')\n")
+    assert findings == []
+
+
+def test_star_import_does_not_emit_cipher_wrapper_marker() -> None:
+    findings = _scan(
+        "from cryptography.hazmat.primitives.ciphers import *\n"
+        "Cipher(some_algo, some_mode)\n"
+    )
+    assert findings == []
+
+
+def test_star_import_does_not_double_emit_with_direct_call() -> None:
+    findings = _scan(
+        "import hashlib\nfrom hashlib import *\nhashlib.md5(b'x')\n"
+    )
+    assert len(findings) == 1
+    assert findings[0].confidence == 1.0
