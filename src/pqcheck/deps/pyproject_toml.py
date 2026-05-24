@@ -4,6 +4,7 @@ Emits CryptoDependency per distinct package name across:
   - [project.dependencies]
   - [project.optional-dependencies.<group>]
   - [dependency-groups.<group>]
+  - [build-system].requires       (PEP 518)
 
 Versions are NOT pinned in pyproject.toml — every emitted dependency
 has version=None. For exact versions, the scanner orchestrator combines
@@ -67,6 +68,10 @@ def _iter_requirement_strings(data: dict[str, Any]) -> Iterable[str]:
     if isinstance(groups, dict):
         for group_value in groups.values():
             yield from _string_items(group_value)
+
+    build_system = data.get("build-system")
+    if isinstance(build_system, dict):
+        yield from _string_items(build_system.get("requires"))
 
 
 def _string_items(value: Any) -> Iterable[str]:
