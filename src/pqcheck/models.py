@@ -1,8 +1,9 @@
-"""Domain types emitted by language detectors.
+"""Domain types emitted by language detectors and dependency parsers.
 
-Only the slice consumed by the Python AST detector lives here today.
+Slice consumed by the Python AST detector and the v0.1 deps parsers
+(pyproject.toml, uv.lock, pom.xml) lives here today.
 Downstream computed fields (severity, base_severity, confidence_band,
-ScanResult, CryptoDependency, policy_decisions) are added when the
+ScanResult, policy_decisions) are added when the
 policy engine and scanner orchestrator land.
 """
 
@@ -11,7 +12,8 @@ from __future__ import annotations
 from enum import StrEnum
 from pathlib import Path
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field
+from packageurl import PackageURL
+from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
 
 
 class AlgorithmFamily(StrEnum):
@@ -96,3 +98,36 @@ class CryptoFinding(BaseModel):
     @property
     def quantum_risk(self) -> QuantumRisk:
         return _QUANTUM_MAP.get(self.algorithm.upper(), QuantumRisk.UNKNOWN)
+
+
+class CryptoDependency(BaseModel):
+    """A dependency declared in a manifest or lockfile.
+
+    Emitted by parsers in pqcheck.deps. The `introduces_algorithms` tuple
+    is populated by the parser from the static catalog in
+    pqcheck.deps.packages — it lists canonical algorithm names the package
+    is known to introduce (e.g., pycryptodome introduces RSA, AES, DES,
+    MD5). Empty tuple means "unknown / no entry in catalog", not "no
+    crypto" — downstream policy treats unknown packages as INFO findings.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    purl: str = Field(min_length=1)
+    name: str = Field(min_length=1)
+    version: str | None = None
+    ecosystem: str = Field(min_length=1)
+    declared_in: Path
+    introduces_algorithms: tuple[str, ...] = ()
+
+    @field_validator("purl")
+    @classmethod
+    def _purl_must_round_trip(cls, value: str) -> str:
+        # Round-trip through packageurl-python so malformed strings (e.g.
+        # "not-a-purl", missing scheme, bad type) fail at model-construction
+        # time rather than slipping into the CBOM / SARIF outputs.
+        try:
+            PackageURL.from_string(value)
+        except ValueError as exc:
+            raise ValueError(f"invalid PURL: {value!r}") from exc
+        return value

@@ -1,0 +1,19 @@
+version = 1
+requires-python = ">=3.12"
+
+[[package]]
+name = "my-workspace-member"
+source = { workspace = true }
+dependencies = [
+    { name = "cryptography" },
+]
+
+[[package]]
+name = "cryptography"
+version = "43.0.0"
+source = { registry = "https://pypi.org/simple" }
+
+[[package]]
+name = "ecdsa"
+version = "0.19.0"
+source = { registry = "https://pypi.org/simple" }
