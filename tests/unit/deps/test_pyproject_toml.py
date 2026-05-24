@@ -87,7 +87,10 @@ test = ["pytest", "ecdsa"]
     assert deps == ["cryptography", "ecdsa", "mypy", "pytest", "ruff"]
 
 
-def test_parse_pep735_include_group_is_ignored_safely(tmp_path: Path) -> None:
+def test_parse_pep735_include_group_resolves_transitively(tmp_path: Path) -> None:
+    # `dev` reaches `test` only via {include-group}; before the fix the
+    # dict entry was silently dropped and pytest never surfaced when
+    # `dev` was the entry point.
     f = _write(tmp_path, """
 [project]
 name = "demo"
@@ -98,6 +101,50 @@ test = ["pytest"]
 """)
     deps = sorted(d.name for d in parse(f))
     assert deps == ["pytest", "ruff"]
+
+
+def test_parse_pep735_include_group_only_path_to_dep(tmp_path: Path) -> None:
+    # The dep `cryptography` is reachable ONLY via include-group resolution.
+    # Direct walk of dev = [{include-group = "build"}] would have missed it.
+    f = _write(tmp_path, """
+[project]
+name = "demo"
+dependencies = []
+[dependency-groups]
+dev = [{include-group = "build"}]
+build = ["cryptography>=43.0.0"]
+""")
+    deps = sorted(d.name for d in parse(f))
+    assert deps == ["cryptography"]
+
+
+def test_parse_pep735_include_group_handles_cycle(tmp_path: Path) -> None:
+    # a -> b -> a; each group still contributes its strings once and
+    # the parser does not hang.
+    f = _write(tmp_path, """
+[project]
+name = "demo"
+dependencies = []
+[dependency-groups]
+a = ["ruff", {include-group = "b"}]
+b = ["pytest", {include-group = "a"}]
+""")
+    deps = sorted(d.name for d in parse(f))
+    assert deps == ["pytest", "ruff"]
+
+
+def test_parse_pep735_include_group_unknown_key_ignored(tmp_path: Path) -> None:
+    # PEP 735 reserves keys beyond `include-group` for future use; unknown
+    # keys must not crash the parser.
+    f = _write(tmp_path, """
+[project]
+name = "demo"
+dependencies = []
+[dependency-groups]
+dev = ["ruff", {foo = "bar"}]
+""")
+    deps = sorted(d.name for d in parse(f))
+    assert deps == ["ruff"]
 
 
 def test_parse_deduplicates_across_sections(tmp_path: Path) -> None:
