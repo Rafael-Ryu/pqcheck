@@ -190,8 +190,12 @@ class PythonDetector(ast.NodeVisitor):
             return
         # Suppress the nested algorithm and mode Calls so generic_visit
         # doesn't re-emit them as flat findings.
+        key_size: int | None = None
         if isinstance(algorithm_arg, ast.Call):  # pragma: no branch
             self._suppressed_call_ids.add(id(algorithm_arg))
+            key_size = self._aes_key_size(
+                algorithm_arg, self._imports.resolve_attribute(algorithm_arg.func)
+            )
         if isinstance(mode_arg, ast.Call):
             self._suppressed_call_ids.add(id(mode_arg))
         mode_name = self._resolve_mode_target(mode_arg)
@@ -200,6 +204,7 @@ class PythonDetector(ast.NodeVisitor):
             algo_hit.canonical,
             algo_hit.family,
             confidence=1.0,
+            key_size=key_size,
             mode=mode_name,
         )
 
@@ -231,7 +236,24 @@ class PythonDetector(ast.NodeVisitor):
         return lookup_cipher_mode(qualified)
 
     @staticmethod
+    def _aes_key_size(call: ast.Call, qualified: str | None) -> int | None:
+        # AES128 / AES256 declare the key length in the class name; the key
+        # argument is irrelevant. Callers only reach here with a resolved
+        # qualified name, but the guard keeps the .endswith calls type-safe.
+        if qualified is not None:  # pragma: no branch
+            if qualified.endswith(".AES128"):
+                return 128
+            if qualified.endswith(".AES256"):
+                return 256
+        if qualified in _AES_CONSTRUCTORS and call.args:
+            return _bytes_literal_bits(call.args[0])
+        return None
+
+    @staticmethod
     def _extract_key_size(node: ast.Call, qualified: str | None) -> int | None:
+        aes_bits = PythonDetector._aes_key_size(node, qualified)
+        if aes_bits is not None:
+            return aes_bits
         for kw in node.keywords:
             if kw.arg == "key_size" and isinstance(kw.value, ast.Constant):
                 value = kw.value.value
@@ -346,6 +368,38 @@ def _normalize_hashlib_new_name(name: str) -> str:
     if key.startswith("sha-"):
         return key.replace("-", "", 1)
     return key
+
+
+# AES constructors whose first positional argument is the key. The string key
+# size comes from the key length; gated to these names so a non-key bytes
+# argument (e.g. hash input in md5(b"...")) is never misread as a key length.
+_AES_CONSTRUCTORS = frozenset(
+    {
+        "cryptography.hazmat.primitives.ciphers.algorithms.AES",
+        "Crypto.Cipher.AES.new",
+    }
+)
+
+
+def _bytes_literal_bits(expr: ast.expr) -> int | None:
+    """Bit length of a bytes-literal key, or None if not a decidable literal.
+
+    Handles a bytes constant and the constant-folded repeat ``b"..." * n``.
+    Non-literal keys (a variable, a function call) stay undecidable by design.
+    """
+    if isinstance(expr, ast.Constant) and isinstance(expr.value, bytes):
+        return len(expr.value) * 8
+    if (
+        isinstance(expr, ast.BinOp)
+        and isinstance(expr.op, ast.Mult)
+        and isinstance(expr.left, ast.Constant)
+        and isinstance(expr.left.value, bytes)
+        and isinstance(expr.right, ast.Constant)
+        and type(expr.right.value) is int
+        and expr.right.value >= 0
+    ):
+        return len(expr.left.value) * expr.right.value * 8
+    return None
 
 
 _MAX_FILE_BYTES = 2 * 1024 * 1024  # 2 MiB cap — skip generated/oversized files.

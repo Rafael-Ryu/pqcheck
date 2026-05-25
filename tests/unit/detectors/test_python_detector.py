@@ -531,6 +531,77 @@ def test_pycryptodome_rsa_positional_non_constant_emits_none() -> None:
     assert findings[0].key_size is None
 
 
+def test_aes_wrapper_extracts_key_size_from_repeated_bytes_literal() -> None:
+    src = (
+        "from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes\n"
+        "Cipher(algorithms.AES(b'k' * 32), modes.GCM(b'i' * 12))\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "AES"
+    assert findings[0].key_size == 256
+
+
+def test_aes_wrapper_extracts_128_from_16_byte_key() -> None:
+    src = (
+        "from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes\n"
+        "Cipher(algorithms.AES(b'0123456789abcdef'), modes.ECB())\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].key_size == 128
+
+
+def test_aes128_class_reports_128_regardless_of_key() -> None:
+    src = (
+        "from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes\n"
+        "Cipher(algorithms.AES128(some_key), modes.GCM(b'i' * 12))\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].key_size == 128
+
+
+def test_aes256_class_reports_256_regardless_of_key() -> None:
+    src = (
+        "from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes\n"
+        "Cipher(algorithms.AES256(some_key), modes.GCM(b'i' * 12))\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].key_size == 256
+
+
+def test_pycryptodome_aes_extracts_key_size_from_key_literal() -> None:
+    src = (
+        "from Crypto.Cipher import AES\n"
+        "AES.new(b'\\x00' * 16, AES.MODE_GCM)\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "AES"
+    assert findings[0].key_size == 128
+
+
+def test_aes_with_non_literal_key_emits_none() -> None:
+    src = (
+        "from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes\n"
+        "Cipher(algorithms.AES(key_from_kms), modes.GCM(b'i' * 12))\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].key_size is None
+
+
+def test_hash_input_bytes_not_misread_as_key_size() -> None:
+    # hashlib.md5(b"data") — the bytes arg is hash input, not a key. The AES
+    # extractor must not fire for non-AES symbols.
+    findings = _scan("import hashlib\nhashlib.md5(b'sensitive data')\n")
+    assert len(findings) == 1
+    assert findings[0].algorithm == "MD5"
+    assert findings[0].key_size is None
+
+
 def test_sha224_quantum_risk_is_safe() -> None:
     # SHA-224 is detected by the catalog; ensure it surfaces as SAFE,
     # not UNKNOWN.
