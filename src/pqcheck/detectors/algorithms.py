@@ -29,7 +29,10 @@ _SYM = AlgorithmFamily.SYMMETRIC_CIPHER
 
 
 # Fully-qualified callee name → AlgorithmHit.
-# Canonical names follow policy §2/§3 spelling (uppercase, hyphenated).
+# Canonical names are the exact policy §2/§3 spelling so findings match policy
+# rules directly. That is usually uppercase + hyphenated (RSA, SHA-256, 3DES)
+# but not always — EdDSA is mixed-case. Never assume canonicals are all-caps;
+# compare case-insensitively, as CryptoFinding.quantum_risk does.
 _PYTHON_SYMBOLS: dict[str, AlgorithmHit] = {
     # ---- hashlib (stdlib) ----
     "hashlib.md5": AlgorithmHit("MD5", _HASH),
