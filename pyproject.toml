@@ -111,6 +111,17 @@ include = [
     "pyproject.toml",
 ]
 
+[tool.cibuildwheel]
+build = "cp312-* cp313-*"
+skip = "*-musllinux_*"
+test-command = "pqcheck version"
+
+[tool.cibuildwheel.linux]
+archs = ["x86_64"]
+
+[tool.cibuildwheel.macos]
+archs = ["x86_64", "arm64"]
+
 [tool.ruff]
 target-version = "py312"
 line-length = 100
