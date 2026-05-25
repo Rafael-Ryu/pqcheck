@@ -841,7 +841,7 @@ def test_detect_python_file_caps_growth_during_read(
         return big[:n]
 
     monkeypatch.setattr(
-        "pqcheck.detectors.python_detector.os.read",
+        "pqcheck.detectors._source_read.os.read",
         fake_read,
     )
     assert detect_python_file(f) == []

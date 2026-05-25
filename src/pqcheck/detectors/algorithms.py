@@ -26,6 +26,8 @@ _ASYM = AlgorithmFamily.ASYMMETRIC_ENCRYPTION
 _SIG = AlgorithmFamily.SIGNATURE
 _KA = AlgorithmFamily.KEY_AGREEMENT
 _SYM = AlgorithmFamily.SYMMETRIC_CIPHER
+_KEM = AlgorithmFamily.KEM
+_AEAD = AlgorithmFamily.AEAD
 
 
 # Fully-qualified callee name → AlgorithmHit.
@@ -113,6 +115,72 @@ _PYTHON_SYMBOLS: dict[str, AlgorithmHit] = {
 }
 
 
+# Fully-qualified Go callee (<import-path>.<Func>) -> AlgorithmHit. Canonical
+# names match the policy spelling and are shared with the Python catalog so
+# downstream policy rules apply uniformly across languages. Package name is
+# the import-path's last segment (the std convention for every package here).
+_GO_SYMBOLS: dict[str, AlgorithmHit] = {
+    # ---- hashes (stdlib) ----
+    "crypto/md5.New": AlgorithmHit("MD5", _HASH),
+    "crypto/md5.Sum": AlgorithmHit("MD5", _HASH),
+    "crypto/sha1.New": AlgorithmHit("SHA-1", _HASH),
+    "crypto/sha1.Sum": AlgorithmHit("SHA-1", _HASH),
+    "crypto/sha256.New": AlgorithmHit("SHA-256", _HASH),
+    "crypto/sha256.Sum256": AlgorithmHit("SHA-256", _HASH),
+    "crypto/sha256.New224": AlgorithmHit("SHA-224", _HASH),
+    "crypto/sha256.Sum224": AlgorithmHit("SHA-224", _HASH),
+    "crypto/sha512.New": AlgorithmHit("SHA-512", _HASH),
+    "crypto/sha512.Sum512": AlgorithmHit("SHA-512", _HASH),
+    "crypto/sha512.New384": AlgorithmHit("SHA-384", _HASH),
+    "crypto/sha512.Sum384": AlgorithmHit("SHA-384", _HASH),
+    "crypto/sha3.New256": AlgorithmHit("SHA3-256", _HASH),
+    "crypto/sha3.New384": AlgorithmHit("SHA3-384", _HASH),
+    "crypto/sha3.New512": AlgorithmHit("SHA3-512", _HASH),
+    "crypto/sha3.Sum256": AlgorithmHit("SHA3-256", _HASH),
+    "crypto/sha3.Sum384": AlgorithmHit("SHA3-384", _HASH),
+    "crypto/sha3.Sum512": AlgorithmHit("SHA3-512", _HASH),
+    "golang.org/x/crypto/sha3.New256": AlgorithmHit("SHA3-256", _HASH),
+    "golang.org/x/crypto/sha3.New384": AlgorithmHit("SHA3-384", _HASH),
+    "golang.org/x/crypto/sha3.New512": AlgorithmHit("SHA3-512", _HASH),
+    "golang.org/x/crypto/sha3.Sum256": AlgorithmHit("SHA3-256", _HASH),
+    "golang.org/x/crypto/sha3.Sum384": AlgorithmHit("SHA3-384", _HASH),
+    "golang.org/x/crypto/sha3.Sum512": AlgorithmHit("SHA3-512", _HASH),
+    "golang.org/x/crypto/blake2b.New256": AlgorithmHit("BLAKE2B", _HASH),
+    "golang.org/x/crypto/blake2b.New384": AlgorithmHit("BLAKE2B", _HASH),
+    "golang.org/x/crypto/blake2b.New512": AlgorithmHit("BLAKE2B", _HASH),
+    "golang.org/x/crypto/blake2b.New": AlgorithmHit("BLAKE2B", _HASH),
+    "golang.org/x/crypto/blake2s.New256": AlgorithmHit("BLAKE2S", _HASH),
+    "golang.org/x/crypto/blake2s.New128": AlgorithmHit("BLAKE2S", _HASH),
+    # ---- symmetric ----
+    "crypto/aes.NewCipher": AlgorithmHit("AES", _SYM),
+    "crypto/des.NewCipher": AlgorithmHit("DES", _SYM),
+    "crypto/des.NewTripleDESCipher": AlgorithmHit("3DES", _SYM),
+    "crypto/rc4.NewCipher": AlgorithmHit("RC4", _SYM),
+    "golang.org/x/crypto/chacha20.NewUnauthenticatedCipher": AlgorithmHit("CHACHA20", _SYM),
+    "golang.org/x/crypto/chacha20poly1305.New": AlgorithmHit("CHACHA20", _AEAD),
+    "golang.org/x/crypto/chacha20poly1305.NewX": AlgorithmHit("CHACHA20", _AEAD),
+    # ---- asymmetric / signature / key-agreement ----
+    "crypto/rsa.GenerateKey": AlgorithmHit("RSA", _ASYM),
+    "crypto/ecdsa.GenerateKey": AlgorithmHit("ECDSA", _SIG),  # curve from arg 0
+    "crypto/dsa.GenerateParameters": AlgorithmHit("DSA", _SIG),
+    "crypto/dsa.GenerateKey": AlgorithmHit("DSA", _SIG),
+    "crypto/ed25519.GenerateKey": AlgorithmHit("EdDSA", _SIG, curve="Ed25519"),
+    # crypto/ecdh.<Curve>() returns the curve marker; the curve is baked into
+    # the hit because it lives in the function name, not an argument.
+    "crypto/ecdh.X25519": AlgorithmHit("X25519", _KA),
+    "crypto/ecdh.P256": AlgorithmHit("ECDH", _KA, curve="P-256"),
+    "crypto/ecdh.P384": AlgorithmHit("ECDH", _KA, curve="P-384"),
+    "crypto/ecdh.P521": AlgorithmHit("ECDH", _KA, curve="P-521"),
+    # ---- PQC ----
+    "crypto/mlkem.GenerateKey768": AlgorithmHit("ML-KEM", _KEM),
+    "crypto/mlkem.GenerateKey1024": AlgorithmHit("ML-KEM", _KEM),
+}
+
+
+def lookup_go_symbol(qualified_name: str) -> AlgorithmHit | None:
+    return _GO_SYMBOLS.get(qualified_name)
+
+
 # Cipher-mode classes: dotted suffix → mode name. Used when the visitor
 # walks `Cipher(algorithms.AES(...), modes.GCM(...))` to extract the mode.
 _CIPHER_MODES: dict[str, str] = {
@@ -181,9 +249,11 @@ def emittable_canonicals() -> set[str]:
     """Canonical names a detector can attach to a finding.
 
     Excludes the CIPHER_WRAPPER marker. Used by the invariant test that
-    guards against catalog / QuantumRisk-map drift.
+    guards against catalog / QuantumRisk-map drift across all languages.
     """
-    return {hit.canonical for hit in _PYTHON_SYMBOLS.values()} - {CIPHER_WRAPPER}
+    catalog = {hit.canonical for hit in _PYTHON_SYMBOLS.values()}
+    catalog |= {hit.canonical for hit in _GO_SYMBOLS.values()}
+    return catalog - {CIPHER_WRAPPER}
 
 
 def lookup_cipher_mode(qualified_name: str) -> str | None:
