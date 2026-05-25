@@ -202,16 +202,8 @@
       "additionalProperties": false,
       "properties": {
         "adr": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Adr"
+          "title": "Adr",
+          "type": "string"
         },
         "banned-algorithm": {
           "anyOf": [
@@ -262,22 +254,16 @@
           "type": "string"
         },
         "review-date": {
-          "anyOf": [
-            {
-              "format": "date",
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Review-Date"
+          "format": "date",
+          "title": "Review-Date",
+          "type": "string"
         }
       },
       "required": [
         "id",
-        "description"
+        "description",
+        "adr",
+        "review-date"
       ],
       "title": "PolicyException",
       "type": "object"

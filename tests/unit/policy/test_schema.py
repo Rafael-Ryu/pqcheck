@@ -39,11 +39,31 @@ def test_hybrid_rule_round_trips():
     assert rule.pqc == ["ML-KEM-768"]
 
 
+_FULL_EXCEPTION = {
+    "id": "EXC-001",
+    "description": "x",
+    "adr": "docs/adr/001-x.md",
+    "review-date": "2026-12-31",
+}
+
+
 def test_exception_id_pattern_enforced():
     with pytest.raises(ValidationError):
-        PolicyException.model_validate({"id": "EX-1", "description": "x"})
-    ok = PolicyException.model_validate({"id": "EXC-001", "description": "x"})
+        PolicyException.model_validate({**_FULL_EXCEPTION, "id": "EX-1"})
+    ok = PolicyException.model_validate(_FULL_EXCEPTION)
     assert ok.id == "EXC-001"
+
+
+def test_exception_requires_adr_and_review_date():
+    # An exception is where a banned algorithm gets a temporary pass, so it
+    # must carry an ADR reference and a review date for the audit trail.
+    for missing in ("adr", "review-date"):
+        incomplete = {k: v for k, v in _FULL_EXCEPTION.items() if k != missing}
+        with pytest.raises(ValidationError):
+            PolicyException.model_validate(incomplete)
+    ok = PolicyException.model_validate(_FULL_EXCEPTION)
+    assert ok.adr == "docs/adr/001-x.md"
+    assert ok.review_date.isoformat() == "2026-12-31"
 
 
 def test_severity_rule_and_selector():
