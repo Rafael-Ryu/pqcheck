@@ -1,0 +1,82 @@
+apiVersion: pqcheck.cryptoct.com/v1
+kind: CryptoPolicy
+metadata:
+  name: cryptoct-strict
+  version: 1.0.0
+  publisher: CryptoCT
+  applies-to: "Maximum-gate enforcement for CryptoCT-controlled repositories"
+  effective-from: "2026-05-22"
+  review-date: "2026-11-22"
+spec:
+  default-action: fail
+  approved:
+    - { family: kem, algorithm: ML-KEM, parameter-sets: ["768", "1024"], action: allow }
+    - { family: signature, algorithm: ML-DSA, parameter-sets: ["65", "87"], action: allow }
+    - { family: signature, algorithm: SLH-DSA, parameter-sets: ["SHA2-128s"], action: allow, context: archive }
+    - { family: symmetric-cipher, algorithm: AES, parameter-sets: ["256"], modes: ["GCM"], action: allow }
+    - { family: hash, algorithm: SHA-256, action: allow }
+    - { family: hash, algorithm: SHA-384, action: allow, preferred: true }
+    - { family: mac, algorithm: HMAC, hash: ["SHA-256", "SHA-384"], action: allow }
+    - { family: kdf, algorithm: HKDF, hash: ["SHA-256"], action: allow }
+    - family: kdf
+      algorithm: Argon2id
+      params: { memory-kib-min: 131072, iterations-min: 4, parallelism-min: 1 }
+      action: allow
+  hybrid-required:
+    - { context: tls-external, classical: ["X25519", "X448"], pqc: ["ML-KEM-768", "ML-KEM-1024"], action: allow }
+  banned:
+    - { family: asymmetric-encryption, algorithm: RSA, action: fail, severity: critical, reason: "Shor — migrate to ML-KEM-768" }
+    - { family: signature, algorithm: ECDSA, action: fail, severity: critical, reason: "Shor — migrate to ML-DSA-65" }
+    - { family: signature, algorithm: EdDSA, curves: ["Ed25519", "Ed448"], context: standalone, action: fail, severity: critical }
+    - { family: key-agreement, algorithm: DH, action: fail, severity: critical }
+    - { family: key-agreement, algorithm: ECDH, context: standalone, action: fail, severity: critical }
+    - { family: hash, algorithm: MD5, action: fail, severity: critical, reason: "Collision-broken" }
+    - { family: hash, algorithm: SHA-1, action: fail, severity: critical, reason: "Collision-broken" }
+    - { family: symmetric-cipher, algorithm: DES, action: fail, severity: critical }
+    - { family: symmetric-cipher, algorithm: 3DES, action: fail, severity: critical }
+    - { family: symmetric-cipher, algorithm: RC4, action: fail, severity: critical }
+    - family: symmetric-cipher
+      algorithm: AES
+      parameter-sets: ["128"]
+      context: new-code
+      action: fail
+      severity: high
+      reason: "AES-128 has only 64-bit post-Grover security margin. Use AES-256 in new code."
+    - family: symmetric-cipher
+      algorithm: AES
+      modes: ["ECB", "CBC", "CFB", "OFB"]
+      context: without-aead
+      action: fail
+      severity: medium
+  exceptions:
+    - id: EXC-001
+      description: "GitHub App JWT requires RS256 per GitHub upstream limitation"
+      banned-algorithm: RSA
+      context: github-app-jwt
+      adr: docs/adr/004-github-app-jwt.md
+      review-date: "2026-09-30"
+      compensating-controls:
+        - "TLS PQC outer"
+        - "ML-DSA-65 signature on PR comment payload (Phase 3)"
+        - "Webhook nonce + timestamp window 5min for anti-replay"
+    - id: EXC-002
+      description: "Verify-only Stripe webhook signatures (HMAC-SHA-256 upstream)"
+      banned-algorithm: null
+      context: stripe-webhook-verify
+      adr: docs/adr/007-stripe-webhook.md
+      review-date: "2027-01-15"
+      compensating-controls:
+        - "Idempotency: (provider, provider_event_id) UNIQUE"
+        - "Nonce + timestamp window"
+  severity-rules:
+    - { confidence-band: high, action: as-declared }
+    - { confidence-band: medium, action: demote-one-tier }
+    - { confidence-band: low, action: demote-two-tiers }
+  fail-on:
+    - { severity: critical }
+    - { severity: high }
+    - { severity: medium }
+  warn-on:
+    - { severity: low }
+  info-only:
+    - { severity: info }
