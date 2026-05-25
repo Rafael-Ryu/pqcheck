@@ -6,6 +6,7 @@ package analyzer
 
 import (
 	"go/ast"
+	"go/constant"
 	"go/types"
 	"os"
 	"strings"
@@ -13,6 +14,11 @@ import (
 	"github.com/Rafael-Ryu/pqcheck/tools/crypto-analyzer/internal/catalog"
 	"golang.org/x/tools/go/packages"
 )
+
+// maxKeySize mirrors the Python detector's _MAX_KEY_SIZE: a key-size literal
+// beyond this is not a real key, and bounding it stops an attacker-supplied
+// huge constant from flowing downstream.
+const maxKeySize = 1 << 20
 
 // Finding is one detected crypto primitive use. JSON tags match the Python
 // bridge's CryptoFinding mapping.
@@ -134,7 +140,7 @@ func (v *visitor) emit(call *ast.CallExpr, hit catalog.Hit) {
 	fset := v.pkg.Fset
 	start := fset.Position(call.Pos())
 	end := fset.Position(call.End())
-	*v.out = append(*v.out, Finding{
+	f := Finding{
 		Algorithm:  hit.Canonical,
 		Family:     hit.Family,
 		Curve:      hit.Curve,
@@ -145,7 +151,79 @@ func (v *visitor) emit(call *ast.CallExpr, hit catalog.Hit) {
 		EndColumn:  end.Column,
 		Evidence:   v.src.line(start.Filename, start.Line),
 		Confidence: 1.0,
-	})
+	}
+	switch hit.Canonical {
+	case "RSA":
+		// rsa.GenerateKey(rand, bits): key size is the second argument.
+		if len(call.Args) >= 2 {
+			f.KeySize = v.constInt(call.Args[1])
+		}
+	case "ECDSA":
+		// ecdsa.GenerateKey(curve, rand): curve is the first argument,
+		// typically elliptic.Pxxx().
+		if len(call.Args) >= 1 {
+			if c := v.curveFromArg(call.Args[0]); c != "" {
+				f.Curve = c
+			}
+		}
+	}
+	*v.out = append(*v.out, f)
+}
+
+// constInt returns the folded integer value of expr when it is a compile-time
+// integer constant (a literal OR a const-bound identifier — this is where
+// type info beats text matching). Returns nil for non-constants (e.g. vars,
+// which need use-def) and for values outside a plausible key-size range.
+func (v *visitor) constInt(expr ast.Expr) *int {
+	tv, ok := v.pkg.TypesInfo.Types[expr]
+	if !ok || tv.Value == nil || tv.Value.Kind() != constant.Int {
+		return nil
+	}
+	n64, ok := constant.Int64Val(tv.Value)
+	if !ok {
+		return nil // does not fit int64 -> absurd, treat as unknown
+	}
+	n := int(n64)
+	if n <= 0 || n > maxKeySize {
+		return nil
+	}
+	return &n
+}
+
+// curveFromArg resolves a curve passed as elliptic.Pxxx() to its policy
+// spelling. The direct-call form is handled here; a curve held in a variable
+// would need use-def resolution.
+func (v *visitor) curveFromArg(expr ast.Expr) string {
+	call, ok := expr.(*ast.CallExpr)
+	if !ok {
+		return ""
+	}
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok {
+		return ""
+	}
+	fn, ok := v.pkg.TypesInfo.Uses[sel.Sel].(*types.Func)
+	if !ok || fn.Pkg() == nil {
+		return ""
+	}
+	return normalizeCurve(fn.Name())
+}
+
+// normalizeCurve maps crypto/elliptic curve constructor names to the policy
+// curve vocabulary. Unlisted names pass through unchanged.
+func normalizeCurve(name string) string {
+	switch name {
+	case "P224":
+		return "P-224"
+	case "P256":
+		return "P-256"
+	case "P384":
+		return "P-384"
+	case "P521":
+		return "P-521"
+	default:
+		return name
+	}
 }
 
 // sourceCache reads each file once and serves stripped source lines for evidence.
