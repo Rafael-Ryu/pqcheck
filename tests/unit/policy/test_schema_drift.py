@@ -11,7 +11,10 @@ def test_committed_json_schema_matches_models():
     committed = files("pqcheck").joinpath(SCHEMA_PATH).read_text(encoding="utf-8")
     expected = json.dumps(export_json_schema(), indent=2, sort_keys=True) + "\n"
     assert committed == expected, (
-        "pqcheck-policy.schema.json is stale; regenerate it (see plan Task 6 Step 1)."
+        "pqcheck-policy.schema.json is stale; regenerate with:\n"
+        "  uv run python -c \"import json; from pqcheck.policy.schema import "
+        "export_json_schema; open('src/pqcheck/schemas/pqcheck-policy.schema.json','w')"
+        ".write(json.dumps(export_json_schema(), indent=2, sort_keys=True) + chr(10))\""
     )
 
 
