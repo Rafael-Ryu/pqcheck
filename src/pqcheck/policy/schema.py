@@ -62,7 +62,7 @@ class AlgorithmRule(BaseModel):
     hash: list[str] | None = None
     params: dict[str, Any] | None = None
     context: str | None = None
-    action: RuleAction | None = None
+    action: RuleAction
     severity: Severity | None = None
     reason: str | None = None
     migration_doc: str | None = None
@@ -75,7 +75,7 @@ class HybridRule(BaseModel):
     context: str
     classical: list[str]
     pqc: list[str]
-    action: RuleAction | None = None
+    action: RuleAction
 
 
 class PolicyException(BaseModel):
@@ -111,7 +111,7 @@ class PolicyMetadata(BaseModel):
     # Simple MAJOR.MINOR.PATCH — policies do not use pre-release/build metadata.
     version: str = Field(pattern=r"^\d+\.\d+\.\d+$")
     publisher: str = Field(min_length=1)
-    applies_to: str
+    applies_to: str = Field(min_length=1)
     effective_from: date
     review_date: date
 

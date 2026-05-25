@@ -39,7 +39,9 @@ class QuantumRisk(StrEnum):
 
 
 class Severity(StrEnum):
-    # Ascending order is meaningful: the policy engine compares tiers.
+    # Declaration order is the tier ranking: INFO (lowest) … CRITICAL (highest).
+    # StrEnum compares by string value, so do NOT use < / > on severities —
+    # rank via list(Severity).index(s).
     INFO = "info"
     LOW = "low"
     MEDIUM = "medium"
