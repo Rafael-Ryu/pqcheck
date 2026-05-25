@@ -726,6 +726,15 @@ def test_detect_python_file_syntax_error_returns_empty(tmp_path: Path) -> None:
     assert detect_python_file(f) == []
 
 
+def test_detect_python_file_deep_expression_returns_empty(tmp_path: Path) -> None:
+    # A long operator chain (~117 KiB, well under the 2 MiB cap) recurses the
+    # parser past sys.getrecursionlimit() and raises RecursionError — not a
+    # SyntaxError. The detector must swallow it like any other unparseable file.
+    f = tmp_path / "deep.py"
+    f.write_text("x = a" + "+a" * 60_000 + "\n", encoding="utf-8")
+    assert detect_python_file(f) == []
+
+
 def test_detect_python_file_too_large_returns_empty(tmp_path: Path) -> None:
     f = tmp_path / "huge.py"
     f.write_bytes(b"# pad\n" * (400 * 1024))  # ~2.4 MiB
