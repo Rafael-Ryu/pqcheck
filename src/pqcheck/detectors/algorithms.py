@@ -16,6 +16,9 @@ from pqcheck.models import AlgorithmFamily
 class AlgorithmHit:
     canonical: str
     family: AlgorithmFamily
+    # Implicit curve for symbols that encode it in the class name rather than a
+    # call argument (Ed25519/Ed448). None means "extract from the call, if any".
+    curve: str | None = None
 
 
 _HASH = AlgorithmFamily.HASH
@@ -26,7 +29,10 @@ _SYM = AlgorithmFamily.SYMMETRIC_CIPHER
 
 
 # Fully-qualified callee name → AlgorithmHit.
-# Canonical names follow policy §2/§3 spelling (uppercase, hyphenated).
+# Canonical names are the exact policy §2/§3 spelling so findings match policy
+# rules directly. That is usually uppercase + hyphenated (RSA, SHA-256, 3DES)
+# but not always — EdDSA is mixed-case. Never assume canonicals are all-caps;
+# compare case-insensitively, as CryptoFinding.quantum_risk does.
 _PYTHON_SYMBOLS: dict[str, AlgorithmHit] = {
     # ---- hashlib (stdlib) ----
     "hashlib.md5": AlgorithmHit("MD5", _HASH),
@@ -60,10 +66,13 @@ _PYTHON_SYMBOLS: dict[str, AlgorithmHit] = {
     "cryptography.hazmat.primitives.asymmetric.ec.generate_private_key":
         AlgorithmHit("ECDSA", _SIG),
     "cryptography.hazmat.primitives.asymmetric.dh.generate_parameters": AlgorithmHit("DH", _KA),
+    # EdDSA carries its curve so findings match the policy rule
+    # `algorithm: EdDSA, curves: [Ed25519, Ed448]` (02 §3), the same shape
+    # ECDSA already uses.
     "cryptography.hazmat.primitives.asymmetric.ed25519.Ed25519PrivateKey.generate":
-        AlgorithmHit("ED25519", _SIG),
+        AlgorithmHit("EdDSA", _SIG, curve="Ed25519"),
     "cryptography.hazmat.primitives.asymmetric.ed448.Ed448PrivateKey.generate":
-        AlgorithmHit("ED448", _SIG),
+        AlgorithmHit("EdDSA", _SIG, curve="Ed448"),
     "cryptography.hazmat.primitives.asymmetric.x25519.X25519PrivateKey.generate":
         AlgorithmHit("X25519", _KA),
     "cryptography.hazmat.primitives.asymmetric.x448.X448PrivateKey.generate":
