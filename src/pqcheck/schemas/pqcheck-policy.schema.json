@@ -1,0 +1,515 @@
+{
+  "$defs": {
+    "AlgorithmRule": {
+      "additionalProperties": false,
+      "description": "One approved or banned algorithm rule. Optional fields cover both shapes.",
+      "properties": {
+        "action": {
+          "$ref": "#/$defs/RuleAction"
+        },
+        "algorithm": {
+          "title": "Algorithm",
+          "type": "string"
+        },
+        "context": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Context"
+        },
+        "curves": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Curves"
+        },
+        "family": {
+          "$ref": "#/$defs/PolicyFamily"
+        },
+        "hash": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Hash"
+        },
+        "migration-doc": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Migration-Doc"
+        },
+        "modes": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Modes"
+        },
+        "parameter-sets": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parameter-Sets"
+        },
+        "params": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Params"
+        },
+        "preferred": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Preferred"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reason"
+        },
+        "severity": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Severity"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "family",
+        "algorithm",
+        "action"
+      ],
+      "title": "AlgorithmRule",
+      "type": "object"
+    },
+    "ConfidenceBand": {
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "title": "ConfidenceBand",
+      "type": "string"
+    },
+    "HybridRule": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "$ref": "#/$defs/RuleAction"
+        },
+        "classical": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Classical",
+          "type": "array"
+        },
+        "context": {
+          "title": "Context",
+          "type": "string"
+        },
+        "pqc": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Pqc",
+          "type": "array"
+        }
+      },
+      "required": [
+        "context",
+        "classical",
+        "pqc",
+        "action"
+      ],
+      "title": "HybridRule",
+      "type": "object"
+    },
+    "PolicyException": {
+      "additionalProperties": false,
+      "properties": {
+        "adr": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Adr"
+        },
+        "banned-algorithm": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Banned-Algorithm"
+        },
+        "compensating-controls": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Compensating-Controls"
+        },
+        "context": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Context"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^EXC-\\d{3}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "review-date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Review-Date"
+        }
+      },
+      "required": [
+        "id",
+        "description"
+      ],
+      "title": "PolicyException",
+      "type": "object"
+    },
+    "PolicyFamily": {
+      "enum": [
+        "kem",
+        "signature",
+        "symmetric-cipher",
+        "hash",
+        "mac",
+        "kdf",
+        "key-agreement",
+        "asymmetric-encryption"
+      ],
+      "title": "PolicyFamily",
+      "type": "string"
+    },
+    "PolicyMetadata": {
+      "additionalProperties": false,
+      "properties": {
+        "applies-to": {
+          "minLength": 1,
+          "title": "Applies-To",
+          "type": "string"
+        },
+        "effective-from": {
+          "format": "date",
+          "title": "Effective-From",
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "publisher": {
+          "minLength": 1,
+          "title": "Publisher",
+          "type": "string"
+        },
+        "review-date": {
+          "format": "date",
+          "title": "Review-Date",
+          "type": "string"
+        },
+        "version": {
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version",
+        "publisher",
+        "applies-to",
+        "effective-from",
+        "review-date"
+      ],
+      "title": "PolicyMetadata",
+      "type": "object"
+    },
+    "PolicySpec": {
+      "additionalProperties": false,
+      "properties": {
+        "approved": {
+          "items": {
+            "$ref": "#/$defs/AlgorithmRule"
+          },
+          "title": "Approved",
+          "type": "array"
+        },
+        "banned": {
+          "items": {
+            "$ref": "#/$defs/AlgorithmRule"
+          },
+          "title": "Banned",
+          "type": "array"
+        },
+        "default-action": {
+          "$ref": "#/$defs/RuleAction"
+        },
+        "exceptions": {
+          "items": {
+            "$ref": "#/$defs/PolicyException"
+          },
+          "title": "Exceptions",
+          "type": "array"
+        },
+        "fail-on": {
+          "items": {
+            "$ref": "#/$defs/SeveritySelector"
+          },
+          "title": "Fail-On",
+          "type": "array"
+        },
+        "hybrid-required": {
+          "items": {
+            "$ref": "#/$defs/HybridRule"
+          },
+          "title": "Hybrid-Required",
+          "type": "array"
+        },
+        "info-only": {
+          "items": {
+            "$ref": "#/$defs/SeveritySelector"
+          },
+          "title": "Info-Only",
+          "type": "array"
+        },
+        "severity-rules": {
+          "items": {
+            "$ref": "#/$defs/SeverityRule"
+          },
+          "title": "Severity-Rules",
+          "type": "array"
+        },
+        "warn-on": {
+          "items": {
+            "$ref": "#/$defs/SeveritySelector"
+          },
+          "title": "Warn-On",
+          "type": "array"
+        }
+      },
+      "required": [
+        "default-action"
+      ],
+      "title": "PolicySpec",
+      "type": "object"
+    },
+    "RuleAction": {
+      "enum": [
+        "allow",
+        "warn",
+        "fail"
+      ],
+      "title": "RuleAction",
+      "type": "string"
+    },
+    "Severity": {
+      "enum": [
+        "info",
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ],
+      "title": "Severity",
+      "type": "string"
+    },
+    "SeverityRule": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "$ref": "#/$defs/SeverityRuleAction"
+        },
+        "confidence-band": {
+          "$ref": "#/$defs/ConfidenceBand"
+        }
+      },
+      "required": [
+        "confidence-band",
+        "action"
+      ],
+      "title": "SeverityRule",
+      "type": "object"
+    },
+    "SeverityRuleAction": {
+      "enum": [
+        "as-declared",
+        "demote-one-tier",
+        "demote-two-tiers"
+      ],
+      "title": "SeverityRuleAction",
+      "type": "string"
+    },
+    "SeveritySelector": {
+      "additionalProperties": false,
+      "properties": {
+        "confidence-band": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/ConfidenceBand"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Confidence-Band"
+        },
+        "severity": {
+          "$ref": "#/$defs/Severity"
+        }
+      },
+      "required": [
+        "severity"
+      ],
+      "title": "SeveritySelector",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "apiVersion": {
+      "const": "pqcheck.cryptoct.com/v1",
+      "title": "Apiversion",
+      "type": "string"
+    },
+    "kind": {
+      "const": "CryptoPolicy",
+      "title": "Kind",
+      "type": "string"
+    },
+    "metadata": {
+      "$ref": "#/$defs/PolicyMetadata"
+    },
+    "spec": {
+      "$ref": "#/$defs/PolicySpec"
+    }
+  },
+  "required": [
+    "apiVersion",
+    "kind",
+    "metadata",
+    "spec"
+  ],
+  "title": "CryptoPolicy",
+  "type": "object"
+}

@@ -1,0 +1,3 @@
+apiVersion: pqcheck.cryptoct.com/v1
+kind: CryptoPolicy
+metadata: [this is not a mapping

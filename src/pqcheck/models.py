@@ -38,6 +38,23 @@ class QuantumRisk(StrEnum):
     UNKNOWN = "unknown"
 
 
+class Severity(StrEnum):
+    # Declaration order is the tier ranking: INFO (lowest) … CRITICAL (highest).
+    # StrEnum compares by string value, so do NOT use < / > on severities —
+    # rank via list(Severity).index(s).
+    INFO = "info"
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+
+class ConfidenceBand(StrEnum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+
+
 _QUANTUM_MAP: dict[str, QuantumRisk] = {
     "RSA": QuantumRisk.VULNERABLE,
     "DSA": QuantumRisk.VULNERABLE,

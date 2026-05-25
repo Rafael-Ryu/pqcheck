@@ -1,0 +1,19 @@
+apiVersion: pqcheck.cryptoct.com/v1
+kind: CryptoPolicy
+metadata:
+  name: fixture-minimal
+  version: 1.0.0
+  publisher: CryptoCT
+  applies-to: "Test fixture"
+  effective-from: "2026-05-22"
+  review-date: "2026-11-22"
+spec:
+  default-action: warn
+  approved:
+    - { family: hash, algorithm: SHA-256, action: allow }
+  banned:
+    - { family: hash, algorithm: MD5, action: fail, severity: critical }
+  severity-rules:
+    - { confidence-band: high, action: as-declared }
+  fail-on:
+    - { severity: critical }
