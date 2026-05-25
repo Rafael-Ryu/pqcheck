@@ -38,6 +38,21 @@ class QuantumRisk(StrEnum):
     UNKNOWN = "unknown"
 
 
+class Severity(StrEnum):
+    # Ascending order is meaningful: the policy engine compares tiers.
+    INFO = "info"
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+
+class ConfidenceBand(StrEnum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+
+
 _QUANTUM_MAP: dict[str, QuantumRisk] = {
     "RSA": QuantumRisk.VULNERABLE,
     "DSA": QuantumRisk.VULNERABLE,

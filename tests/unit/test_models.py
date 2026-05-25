@@ -5,9 +5,11 @@ from pydantic import ValidationError
 
 from pqcheck.models import (
     AlgorithmFamily,
+    ConfidenceBand,
     CryptoDependency,
     CryptoFinding,
     QuantumRisk,
+    Severity,
     SourceLocation,
 )
 
@@ -153,3 +155,11 @@ def test_crypto_dependency_accepts_valid_maven_purl() -> None:
         declared_in=Path("pom.xml"),
     )
     assert dep.purl.startswith("pkg:maven/")
+
+
+def test_severity_members_and_order():
+    assert [s.value for s in Severity] == ["info", "low", "medium", "high", "critical"]
+
+
+def test_confidence_band_members():
+    assert {b.value for b in ConfidenceBand} == {"low", "medium", "high"}
