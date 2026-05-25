@@ -1,0 +1,40 @@
+{
+  "subcommand": "security",
+  "date": "2026-05-24",
+  "branch": "develop",
+  "remote": "https://github.com/Rafael-Ryu/pqcheck.git",
+  "base_commit": "e991a2b",
+  "status": "issues_created",
+  "findings": [
+    {
+      "id": "AR-001",
+      "severity": "high",
+      "title": "pyproject parser crashes on PEP 735 dependency groups and misses build-system requirements",
+      "issue_url": "https://github.com/Rafael-Ryu/pqcheck/issues/33"
+    },
+    {
+      "id": "AR-002",
+      "severity": "high",
+      "title": "detect_python_file can hang on symlinks to non-regular files",
+      "issue_url": "https://github.com/Rafael-Ryu/pqcheck/issues/34"
+    },
+    {
+      "id": "AR-003",
+      "severity": "medium",
+      "title": "PyCryptodome AES mode constants are not emitted",
+      "issue_url": "https://github.com/Rafael-Ryu/pqcheck/issues/37"
+    },
+    {
+      "id": "AR-004",
+      "severity": "medium",
+      "title": "hashlib.new valid dashed/OpenSSL aliases are ignored",
+      "issue_url": "https://github.com/Rafael-Ryu/pqcheck/issues/36"
+    },
+    {
+      "id": "AR-005",
+      "severity": "low",
+      "title": "Crypto star imports are recorded but not surfaced",
+      "issue_url": "https://github.com/Rafael-Ryu/pqcheck/issues/35"
+    }
+  ]
+}

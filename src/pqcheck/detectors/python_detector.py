@@ -16,7 +16,12 @@ import os
 import stat
 from pathlib import Path
 
-from pqcheck.detectors.algorithms import AlgorithmHit, lookup_cipher_mode, lookup_python_symbol
+from pqcheck.detectors.algorithms import (
+    AlgorithmHit,
+    hashlib_new_table,
+    lookup_cipher_mode,
+    lookup_python_symbol,
+)
 from pqcheck.models import AlgorithmFamily, CryptoFinding, SourceLocation
 
 
@@ -95,22 +100,11 @@ class ImportResolver(ast.NodeVisitor):
 
 _DETECTOR_ID = "python-ast"
 
-# Lower-cased argument values accepted by hashlib.new("...") that map
-# directly to canonical algorithm names. Confidence is demoted because
-# the string argument could be runtime-computed (we only see literals).
-_HASHLIB_NEW_NAMES: dict[str, tuple[str, AlgorithmFamily]] = {
-    "md5": ("MD5", AlgorithmFamily.HASH),
-    "sha1": ("SHA-1", AlgorithmFamily.HASH),
-    "sha224": ("SHA-224", AlgorithmFamily.HASH),
-    "sha256": ("SHA-256", AlgorithmFamily.HASH),
-    "sha384": ("SHA-384", AlgorithmFamily.HASH),
-    "sha512": ("SHA-512", AlgorithmFamily.HASH),
-    "sha3_256": ("SHA3-256", AlgorithmFamily.HASH),
-    "sha3_384": ("SHA3-384", AlgorithmFamily.HASH),
-    "sha3_512": ("SHA3-512", AlgorithmFamily.HASH),
-    "blake2b": ("BLAKE2B", AlgorithmFamily.HASH),
-    "blake2s": ("BLAKE2S", AlgorithmFamily.HASH),
-}
+# hashlib.new("name") string argument -> AlgorithmHit. Derived from the
+# catalog's hashlib.* entries (single source of truth) rather than a parallel
+# hand-maintained table. Confidence is demoted at emit time because the string
+# argument could be runtime-computed; we only resolve literals.
+_HASHLIB_NEW_NAMES: dict[str, AlgorithmHit] = hashlib_new_table()
 
 
 class PythonDetector(ast.NodeVisitor):
@@ -181,11 +175,10 @@ class PythonDetector(ast.NodeVisitor):
         if not isinstance(first, ast.Constant) or not isinstance(first.value, str):
             return  # pragma: no cover - only string Constant literals reach this from valid source
         key = _normalize_hashlib_new_name(first.value)
-        mapping = _HASHLIB_NEW_NAMES.get(key)
-        if mapping is None:
+        hit = _HASHLIB_NEW_NAMES.get(key)
+        if hit is None:
             return  # pragma: no cover - unknown alias; table covers known keys
-        canonical, family = mapping
-        self._emit(node, canonical, family, confidence=0.7)
+        self._emit(node, hit.canonical, hit.family, confidence=0.7)
 
     def _emit_cipher_wrapper(self, node: ast.Call) -> None:
         algorithm_arg = self._cipher_arg(node, position=0, keyword="algorithm")
