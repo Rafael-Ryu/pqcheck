@@ -95,6 +95,7 @@ include = [
     "src/pqcheck/schemas/*",
     "src/pqcheck/grammars/*",
     "src/pqcheck/bin/*/*",
+    "src/pqcheck/policy/defaults/*.yaml",
 ]
 
 [tool.hatch.build.targets.sdist]

@@ -26,16 +26,18 @@ class _NoAliasSafeLoader(yaml.SafeLoader):
     """SafeLoader that rejects anchors and aliases (alias-bomb defense)."""
 
 
-def _refuse_alias(self: yaml.SafeLoader, node: Any) -> None:  # noqa: ARG001
+def _refuse_alias(self: yaml.SafeLoader, node: Any) -> None:
     raise yaml.constructor.ConstructorError(
         None, None, "YAML anchors/aliases are not allowed in policies", None
     )
 
 
-_NoAliasSafeLoader.add_constructor(None, _refuse_alias)  # unknown/anchored tags
+# ``None`` registers the catch-all constructor for any unknown/anchored tag; the
+# typeshed stub only types the tag as ``str``, so ignore the arg-type mismatch.
+_NoAliasSafeLoader.add_constructor(None, _refuse_alias)  # type: ignore[arg-type]
 
 
-def _compose_node(self: yaml.SafeLoader, parent: Any, index: Any) -> Any:
+def _compose_node(self: Any, parent: Any, index: Any) -> Any:
     if self.check_event(yaml.events.AliasEvent):
         event = self.get_event()
         raise yaml.constructor.ConstructorError(
