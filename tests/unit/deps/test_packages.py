@@ -1,4 +1,5 @@
-from pqcheck.deps.packages import lookup_introduces
+from pqcheck.deps.packages import _CATALOG, lookup_introduces
+from pqcheck.models import _QUANTUM_MAP
 
 
 def test_lookup_pypi_cryptography_returns_known_algorithms() -> None:
@@ -82,3 +83,12 @@ def test_lookup_maven_commons_codec_includes_legacy_hashes() -> None:
     result = lookup_introduces("maven", "commons-codec")
     assert "MD5" in result
     assert "SHA-1" in result
+
+
+def test_every_catalog_canonical_has_a_quantum_risk() -> None:
+    # Deps-side counterpart to the detector catalog guard (#45): a package
+    # canonical absent from _QUANTUM_MAP would score UNKNOWN risk with no
+    # failing test. The two catalogs share the canonical spelling.
+    canonicals = {algo for algos in _CATALOG.values() for algo in algos}
+    missing = {c for c in canonicals if c.upper() not in _QUANTUM_MAP}
+    assert missing == set(), f"deps canonicals missing from _QUANTUM_MAP: {sorted(missing)}"
