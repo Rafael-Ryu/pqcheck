@@ -495,6 +495,36 @@ def test_ec_unknown_curve_passes_through_unchanged() -> None:
     assert findings[0].curve == "BrainpoolP256R1"
 
 
+def test_ed25519_emits_eddsa_with_curve() -> None:
+    # Policy bans `algorithm: EdDSA` with `curves: [Ed25519, Ed448]`. The
+    # detector must speak that vocabulary so the eventual engine can match.
+    src = (
+        "from cryptography.hazmat.primitives.asymmetric import ed25519\n"
+        "ed25519.Ed25519PrivateKey.generate()\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    f = findings[0]
+    assert f.algorithm == "EdDSA"
+    assert f.curve == "Ed25519"
+    assert f.family is AlgorithmFamily.SIGNATURE
+    assert f.quantum_risk is QuantumRisk.VULNERABLE
+
+
+def test_ed448_emits_eddsa_with_curve() -> None:
+    src = (
+        "from cryptography.hazmat.primitives.asymmetric import ed448\n"
+        "ed448.Ed448PrivateKey.generate()\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    f = findings[0]
+    assert f.algorithm == "EdDSA"
+    assert f.curve == "Ed448"
+    assert f.family is AlgorithmFamily.SIGNATURE
+    assert f.quantum_risk is QuantumRisk.VULNERABLE
+
+
 def test_key_size_kwarg_with_non_int_constant_emits_none() -> None:
     # key_size=2048.0 is a Constant but not an int — treated as non-literal.
     src = (
