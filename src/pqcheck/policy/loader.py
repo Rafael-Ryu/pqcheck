@@ -1,12 +1,13 @@
 """Load and validate pqcheck crypto policies from YAML.
 
-Parsing uses a SafeLoader subclass that refuses YAML anchors/aliases. Plain
+Parsing uses a SafeLoader subclass that refuses YAML aliases and custom tags. Plain
 ``yaml.safe_load`` still expands aliases, so it does not stop a YAML alias bomb
 (billion laughs); policies never need anchors, so forbidding them closes that hole.
 """
 
 from __future__ import annotations
 
+import re
 import sys
 from importlib.resources import files
 from pathlib import Path
@@ -23,7 +24,7 @@ class PolicyError(Exception):
 
 
 class _NoAliasSafeLoader(yaml.SafeLoader):
-    """SafeLoader that rejects anchors and aliases (alias-bomb defense)."""
+    """SafeLoader that blocks YAML aliases (alias-bomb defense) and custom tags."""
 
 
 def _refuse_alias(self: yaml.SafeLoader, node: Any) -> None:
@@ -35,11 +36,14 @@ def _refuse_alias(self: yaml.SafeLoader, node: Any) -> None:
     )
 
 
-# ``None`` registers the catch-all constructor for any unknown/anchored tag; the
-# typeshed stub only types the tag as ``str``, so ignore the arg-type mismatch.
+# ``None`` registers the catch-all constructor that blocks any custom/unknown tag
+# (e.g. ``!!python/object``); the typeshed stub only types the tag as ``str``, so
+# ignore the arg-type mismatch.
 _NoAliasSafeLoader.add_constructor(None, _refuse_alias)  # type: ignore[arg-type]
 
 
+# Overriding ``compose_node`` blocks YAML aliases at compose time — the actual
+# alias-bomb (billion laughs) vector that the catch-all constructor alone misses.
 def _compose_node(self: Any, parent: Any, index: Any) -> Any:
     if self.check_event(yaml.events.AliasEvent):
         event = self.get_event()
@@ -55,7 +59,7 @@ _NoAliasSafeLoader.compose_node = _compose_node  # type: ignore[method-assign]
 def _parse_and_validate(text: str, origin: str) -> CryptoPolicy:
     try:
         data = yaml.load(text, Loader=_NoAliasSafeLoader)  # noqa: S506 - custom no-alias safe loader
-    except yaml.YAMLError as exc:
+    except (yaml.YAMLError, RecursionError) as exc:
         raise PolicyError(f"invalid YAML in {origin}: {exc}") from exc
     if not isinstance(data, dict):
         raise PolicyError(f"policy {origin} must be a mapping, got {type(data).__name__}")
@@ -76,6 +80,8 @@ def load_policy(path: Path) -> CryptoPolicy:
 
 def load_default_policy(name: str) -> CryptoPolicy:
     """Load a bundled default policy by name (e.g. 'cryptoct-default')."""
+    if not re.fullmatch(r"[A-Za-z0-9._-]+", name) or name in {".", ".."}:
+        raise PolicyError(f"no bundled policy named {name!r}")
     resource = files("pqcheck.policy").joinpath("defaults", f"{name}.yaml")
     if not resource.is_file():
         raise PolicyError(f"no bundled policy named {name!r}")

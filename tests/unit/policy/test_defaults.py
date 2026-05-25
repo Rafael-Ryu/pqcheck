@@ -29,6 +29,10 @@ def test_all_tiers_share_same_algorithm_sets():
     banned = [_algo_set(policies[n], "banned") for n in TIERS]
     assert approved[0] == approved[1] == approved[2]
     assert banned[0] == banned[1] == banned[2]
+    exc = {n: [e.model_dump() for e in p.spec.exceptions] for n, p in policies.items()}
+    assert exc["cryptoct-default"] == exc["cryptoct-strict"] == exc["cryptoct-advisory"]
+    sr = {n: [r.model_dump() for r in p.spec.severity_rules] for n, p in policies.items()}
+    assert sr["cryptoct-default"] == sr["cryptoct-strict"] == sr["cryptoct-advisory"]
 
 
 def test_tier_gating_differences():
