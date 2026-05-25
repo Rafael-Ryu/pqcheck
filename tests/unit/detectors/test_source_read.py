@@ -35,3 +35,9 @@ def test_accepts_file_at_exact_cap(tmp_path: Path) -> None:
     f = tmp_path / "edge.go"
     f.write_bytes(b"a" * MAX_SOURCE_BYTES)
     assert read_source_bytes(f) == b"a" * MAX_SOURCE_BYTES
+
+
+def test_nul_in_path_returns_none() -> None:
+    # os.open raises ValueError (not OSError) on an embedded NUL; the reader
+    # must still honor its never-raise contract.
+    assert read_source_bytes(Path("a\x00b.go")) is None

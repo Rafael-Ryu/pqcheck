@@ -29,7 +29,7 @@ def read_source_bytes(path: Path) -> bytes | None:
     """
     try:
         fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
-    except OSError:
+    except (OSError, ValueError):  # ValueError: embedded NUL in path
         return None
     try:
         info = os.fstat(fd)
