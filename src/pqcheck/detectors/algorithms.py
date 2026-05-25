@@ -65,6 +65,10 @@ _PYTHON_SYMBOLS: dict[str, AlgorithmHit] = {
         AlgorithmHit("DSA", _SIG),
     "cryptography.hazmat.primitives.asymmetric.ec.generate_private_key":
         AlgorithmHit("ECDSA", _SIG),
+    # ec keygen can't reveal sign-vs-exchange use, so it stays ECDSA above.
+    # Standalone NIST-curve ECDH surfaces here instead: ec.ECDH() is the marker
+    # passed to key.exchange(), detectable at the call site without dataflow.
+    "cryptography.hazmat.primitives.asymmetric.ec.ECDH": AlgorithmHit("ECDH", _KA),
     "cryptography.hazmat.primitives.asymmetric.dh.generate_parameters": AlgorithmHit("DH", _KA),
     # EdDSA carries its curve so findings match the policy rule
     # `algorithm: EdDSA, curves: [Ed25519, Ed448]` (02 §3), the same shape
