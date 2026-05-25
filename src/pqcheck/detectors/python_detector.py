@@ -246,8 +246,15 @@ class PythonDetector(ast.NodeVisitor):
                 return 128
             if qualified.endswith(".AES256"):
                 return 256
-        if qualified in _AES_CONSTRUCTORS and call.args:
-            return _bytes_literal_bits(call.args[0])
+        if qualified in _AES_CONSTRUCTORS:
+            key_arg: ast.expr | None = call.args[0] if call.args else None
+            if key_arg is None:
+                for kw in call.keywords:
+                    if kw.arg == "key":
+                        key_arg = kw.value
+                        break
+            if key_arg is not None:
+                return _bytes_literal_bits(key_arg)
         return None
 
     @staticmethod
