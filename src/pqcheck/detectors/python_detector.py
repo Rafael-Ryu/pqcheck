@@ -321,6 +321,9 @@ class PythonDetector(ast.NodeVisitor):
             if kw.arg == "curve":
                 candidate = kw.value
                 break
+        # pycryptodome passes the curve as a string literal (curve="p256").
+        if isinstance(candidate, ast.Constant) and isinstance(candidate.value, str):
+            return normalize_curve(candidate.value)
         if not isinstance(candidate, ast.Call):
             return None
         if isinstance(candidate.func, ast.Attribute):
