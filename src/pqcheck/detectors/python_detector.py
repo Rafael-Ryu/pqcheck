@@ -21,6 +21,7 @@ from pqcheck.detectors.algorithms import (
     hashlib_new_table,
     lookup_cipher_mode,
     lookup_python_symbol,
+    normalize_curve,
 )
 from pqcheck.models import AlgorithmFamily, CryptoFinding, SourceLocation
 
@@ -293,9 +294,9 @@ class PythonDetector(ast.NodeVisitor):
         if not isinstance(candidate, ast.Call):
             return None
         if isinstance(candidate.func, ast.Attribute):
-            return candidate.func.attr
+            return normalize_curve(candidate.func.attr)
         if isinstance(candidate.func, ast.Name):
-            return candidate.func.id
+            return normalize_curve(candidate.func.id)
         return None
 
     def _emit(
