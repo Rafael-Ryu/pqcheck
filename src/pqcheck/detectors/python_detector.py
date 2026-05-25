@@ -12,10 +12,9 @@ pydantic, which the project already uses for CryptoFinding.
 from __future__ import annotations
 
 import ast
-import os
-import stat
 from pathlib import Path
 
+from pqcheck.detectors._source_read import read_source_bytes
 from pqcheck.detectors.algorithms import (
     AlgorithmHit,
     hashlib_new_table,
@@ -211,9 +210,7 @@ class PythonDetector(ast.NodeVisitor):
         )
 
     @staticmethod
-    def _cipher_arg(
-        node: ast.Call, *, position: int, keyword: str
-    ) -> ast.expr | None:
+    def _cipher_arg(node: ast.Call, *, position: int, keyword: str) -> ast.expr | None:
         if position < len(node.args):
             return node.args[position]
         for kw in node.keywords:
@@ -414,24 +411,16 @@ def _bytes_literal_bits(expr: ast.expr) -> int | None:
     return None
 
 
-_MAX_FILE_BYTES = 2 * 1024 * 1024  # 2 MiB cap — skip generated/oversized files.
-_READ_CHUNK = 64 * 1024
-
-
 def detect_python_file(path: Path) -> list[CryptoFinding]:
     """Detect Python crypto primitive usage in `path`.
 
-    Returns an empty list (never raises) for: missing file, symlink,
-    non-regular file (device, FIFO, socket, directory), file > 2 MiB,
-    encoding failure on both UTF-8 and Latin-1, or a parse that fails with
-    SyntaxError, ValueError, RecursionError, or MemoryError.
-
-    The path is opened with O_NOFOLLOW and the size/regular-file check
-    runs against the open fd. This rejects symlinks and closes the TOCTOU
-    between size check and read. The read is itself capped so a file that
-    grows between fstat and read cannot exceed the limit.
+    Returns an empty list (never raises) for: any condition that makes
+    read_source_bytes return None (missing/symlink/non-regular/oversized
+    file — see that function for the file-IO hardening), encoding failure on
+    both UTF-8 and Latin-1, or a parse that fails with SyntaxError,
+    ValueError, RecursionError, or MemoryError.
     """
-    raw = _read_capped(path)
+    raw = read_source_bytes(path)
     if raw is None:
         return []
     source: str | None = None
@@ -455,33 +444,3 @@ def detect_python_file(path: Path) -> list[CryptoFinding]:
     detector = PythonDetector(source_path=path, source=source)
     detector.visit(tree)
     return detector.findings
-
-
-def _read_capped(path: Path) -> bytes | None:
-    # O_NONBLOCK ensures opening a FIFO returns immediately; the S_ISREG
-    # guard below then rejects it. For regular files O_NONBLOCK is inert.
-    try:
-        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
-    except OSError:
-        return None
-    try:
-        info = os.fstat(fd)
-        if not stat.S_ISREG(info.st_mode):
-            return None
-        if info.st_size > _MAX_FILE_BYTES:
-            return None
-        chunks: list[bytes] = []
-        budget = _MAX_FILE_BYTES + 1
-        while budget > 0:
-            chunk = os.read(fd, min(budget, _READ_CHUNK))
-            if not chunk:
-                break
-            chunks.append(chunk)
-            budget -= len(chunk)
-        if budget == 0:
-            return None
-    except OSError:  # pragma: no cover - fstat/read on an open fd is well-defined
-        return None
-    finally:
-        os.close(fd)
-    return b"".join(chunks)
