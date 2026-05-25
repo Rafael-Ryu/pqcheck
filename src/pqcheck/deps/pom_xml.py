@@ -30,6 +30,11 @@ from pqcheck.models import CryptoDependency
 
 _PROPERTY_REF_RE = re.compile(r"\$\{([^}]+)\}")
 
+# Maven resolves property values recursively (${a} where a=${b}). We bound
+# the resolution to fail closed on cyclic or pathologically-deep references
+# instead of looping; real POMs nest a handful of levels at most.
+_MAX_PROPERTY_DEPTH = 16
+
 
 def _build_parser() -> etree.XMLParser[etree._Element]:
     # Hardening flags passed explicitly (not via dict-unpack) so mypy can
@@ -93,6 +98,13 @@ def _local(tag: object) -> str:
 def _child_text(element: etree._Element, local_name: str) -> str | None:
     for child in element:
         if _local(child.tag) == local_name:
+            # A leaf coordinate element with sub-nodes means lxml parsed an
+            # unexpanded entity reference (e.g. <version>1.0-&ver;-end</version>
+            # becomes text "1.0-" plus an Entity child). Returning child.text
+            # here would silently truncate the value; fail closed instead so a
+            # truncated/entity-bearing coordinate never reaches the PURL.
+            if len(child) > 0:
+                return None
             text = child.text
             if isinstance(text, str):
                 stripped = text.strip()
@@ -141,25 +153,31 @@ def _direct_dependency_children(parent: etree._Element) -> list[etree._Element]:
 
 
 def _resolve_version(version_raw: str | None, properties: dict[str, str]) -> str | None:
-    """Substitute every ${name} token in `version_raw` using `properties`.
+    """Resolve ${name} tokens in `version_raw` to a fixed point.
 
-    Returns None if any referenced property is missing — fail closed
-    rather than emit a half-substituted version. A version without any
-    ${...} token is returned as-is.
+    Returns None — fail closed — if any referenced property is missing, if
+    a cycle or excessive nesting prevents full resolution, or if any ${...}
+    token survives. A version with no ${...} token is returned as-is. This
+    never emits a half-substituted or token-bearing version into the PURL.
     """
     if version_raw is None:
         return None
-    unresolved = False
+    result = version_raw
+    for _ in range(_MAX_PROPERTY_DEPTH):
+        if _PROPERTY_REF_RE.search(result) is None:
+            return result
+        unresolved = False
 
-    def _sub(match: re.Match[str]) -> str:
-        nonlocal unresolved
-        value = properties.get(match.group(1))
-        if value is None:
-            unresolved = True
-            return match.group(0)
-        return value
+        def _sub(match: re.Match[str]) -> str:
+            nonlocal unresolved
+            value = properties.get(match.group(1))
+            if value is None:
+                unresolved = True
+                return match.group(0)
+            return value
 
-    result = _PROPERTY_REF_RE.sub(_sub, version_raw)
-    if unresolved:
-        return None
-    return result
+        substituted = _PROPERTY_REF_RE.sub(_sub, result)
+        if unresolved or substituted == result:
+            return None
+        result = substituted
+    return None
