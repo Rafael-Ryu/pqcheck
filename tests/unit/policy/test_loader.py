@@ -55,3 +55,10 @@ def test_deeply_nested_yaml_raises_policy_error(tmp_path):
 def test_load_default_policy_rejects_traversal(evil):
     with pytest.raises(PolicyError):
         load_default_policy(evil)
+
+
+def test_load_default_policy_over_long_name_raises_policy_error():
+    # Name passes the allowlist but yields a path over the filename limit; the
+    # underlying OSError must surface as PolicyError, not leak (issue #56).
+    with pytest.raises(PolicyError):
+        load_default_policy("a" * 5000)
