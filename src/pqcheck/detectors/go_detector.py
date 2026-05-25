@@ -14,8 +14,16 @@ than crashing, matching the Python detector's never-raise contract.
 from __future__ import annotations
 
 from collections.abc import Iterator
+from pathlib import Path
 
-from tree_sitter import Node
+from tree_sitter import Node, Parser
+
+from pqcheck.detectors._source_read import read_source_bytes
+from pqcheck.detectors.algorithms import AlgorithmHit, lookup_go_symbol, normalize_curve
+from pqcheck.detectors.tree_sitter_loader import go_language
+from pqcheck.models import CryptoFinding, SourceLocation
+
+_DETECTOR_ID = "go-tree-sitter"
 
 
 def _walk(root: Node) -> Iterator[Node]:
@@ -81,3 +89,142 @@ class GoImportResolver:
         elif name_node.type == "package_identifier":
             self._names[_node_text(name_node, source)] = path
         # blank_identifier ("_") -> intentionally ignored.
+
+
+def _int_literal(node: Node, source: bytes) -> int | None:
+    if node.type != "int_literal":
+        return None
+    text = _node_text(node, source).replace("_", "")
+    try:
+        return int(text, 0)  # base 0: handles 0x/0o/0b and decimal
+    except ValueError:  # pragma: no cover - grammar guarantees a valid literal
+        return None
+
+
+class GoDetector:
+    """Second pass: emit CryptoFinding per detected primitive use."""
+
+    def __init__(self, path: Path, source: bytes) -> None:
+        self._path = path
+        self._source = source
+        self._lines = source.decode("utf-8", "replace").splitlines()
+        self._imports = GoImportResolver()
+        self.findings: list[CryptoFinding] = []
+
+    def run(self, root: Node) -> None:
+        self._imports.visit_root(root, self._source)
+        for node in _walk(root):
+            if node.type == "call_expression":
+                self._visit_call(node)
+
+    def _visit_call(self, node: Node) -> None:
+        func = node.child_by_field_name("function")
+        if func is None:
+            return
+        if func.type == "selector_expression":
+            operand = func.child_by_field_name("operand")
+            field = func.child_by_field_name("field")
+            # operand must be a bare package identifier. When it is itself a
+            # call/selector (e.g. ecdh.P256().GenerateKey), it does not resolve
+            # to a catalog key, so the outer call is skipped and only the inner
+            # ecdh.P256() emits — no double count.
+            if operand is None or field is None or operand.type != "identifier":
+                return
+            import_path = self._imports.resolve(_node_text(operand, self._source))
+            if import_path is None:
+                return
+            hit = lookup_go_symbol(f"{import_path}.{_node_text(field, self._source)}")
+            if hit is not None:
+                self._emit(node, hit, confidence=1.0)
+        elif func.type == "identifier":
+            self._emit_dot_import(node, func)
+
+    def _emit_dot_import(self, node: Node, func: Node) -> None:
+        name = _node_text(func, self._source)
+        for path in self._imports.dot_imports():
+            hit = lookup_go_symbol(f"{path}.{name}")
+            if hit is not None:
+                self._emit(node, hit, confidence=0.7)
+                return
+
+    def _emit(self, node: Node, hit: AlgorithmHit, *, confidence: float) -> None:
+        key_size: int | None = None
+        curve = hit.curve
+        if hit.canonical == "RSA":
+            key_size = self._second_arg_int(node)
+        elif hit.canonical == "ECDSA":
+            curve = self._first_arg_curve(node)
+        location = SourceLocation(
+            path=self._path,
+            line=node.start_point.row + 1,
+            column=node.start_point.column,
+            end_line=node.end_point.row + 1,
+            end_column=node.end_point.column,
+        )
+        self.findings.append(
+            CryptoFinding(
+                algorithm=hit.canonical,
+                family=hit.family,
+                key_size=key_size,
+                curve=curve,
+                mode=None,
+                padding=None,
+                location=location,
+                evidence=self._evidence(node),
+                detector_id=_DETECTOR_ID,
+                confidence=confidence,
+            )
+        )
+
+    def _named_args(self, call: Node) -> list[Node]:
+        arglist = call.child_by_field_name("arguments")
+        if arglist is None:  # pragma: no cover - call_expression always has arguments
+            return []
+        return list(arglist.named_children)
+
+    def _second_arg_int(self, call: Node) -> int | None:
+        # RSA key size is rsa.GenerateKey(rand, bits)'s second positional arg.
+        _MIN_ARGS_FOR_BITS = 2
+        args = self._named_args(call)
+        if len(args) < _MIN_ARGS_FOR_BITS:
+            return None
+        return _int_literal(args[1], self._source)
+
+    def _first_arg_curve(self, call: Node) -> str | None:
+        # ecdsa.GenerateKey(elliptic.P256(), ...): arg 0 is a call_expression
+        # whose function is a selector_expression; the curve is its field name.
+        args = self._named_args(call)
+        if not args or args[0].type != "call_expression":
+            return None
+        inner = args[0].child_by_field_name("function")
+        if inner is None or inner.type != "selector_expression":
+            return None
+        field = inner.child_by_field_name("field")
+        if field is None:  # pragma: no cover - a selector always has a field
+            return None
+        return normalize_curve(_node_text(field, self._source))
+
+    def _evidence(self, node: Node) -> str:
+        idx = node.start_point.row
+        if 0 <= idx < len(self._lines):
+            return self._lines[idx].strip()
+        return ""  # pragma: no cover - every call node has a source line
+
+
+def detect_go_file(path: Path) -> list[CryptoFinding]:
+    """Detect Go crypto primitive usage in `path`. Never raises.
+
+    Returns [] for: missing file, symlink, non-regular file, file > 2 MiB,
+    unreadable bytes, or an unexpected internal failure. tree-sitter tolerates
+    invalid syntax (ERROR nodes match nothing), so malformed Go yields [].
+    """
+    raw = read_source_bytes(path)
+    if raw is None:
+        return []
+    try:
+        tree = Parser(go_language()).parse(raw)
+        detector = GoDetector(path, raw)
+        detector.run(tree.root_node)
+        return detector.findings
+    except (RecursionError, MemoryError, ValueError):  # pragma: no cover - defensive
+        return []
