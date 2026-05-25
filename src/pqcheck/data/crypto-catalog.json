@@ -1,0 +1,198 @@
+{
+  "crypto/aes.NewCipher": {
+    "canonical": "AES",
+    "family": "symmetric-cipher"
+  },
+  "crypto/des.NewCipher": {
+    "canonical": "DES",
+    "family": "symmetric-cipher"
+  },
+  "crypto/des.NewTripleDESCipher": {
+    "canonical": "3DES",
+    "family": "symmetric-cipher"
+  },
+  "crypto/dsa.GenerateKey": {
+    "canonical": "DSA",
+    "family": "signature"
+  },
+  "crypto/dsa.GenerateParameters": {
+    "canonical": "DSA",
+    "family": "signature"
+  },
+  "crypto/ecdh.P256": {
+    "canonical": "ECDH",
+    "curve": "P-256",
+    "family": "key-agreement"
+  },
+  "crypto/ecdh.P384": {
+    "canonical": "ECDH",
+    "curve": "P-384",
+    "family": "key-agreement"
+  },
+  "crypto/ecdh.P521": {
+    "canonical": "ECDH",
+    "curve": "P-521",
+    "family": "key-agreement"
+  },
+  "crypto/ecdh.X25519": {
+    "canonical": "X25519",
+    "family": "key-agreement"
+  },
+  "crypto/ecdsa.GenerateKey": {
+    "canonical": "ECDSA",
+    "family": "signature"
+  },
+  "crypto/ed25519.GenerateKey": {
+    "canonical": "EdDSA",
+    "curve": "Ed25519",
+    "family": "signature"
+  },
+  "crypto/md5.New": {
+    "canonical": "MD5",
+    "family": "hash"
+  },
+  "crypto/md5.Sum": {
+    "canonical": "MD5",
+    "family": "hash"
+  },
+  "crypto/mlkem.GenerateKey1024": {
+    "canonical": "ML-KEM",
+    "family": "key-encapsulation"
+  },
+  "crypto/mlkem.GenerateKey768": {
+    "canonical": "ML-KEM",
+    "family": "key-encapsulation"
+  },
+  "crypto/rc4.NewCipher": {
+    "canonical": "RC4",
+    "family": "symmetric-cipher"
+  },
+  "crypto/rsa.GenerateKey": {
+    "canonical": "RSA",
+    "family": "asymmetric-encryption"
+  },
+  "crypto/sha1.New": {
+    "canonical": "SHA-1",
+    "family": "hash"
+  },
+  "crypto/sha1.Sum": {
+    "canonical": "SHA-1",
+    "family": "hash"
+  },
+  "crypto/sha256.New": {
+    "canonical": "SHA-256",
+    "family": "hash"
+  },
+  "crypto/sha256.New224": {
+    "canonical": "SHA-224",
+    "family": "hash"
+  },
+  "crypto/sha256.Sum224": {
+    "canonical": "SHA-224",
+    "family": "hash"
+  },
+  "crypto/sha256.Sum256": {
+    "canonical": "SHA-256",
+    "family": "hash"
+  },
+  "crypto/sha3.New256": {
+    "canonical": "SHA3-256",
+    "family": "hash"
+  },
+  "crypto/sha3.New384": {
+    "canonical": "SHA3-384",
+    "family": "hash"
+  },
+  "crypto/sha3.New512": {
+    "canonical": "SHA3-512",
+    "family": "hash"
+  },
+  "crypto/sha3.Sum256": {
+    "canonical": "SHA3-256",
+    "family": "hash"
+  },
+  "crypto/sha3.Sum384": {
+    "canonical": "SHA3-384",
+    "family": "hash"
+  },
+  "crypto/sha3.Sum512": {
+    "canonical": "SHA3-512",
+    "family": "hash"
+  },
+  "crypto/sha512.New": {
+    "canonical": "SHA-512",
+    "family": "hash"
+  },
+  "crypto/sha512.New384": {
+    "canonical": "SHA-384",
+    "family": "hash"
+  },
+  "crypto/sha512.Sum384": {
+    "canonical": "SHA-384",
+    "family": "hash"
+  },
+  "crypto/sha512.Sum512": {
+    "canonical": "SHA-512",
+    "family": "hash"
+  },
+  "golang.org/x/crypto/blake2b.New": {
+    "canonical": "BLAKE2B",
+    "family": "hash"
+  },
+  "golang.org/x/crypto/blake2b.New256": {
+    "canonical": "BLAKE2B",
+    "family": "hash"
+  },
+  "golang.org/x/crypto/blake2b.New384": {
+    "canonical": "BLAKE2B",
+    "family": "hash"
+  },
+  "golang.org/x/crypto/blake2b.New512": {
+    "canonical": "BLAKE2B",
+    "family": "hash"
+  },
+  "golang.org/x/crypto/blake2s.New128": {
+    "canonical": "BLAKE2S",
+    "family": "hash"
+  },
+  "golang.org/x/crypto/blake2s.New256": {
+    "canonical": "BLAKE2S",
+    "family": "hash"
+  },
+  "golang.org/x/crypto/chacha20.NewUnauthenticatedCipher": {
+    "canonical": "CHACHA20",
+    "family": "symmetric-cipher"
+  },
+  "golang.org/x/crypto/chacha20poly1305.New": {
+    "canonical": "CHACHA20",
+    "family": "authenticated-encryption"
+  },
+  "golang.org/x/crypto/chacha20poly1305.NewX": {
+    "canonical": "CHACHA20",
+    "family": "authenticated-encryption"
+  },
+  "golang.org/x/crypto/sha3.New256": {
+    "canonical": "SHA3-256",
+    "family": "hash"
+  },
+  "golang.org/x/crypto/sha3.New384": {
+    "canonical": "SHA3-384",
+    "family": "hash"
+  },
+  "golang.org/x/crypto/sha3.New512": {
+    "canonical": "SHA3-512",
+    "family": "hash"
+  },
+  "golang.org/x/crypto/sha3.Sum256": {
+    "canonical": "SHA3-256",
+    "family": "hash"
+  },
+  "golang.org/x/crypto/sha3.Sum384": {
+    "canonical": "SHA3-384",
+    "family": "hash"
+  },
+  "golang.org/x/crypto/sha3.Sum512": {
+    "canonical": "SHA3-512",
+    "family": "hash"
+  }
+}
