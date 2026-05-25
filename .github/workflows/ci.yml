@@ -23,7 +23,7 @@ jobs:
         with:
           python-version: "3.12"
           enable-cache: true
-      - run: uv sync --all-extras
+      - run: uv sync --all-extras --frozen
       - run: uv run ruff check .
       - run: uv run mypy
 
@@ -42,5 +42,5 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           enable-cache: true
-      - run: uv sync --all-extras
+      - run: uv sync --all-extras --frozen
       - run: uv run pytest
