@@ -83,9 +83,16 @@ def load_default_policy(name: str) -> CryptoPolicy:
     if not re.fullmatch(r"[A-Za-z0-9._-]+", name) or name in {".", ".."}:
         raise PolicyError(f"no bundled policy named {name!r}")
     resource = files("pqcheck.policy").joinpath("defaults", f"{name}.yaml")
-    if not resource.is_file():
-        raise PolicyError(f"no bundled policy named {name!r}")
-    return _parse_and_validate(resource.read_text(encoding="utf-8"), f"<bundled:{name}>")
+    # ``is_file``/``read_text`` can raise OSError before the not-found guard returns
+    # (e.g. an over-long name yields ENAMETOOLONG); honor the "raises PolicyError on
+    # any failure" contract, as load_policy does for its own read.
+    try:
+        if not resource.is_file():
+            raise PolicyError(f"no bundled policy named {name!r}")
+        text = resource.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise PolicyError(f"no bundled policy named {name!r}") from exc
+    return _parse_and_validate(text, f"<bundled:{name}>")
 
 
 def main(argv: list[str] | None = None) -> int:
