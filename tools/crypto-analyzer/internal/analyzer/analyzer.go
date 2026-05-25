@@ -88,55 +88,162 @@ func Analyze(dir string) ([]Finding, error) {
 	var findings []Finding
 	src := &sourceCache{lines: map[string][]string{}}
 	for _, pkg := range pkgs {
-		v := &visitor{pkg: pkg, cat: cat, src: src, out: &findings}
+		v := &visitor{pkg: pkg, cat: cat, src: src, callVar: map[*ast.CallExpr]*types.Var{}}
 		for _, file := range pkg.Syntax {
 			ast.Inspect(file, v.visit)
 		}
+		v.resolve(&findings)
 	}
 	return findings, nil
 }
 
+// visitor collects, in a single walk, the algorithm call sites, the mode
+// constructor call sites, and which variable each algorithm call binds to.
+// Findings are built afterward in resolve so a mode constructor can be linked
+// back to the algorithm that produced its cipher.Block — that link needs the
+// bindings, which a streaming emit could not see yet.
 type visitor struct {
-	pkg *packages.Package
-	cat map[string]catalog.Hit
-	src *sourceCache
-	out *[]Finding
+	pkg     *packages.Package
+	cat     map[string]catalog.Hit
+	src     *sourceCache
+	crypto  []cryptoSite
+	modes   []modeSite
+	callVar map[*ast.CallExpr]*types.Var
+}
+
+type cryptoSite struct {
+	call *ast.CallExpr
+	hit  catalog.Hit
+}
+
+type modeSite struct {
+	call *ast.CallExpr
+	mode string
+}
+
+// goModeConstructors maps a crypto/cipher mode constructor to its mode name.
+// These are not algorithms (absent from the catalog); they annotate the
+// algorithm finding for the block cipher they wrap.
+var goModeConstructors = map[string]string{
+	"crypto/cipher.NewGCM":              "GCM",
+	"crypto/cipher.NewGCMWithNonceSize": "GCM",
+	"crypto/cipher.NewGCMWithTagSize":   "GCM",
+	"crypto/cipher.NewCBCEncrypter":     "CBC",
+	"crypto/cipher.NewCBCDecrypter":     "CBC",
+	"crypto/cipher.NewCFBEncrypter":     "CFB",
+	"crypto/cipher.NewCFBDecrypter":     "CFB",
+	"crypto/cipher.NewOFB":              "OFB",
+	"crypto/cipher.NewCTR":              "CTR",
 }
 
 func (v *visitor) visit(n ast.Node) bool {
-	call, ok := n.(*ast.CallExpr)
-	if !ok {
-		return true
-	}
-	hit, qualified := v.lookupCallee(call)
-	if qualified == "" {
-		return true
-	}
-	if h, ok := v.cat[qualified]; ok {
-		hit = h
-		v.emit(call, hit)
+	switch node := n.(type) {
+	case *ast.AssignStmt:
+		v.recordBindings(node)
+	case *ast.CallExpr:
+		v.recordCall(node)
 	}
 	return true
 }
 
-// lookupCallee resolves the call's function to its <pkg-path>.<Name> identity
-// via type info. Returns the qualified name (empty if it is not a resolvable
-// package-level function selector). The hit return is unused here but kept for
-// the const-fold/use-def passes layered on later.
-func (v *visitor) lookupCallee(call *ast.CallExpr) (catalog.Hit, string) {
-	sel, ok := call.Fun.(*ast.SelectorExpr)
-	if !ok {
-		return catalog.Hit{}, ""
+func (v *visitor) recordCall(call *ast.CallExpr) {
+	qualified := v.qualifiedCallee(call)
+	if qualified == "" {
+		return
 	}
-	obj := v.pkg.TypesInfo.Uses[sel.Sel]
-	fn, ok := obj.(*types.Func)
-	if !ok || fn.Pkg() == nil {
-		return catalog.Hit{}, ""
+	if mode, ok := goModeConstructors[qualified]; ok {
+		v.modes = append(v.modes, modeSite{call, mode})
+		return
 	}
-	return catalog.Hit{}, fn.Pkg().Path() + "." + fn.Name()
+	if hit, ok := v.cat[qualified]; ok {
+		v.crypto = append(v.crypto, cryptoSite{call, hit})
+	}
 }
 
-func (v *visitor) emit(call *ast.CallExpr, hit catalog.Hit) {
+// recordBindings notes, for `x := <algorithm-call>(...)`, the variable x so a
+// later mode constructor taking x can be linked back. Only single-assignment
+// in the same statement is tracked (the common block-cipher idiom); anything
+// else leaves the algorithm finding without a mode.
+func (v *visitor) recordBindings(assign *ast.AssignStmt) {
+	for i, rhs := range assign.Rhs {
+		call, ok := rhs.(*ast.CallExpr)
+		if !ok {
+			continue
+		}
+		if _, ok := v.cat[v.qualifiedCallee(call)]; !ok {
+			continue
+		}
+		var lhs ast.Expr
+		switch {
+		case len(assign.Rhs) == 1 && len(assign.Lhs) >= 1:
+			lhs = assign.Lhs[0] // multi-value call: block is the first result
+		case i < len(assign.Lhs):
+			lhs = assign.Lhs[i]
+		}
+		ident, ok := lhs.(*ast.Ident)
+		if !ok {
+			continue
+		}
+		if vobj := v.varOf(ident); vobj != nil {
+			v.callVar[call] = vobj
+		}
+	}
+}
+
+// qualifiedCallee resolves the call's function to its <pkg-path>.<Name> identity
+// via type info, or "" if it is not a resolvable package-level function selector.
+func (v *visitor) qualifiedCallee(call *ast.CallExpr) string {
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok {
+		return ""
+	}
+	fn, ok := v.pkg.TypesInfo.Uses[sel.Sel].(*types.Func)
+	if !ok || fn.Pkg() == nil {
+		return ""
+	}
+	return fn.Pkg().Path() + "." + fn.Name()
+}
+
+func (v *visitor) varOf(ident *ast.Ident) *types.Var {
+	obj := v.pkg.TypesInfo.Defs[ident]
+	if obj == nil {
+		obj = v.pkg.TypesInfo.Uses[ident]
+	}
+	vobj, _ := obj.(*types.Var)
+	return vobj
+}
+
+// resolve builds one finding per algorithm call site, then links each mode
+// constructor to the finding whose variable it consumes. No finding is emitted
+// for a mode constructor itself, so AES used with GCM yields one finding
+// (AES + GCM), not two.
+func (v *visitor) resolve(out *[]Finding) {
+	varToIdx := map[*types.Var]int{}
+	for _, site := range v.crypto {
+		*out = append(*out, v.build(site.call, site.hit))
+		if vobj, ok := v.callVar[site.call]; ok {
+			varToIdx[vobj] = len(*out) - 1
+		}
+	}
+	for _, m := range v.modes {
+		if len(m.call.Args) < 1 {
+			continue
+		}
+		ident, ok := m.call.Args[0].(*ast.Ident)
+		if !ok {
+			continue
+		}
+		vobj := v.varOf(ident)
+		if vobj == nil {
+			continue
+		}
+		if idx, ok := varToIdx[vobj]; ok && (*out)[idx].Mode == "" {
+			(*out)[idx].Mode = m.mode
+		}
+	}
+}
+
+func (v *visitor) build(call *ast.CallExpr, hit catalog.Hit) Finding {
 	fset := v.pkg.Fset
 	start := fset.Position(call.Pos())
 	end := fset.Position(call.End())
@@ -167,7 +274,7 @@ func (v *visitor) emit(call *ast.CallExpr, hit catalog.Hit) {
 			}
 		}
 	}
-	*v.out = append(*v.out, f)
+	return f
 }
 
 // constInt returns the folded integer value of expr when it is a compile-time
