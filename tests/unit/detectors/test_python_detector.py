@@ -495,6 +495,29 @@ def test_ec_unknown_curve_passes_through_unchanged() -> None:
     assert findings[0].curve == "BrainpoolP256R1"
 
 
+def test_pycryptodome_ecc_string_curve_normalized() -> None:
+    # pycryptodome takes the curve as a string (ECC.generate(curve="p256")),
+    # not a class instance like `cryptography`. Normalize it to policy vocab.
+    src = (
+        "from Crypto.PublicKey import ECC\n"
+        "ECC.generate(curve='p256')\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "ECDSA"
+    assert findings[0].curve == "P-256"
+
+
+def test_pycryptodome_ecc_unknown_string_curve_passes_through() -> None:
+    src = (
+        "from Crypto.PublicKey import ECC\n"
+        "ECC.generate(curve='brainpoolP256r1')\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].curve == "brainpoolP256r1"
+
+
 def test_ed25519_emits_eddsa_with_curve() -> None:
     # Policy bans `algorithm: EdDSA` with `curves: [Ed25519, Ed448]`. The
     # detector must speak that vocabulary so the eventual engine can match.
