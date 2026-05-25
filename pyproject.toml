@@ -76,11 +76,9 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/cryptoct/pqcheck"
-Repository = "https://github.com/cryptoct/pqcheck"
-Issues = "https://github.com/cryptoct/pqcheck/issues"
-"Meta-repository" = "https://github.com/cryptoct/cryptoct"
-"Security policy" = "https://github.com/cryptoct/pqcheck/blob/main/SECURITY.md"
+Homepage = "https://github.com/Rafael-Ryu/pqcheck"
+Repository = "https://github.com/Rafael-Ryu/pqcheck"
+Issues = "https://github.com/Rafael-Ryu/pqcheck/issues"
 
 [project.scripts]
 pqcheck = "pqcheck.cli:app"
@@ -93,8 +91,6 @@ build-backend = "hatchling.build"
 packages = ["src/pqcheck"]
 include = [
     "src/pqcheck/schemas/*",
-    "src/pqcheck/grammars/*",
-    "src/pqcheck/bin/*/*",
     "src/pqcheck/policy/defaults/*.yaml",
 ]
 
@@ -102,12 +98,8 @@ include = [
 include = [
     "src/",
     "tests/",
-    "tools/",
-    "scripts/",
     "README.md",
     "LICENSE",
-    "SECURITY.md",
-    "CHANGELOG.md",
     "pyproject.toml",
 ]
 
