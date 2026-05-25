@@ -1,8 +1,20 @@
 from pqcheck.detectors.algorithms import (
     emittable_canonicals,
+    load_go_catalog,
     lookup_go_symbol,
 )
 from pqcheck.models import AlgorithmFamily
+
+
+def test_load_go_catalog_parses_entries() -> None:
+    cat = load_go_catalog()
+    rsa = cat["crypto/rsa.GenerateKey"]
+    assert rsa.canonical == "RSA"
+    assert rsa.family is AlgorithmFamily.ASYMMETRIC_ENCRYPTION
+    assert rsa.curve is None
+    ecdh = cat["crypto/ecdh.P256"]
+    assert ecdh.canonical == "ECDH"
+    assert ecdh.curve == "P-256"
 
 
 def test_lookup_known_hash() -> None:
