@@ -495,6 +495,21 @@ def test_ec_unknown_curve_passes_through_unchanged() -> None:
     assert findings[0].curve == "BrainpoolP256R1"
 
 
+def test_ecdh_exchange_marker_is_detected() -> None:
+    # Standalone NIST-curve ECDH is invoked as key.exchange(ec.ECDH(), peer).
+    # The ec.ECDH() marker is detectable at the call site without dataflow,
+    # so it is flagged as key-agreement even when keygen labels the key ECDSA.
+    src = (
+        "from cryptography.hazmat.primitives.asymmetric import ec\n"
+        "shared = private_key.exchange(ec.ECDH(), peer_public_key)\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "ECDH"
+    assert findings[0].family is AlgorithmFamily.KEY_AGREEMENT
+    assert findings[0].quantum_risk is QuantumRisk.VULNERABLE
+
+
 def test_pycryptodome_ecc_string_curve_normalized() -> None:
     # pycryptodome takes the curve as a string (ECC.generate(curve="p256")),
     # not a class instance like `cryptography`. Normalize it to policy vocab.
