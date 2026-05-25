@@ -7,10 +7,10 @@ direct/string-dispatch mismatch is also caught here.
 """
 
 from pqcheck.detectors.algorithms import (
-    _GO_SYMBOLS,
     CIPHER_WRAPPER,
     emittable_canonicals,
     hashlib_new_table,
+    load_go_catalog,
     lookup_python_symbol,
 )
 from pqcheck.models import _QUANTUM_MAP, QuantumRisk
@@ -45,6 +45,6 @@ def test_hashlib_new_table_derives_from_catalog() -> None:
 
 def test_go_catalog_canonicals_have_quantum_risk() -> None:
     # Every Go symbol's canonical must classify through _QUANTUM_MAP, never UNKNOWN.
-    for hit in _GO_SYMBOLS.values():
+    for hit in load_go_catalog().values():
         assert hit.canonical.upper() in _QUANTUM_MAP, hit.canonical
         assert _QUANTUM_MAP[hit.canonical.upper()] is not QuantumRisk.UNKNOWN
