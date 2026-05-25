@@ -127,3 +127,61 @@ func TestAnalyzeExtractsECDSACurve(t *testing.T) {
 		t.Fatalf("curve = %q, want P-256", ec.Curve)
 	}
 }
+
+func TestAnalyzeLinksGCMModeToAES(t *testing.T) {
+	dir := writeModule(t, map[string]string{
+		"main.go": "package main\nimport (\n\"crypto/aes\"\n\"crypto/cipher\"\n)\nfunc main(){\nblock, _ := aes.NewCipher(make([]byte, 32))\n_, _ = cipher.NewGCM(block)\n}\n",
+	})
+	fs, err := Analyze(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var aesF []Finding
+	for _, f := range fs {
+		if f.Algorithm == "AES" {
+			aesF = append(aesF, f)
+		}
+	}
+	if len(aesF) != 1 {
+		t.Fatalf("want exactly 1 AES finding (no double-count), got %d: %+v", len(aesF), fs)
+	}
+	if aesF[0].Mode != "GCM" {
+		t.Fatalf("mode = %q, want GCM (use-def linked)", aesF[0].Mode)
+	}
+}
+
+func TestAnalyzeLinksCBCWeakMode(t *testing.T) {
+	dir := writeModule(t, map[string]string{
+		"main.go": "package main\nimport (\n\"crypto/aes\"\n\"crypto/cipher\"\n)\nfunc main(){\nblock, _ := aes.NewCipher(make([]byte, 32))\niv := make([]byte, 16)\n_ = cipher.NewCBCEncrypter(block, iv)\n}\n",
+	})
+	fs, err := Analyze(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var aesF []Finding
+	for _, f := range fs {
+		if f.Algorithm == "AES" {
+			aesF = append(aesF, f)
+		}
+	}
+	if len(aesF) != 1 || aesF[0].Mode != "CBC" {
+		t.Fatalf("want 1 AES finding with mode CBC, got %+v", fs)
+	}
+}
+
+func TestAnalyzeAESWithoutModeHasNoMode(t *testing.T) {
+	dir := writeModule(t, map[string]string{
+		"main.go": "package main\nimport \"crypto/aes\"\nfunc main(){ aes.NewCipher(make([]byte, 32)) }\n",
+	})
+	fs, err := Analyze(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	aesF := findingsByAlgo(fs)["AES"]
+	if aesF.Algorithm != "AES" {
+		t.Fatalf("expected AES finding, got %+v", fs)
+	}
+	if aesF.Mode != "" {
+		t.Fatalf("mode = %q, want empty (no mode constructor)", aesF.Mode)
+	}
+}
