@@ -178,3 +178,21 @@ def lookup_cipher_mode(qualified_name: str) -> str | None:
     if result is not None:
         return result
     return _PYCRYPTODOME_MODE_ATTRS.get(qualified_name)
+
+
+# cryptography curve class name → policy §3 curve vocabulary. NIST P-curves
+# take their policy spelling; secp256k1 is lowercased to match. Names not
+# listed pass through unchanged so a curve without a policy spelling keeps
+# its library name rather than being dropped.
+_CURVE_NAMES: dict[str, str] = {
+    "SECP192R1": "P-192",
+    "SECP224R1": "P-224",
+    "SECP256R1": "P-256",
+    "SECP384R1": "P-384",
+    "SECP521R1": "P-521",
+    "SECP256K1": "secp256k1",
+}
+
+
+def normalize_curve(name: str) -> str:
+    return _CURVE_NAMES.get(name, name)

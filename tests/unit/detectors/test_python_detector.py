@@ -428,7 +428,7 @@ def test_ec_extracts_curve_name() -> None:
     )
     findings = _scan(src)
     assert len(findings) == 1
-    assert findings[0].curve == "SECP256R1"
+    assert findings[0].curve == "P-256"
 
 
 def test_ec_with_positional_curve() -> None:
@@ -438,7 +438,7 @@ def test_ec_with_positional_curve() -> None:
     )
     findings = _scan(src)
     assert len(findings) == 1
-    assert findings[0].curve == "SECP384R1"
+    assert findings[0].curve == "P-384"
 
 
 def test_ec_with_no_args_returns_no_curve() -> None:
@@ -470,7 +470,29 @@ def test_ec_with_unqualified_curve_name() -> None:
     )
     findings = _scan(src)
     assert len(findings) == 1
-    assert findings[0].curve == "SECP256R1"
+    assert findings[0].curve == "P-256"
+
+
+def test_ec_secp256k1_keeps_policy_spelling() -> None:
+    src = (
+        "from cryptography.hazmat.primitives.asymmetric import ec\n"
+        "ec.generate_private_key(ec.SECP256K1())\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].curve == "secp256k1"
+
+
+def test_ec_unknown_curve_passes_through_unchanged() -> None:
+    # A curve with no policy spelling keeps its library name rather than
+    # silently dropping the information.
+    src = (
+        "from cryptography.hazmat.primitives.asymmetric import ec\n"
+        "ec.generate_private_key(ec.BrainpoolP256R1())\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].curve == "BrainpoolP256R1"
 
 
 def test_key_size_kwarg_with_non_int_constant_emits_none() -> None:
