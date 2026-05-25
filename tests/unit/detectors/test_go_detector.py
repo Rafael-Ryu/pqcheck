@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import pytest
 from tree_sitter import Language, Node, Parser
 
 from pqcheck.detectors.go_detector import (
@@ -154,3 +155,45 @@ def test_detect_go_file_broken_source_returns_empty(tmp_path: Path) -> None:
     f = tmp_path / "broken.go"
     f.write_text("package m\nfunc f( { @@@ not valid %%% }\n")
     assert detect_go_file(f) == []
+
+
+def test_backtick_import_binds_last_segment() -> None:
+    r = _resolver("package m\nimport `crypto/rsa`\n")
+    assert r.resolve("rsa") == "crypto/rsa"
+
+
+def test_backtick_import_path_resolves() -> None:
+    fs = _findings("package m\nimport `crypto/md5`\nfunc f() { md5.New() }\n")
+    assert [f.algorithm for f in fs] == ["MD5"]
+
+
+def test_rsa_key_size_absurd_literal_is_dropped() -> None:
+    fs = _findings(
+        'package m\nimport "crypto/rsa"\n'
+        "func f() { rsa.GenerateKey(nil, 0x" + "f" * 5000 + ") }\n"
+    )
+    rsa = [f for f in fs if f.algorithm == "RSA"]
+    assert len(rsa) == 1
+    assert rsa[0].key_size is None
+    repr(rsa[0])  # an unbounded int here would raise on stringify
+
+
+def test_node_count_guard_skips_oversized_tree(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("pqcheck.detectors.go_detector._MAX_PARSE_NODES", 5)
+    fs = _findings('package m\nimport "crypto/md5"\nfunc f() { md5.New() }\n')
+    assert fs == []
+
+
+def test_evidence_aligns_across_unicode_line_separator() -> None:
+    # U+2028 in a raw string splits str.splitlines() but not tree-sitter rows;
+    # the evidence line must still match the call's actual source line.
+    fs = _findings(
+        "package m\n"
+        'import "crypto/rsa"\n'
+        "var x = `a\u2028b`\n"
+        "func f() { rsa.GenerateKey(nil, 2048) }\n"
+    )
+    rsa = next(f for f in fs if f.algorithm == "RSA")
+    assert rsa.evidence == "func f() { rsa.GenerateKey(nil, 2048) }"
