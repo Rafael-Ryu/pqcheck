@@ -67,4 +67,5 @@ src/pqcheck/bin/
 # Local-only planning & agent context (never commit — keep on disk only)
 .context/
 autoresearch/
+docs/superpowers/
 CLAUDE.md
