@@ -189,19 +189,21 @@ def lookup_cipher_mode(qualified_name: str) -> str | None:
     return _PYCRYPTODOME_MODE_ATTRS.get(qualified_name)
 
 
-# cryptography curve class name → policy §3 curve vocabulary. NIST P-curves
-# take their policy spelling; secp256k1 is lowercased to match. Names not
-# listed pass through unchanged so a curve without a policy spelling keeps
-# its library name rather than being dropped.
+# Curve name → policy §3 curve vocabulary. Keyed by the upcased name so both
+# the `cryptography` class names (SECP256R1) and the pycryptodome / OpenSSL
+# string aliases (p256, P-256, prime256v1) collapse to one policy spelling.
+# NIST P-curves take their policy spelling; secp256k1 is lowercased to match.
+# Names not listed pass through unchanged (keeping their original casing) so a
+# curve without a policy spelling keeps its library name rather than dropping.
 _CURVE_NAMES: dict[str, str] = {
-    "SECP192R1": "P-192",
-    "SECP224R1": "P-224",
-    "SECP256R1": "P-256",
-    "SECP384R1": "P-384",
-    "SECP521R1": "P-521",
+    "SECP192R1": "P-192", "P192": "P-192", "P-192": "P-192", "PRIME192V1": "P-192",
+    "SECP224R1": "P-224", "P224": "P-224", "P-224": "P-224", "PRIME224V1": "P-224",
+    "SECP256R1": "P-256", "P256": "P-256", "P-256": "P-256", "PRIME256V1": "P-256",
+    "SECP384R1": "P-384", "P384": "P-384", "P-384": "P-384", "PRIME384V1": "P-384",
+    "SECP521R1": "P-521", "P521": "P-521", "P-521": "P-521", "PRIME521V1": "P-521",
     "SECP256K1": "secp256k1",
 }
 
 
 def normalize_curve(name: str) -> str:
-    return _CURVE_NAMES.get(name, name)
+    return _CURVE_NAMES.get(name.upper(), name)
