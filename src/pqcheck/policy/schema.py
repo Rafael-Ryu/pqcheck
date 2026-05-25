@@ -83,10 +83,12 @@ class PolicyException(BaseModel):
 
     id: str = Field(pattern=r"^EXC-\d{3}$")
     description: str
+    # An exception grants a banned algorithm a temporary pass, so the ADR that
+    # justifies it and the date it must be revisited are mandatory audit trail.
+    adr: str
+    review_date: date
     banned_algorithm: str | None = None
     context: str | None = None
-    adr: str | None = None
-    review_date: date | None = None
     compensating_controls: list[str] | None = None
 
 
