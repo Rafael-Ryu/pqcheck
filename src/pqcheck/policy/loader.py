@@ -28,7 +28,10 @@ class _NoAliasSafeLoader(yaml.SafeLoader):
 
 def _refuse_alias(self: yaml.SafeLoader, node: Any) -> None:
     raise yaml.constructor.ConstructorError(
-        None, None, "YAML anchors/aliases are not allowed in policies", None
+        None,
+        None,
+        "unsupported YAML tag in policies (anchors, aliases, and custom tags are not allowed)",
+        None,
     )
 
 

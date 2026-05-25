@@ -32,3 +32,8 @@ def test_alias_bomb_rejected_not_expanded():
     # Must fail fast on the anchor/alias, never expand into gigabytes.
     with pytest.raises(PolicyError):
         load_policy(FIXTURES / "alias_bomb.yaml")
+
+
+def test_scalar_document_raises_policy_error():
+    with pytest.raises(PolicyError, match="must be a mapping"):
+        load_policy(FIXTURES / "scalar.yaml")
