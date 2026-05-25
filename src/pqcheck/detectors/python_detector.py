@@ -420,8 +420,8 @@ def detect_python_file(path: Path) -> list[CryptoFinding]:
 
     Returns an empty list (never raises) for: missing file, symlink,
     non-regular file (device, FIFO, socket, directory), file > 2 MiB,
-    encoding failure on both UTF-8 and Latin-1, or a SyntaxError during
-    parsing.
+    encoding failure on both UTF-8 and Latin-1, or a parse that fails with
+    SyntaxError, ValueError, RecursionError, or MemoryError.
 
     The path is opened with O_NOFOLLOW and the size/regular-file check
     runs against the open fd. This rejects symlinks and closes the TOCTOU
@@ -442,7 +442,12 @@ def detect_python_file(path: Path) -> list[CryptoFinding]:
         return []
     try:
         tree = ast.parse(source, filename=str(path))
-    except SyntaxError:
+    except (SyntaxError, ValueError, RecursionError, MemoryError):
+        # SyntaxError: unparseable source. ValueError: source with null bytes.
+        # RecursionError: a deeply nested expression that recurses the parser
+        # past the limit. MemoryError: a pathological tree that allocates
+        # instead of recursing. All are untrusted-input cases that must not
+        # abort the scan.
         return []
     detector = PythonDetector(source_path=path, source=source)
     detector.visit(tree)
