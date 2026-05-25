@@ -85,3 +85,45 @@ func TestAnalyzeNoCryptoEmitsNothing(t *testing.T) {
 		t.Fatalf("expected no findings, got %+v", fs)
 	}
 }
+
+func TestAnalyzeExtractsRSAKeySizeLiteral(t *testing.T) {
+	dir := writeModule(t, map[string]string{
+		"main.go": "package main\nimport (\n\"crypto/rsa\"\n\"crypto/rand\"\n)\nfunc main(){ rsa.GenerateKey(rand.Reader, 2048) }\n",
+	})
+	fs, err := Analyze(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rsa := findingsByAlgo(fs)["RSA"]
+	if rsa.KeySize == nil || *rsa.KeySize != 2048 {
+		t.Fatalf("key size = %v, want 2048", rsa.KeySize)
+	}
+}
+
+func TestAnalyzeFoldsRSAKeySizeFromConst(t *testing.T) {
+	dir := writeModule(t, map[string]string{
+		"main.go": "package main\nimport (\n\"crypto/rsa\"\n\"crypto/rand\"\n)\nconst bits = 4096\nfunc main(){ rsa.GenerateKey(rand.Reader, bits) }\n",
+	})
+	fs, err := Analyze(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rsa := findingsByAlgo(fs)["RSA"]
+	if rsa.KeySize == nil || *rsa.KeySize != 4096 {
+		t.Fatalf("key size = %v, want 4096 (const-folded, not a literal)", rsa.KeySize)
+	}
+}
+
+func TestAnalyzeExtractsECDSACurve(t *testing.T) {
+	dir := writeModule(t, map[string]string{
+		"main.go": "package main\nimport (\n\"crypto/ecdsa\"\n\"crypto/elliptic\"\n\"crypto/rand\"\n)\nfunc main(){ ecdsa.GenerateKey(elliptic.P256(), rand.Reader) }\n",
+	})
+	fs, err := Analyze(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ec := findingsByAlgo(fs)["ECDSA"]
+	if ec.Curve != "P-256" {
+		t.Fatalf("curve = %q, want P-256", ec.Curve)
+	}
+}
