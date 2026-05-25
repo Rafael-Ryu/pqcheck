@@ -61,6 +61,9 @@ _QUANTUM_MAP: dict[str, QuantumRisk] = {
     "ECDSA": QuantumRisk.VULNERABLE,
     "ECDH": QuantumRisk.VULNERABLE,
     "DH": QuantumRisk.VULNERABLE,
+    # EdDSA is the canonical the Python detector emits; ED25519/ED448 remain
+    # for the dependency catalog, which lists per-curve algorithm names.
+    "EDDSA": QuantumRisk.VULNERABLE,
     "ED25519": QuantumRisk.VULNERABLE,
     "ED448": QuantumRisk.VULNERABLE,
     "X25519": QuantumRisk.VULNERABLE,
