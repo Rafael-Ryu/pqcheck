@@ -3,6 +3,7 @@ from pydantic import ValidationError
 
 from pqcheck.policy.schema import (
     AlgorithmRule,
+    CryptoPolicy,
     HybridRule,
     PolicyException,
     RuleAction,
@@ -50,3 +51,52 @@ def test_severity_rule_and_selector():
     assert sr.action.value == "as-declared"
     sel = SeveritySelector.model_validate({"severity": "high", "confidence-band": ["high"]})
     assert sel.confidence_band == ["high"]
+
+
+_VALID = {
+    "apiVersion": "pqcheck.cryptoct.com/v1",
+    "kind": "CryptoPolicy",
+    "metadata": {
+        "name": "cryptoct-default", "version": "1.0.0", "publisher": "CryptoCT",
+        "applies-to": "All new code", "effective-from": "2026-05-22",
+        "review-date": "2026-11-22",
+    },
+    "spec": {
+        "default-action": "warn",
+        "approved": [{"family": "hash", "algorithm": "SHA-256", "action": "allow"}],
+        "banned": [{"family": "hash", "algorithm": "MD5", "action": "fail",
+                    "severity": "critical", "reason": "Collision-broken"}],
+        "severity-rules": [{"confidence-band": "high", "action": "as-declared"}],
+        "fail-on": [{"severity": "critical"}],
+    },
+}
+
+
+def test_valid_policy_parses():
+    policy = CryptoPolicy.model_validate(_VALID)
+    assert policy.metadata.name == "cryptoct-default"
+    assert policy.spec.banned[0].algorithm == "MD5"
+
+
+def test_wrong_api_version_rejected():
+    bad = {**_VALID, "apiVersion": "v2"}
+    with pytest.raises(ValidationError):
+        CryptoPolicy.model_validate(bad)
+
+
+def test_wrong_kind_rejected():
+    bad = {**_VALID, "kind": "Pod"}
+    with pytest.raises(ValidationError):
+        CryptoPolicy.model_validate(bad)
+
+
+def test_invalid_semver_rejected():
+    bad = {**_VALID, "metadata": {**_VALID["metadata"], "version": "1.0"}}
+    with pytest.raises(ValidationError):
+        CryptoPolicy.model_validate(bad)
+
+
+def test_missing_metadata_field_rejected():
+    md = {k: v for k, v in _VALID["metadata"].items() if k != "version"}
+    with pytest.raises(ValidationError):
+        CryptoPolicy.model_validate({**_VALID, "metadata": md})
