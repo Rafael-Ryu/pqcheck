@@ -25,6 +25,18 @@ from pqcheck.models import CryptoFinding, SourceLocation
 
 _DETECTOR_ID = "go-tree-sitter"
 
+# The 2 MiB byte cap bounds input size but not node count: a small blob of
+# deeply nested expressions can explode into millions of nodes, and walking
+# them costs memory/CPU proportional to that count. Bail on such trees — any
+# real-world Go file stays far below this, and oversized generated blobs are
+# already out of scope (the byte cap drops them too).
+_MAX_PARSE_NODES = 1_000_000
+
+# RSA key sizes are small integers; a literal beyond this is not a real key.
+# Bounding it also keeps an attacker-supplied huge literal (e.g. 0xfff…f) from
+# building an unbounded int that would crash downstream stringify of a finding.
+_MAX_KEY_SIZE = 1 << 20
+
 
 def _walk(root: Node) -> Iterator[Node]:
     # Iterative preorder (document order). Avoids RecursionError on a
@@ -41,12 +53,20 @@ def _node_text(node: Node, source: bytes) -> str:
 
 
 def _string_literal_path(node: Node, source: bytes) -> str | None:
-    # node is an interpreted_string_literal; its content child is the text
-    # between the quotes. Empty import ("") has no content child -> None.
+    # node is an interpreted or raw string literal; its content child is the
+    # text between the quotes. Empty import ("") has no content child -> None.
     for child in node.children:
-        if child.type == "interpreted_string_literal_content":
+        if child.type in _STRING_CONTENT:
             return _node_text(child, source)
     return None
+
+
+# Both forms a Go import path can take: "crypto/md5" and `crypto/md5`. Raw
+# (backtick) strings have no escapes, so their content node is the literal path.
+_STRING_CONTENT = (
+    "interpreted_string_literal_content",
+    "raw_string_literal_content",
+)
 
 
 class GoImportResolver:
@@ -96,9 +116,10 @@ def _int_literal(node: Node, source: bytes) -> int | None:
         return None
     text = _node_text(node, source).replace("_", "")
     try:
-        return int(text, 0)  # base 0: handles 0x/0o/0b and decimal
+        value = int(text, 0)  # base 0: handles 0x/0o/0b and decimal
     except ValueError:  # pragma: no cover - grammar guarantees a valid literal
         return None
+    return value if value <= _MAX_KEY_SIZE else None
 
 
 class GoDetector:
@@ -107,11 +128,17 @@ class GoDetector:
     def __init__(self, path: Path, source: bytes) -> None:
         self._path = path
         self._source = source
-        self._lines = source.decode("utf-8", "replace").splitlines()
+        # Split on "\n" only — tree-sitter counts rows by \n / \r\n, while
+        # str.splitlines() also breaks on U+2028/U+2029/NEL/FF/VT and lone CR,
+        # which would desync evidence lines from node.start_point.row. A
+        # trailing \r from \r\n is removed by _evidence's strip().
+        self._lines = source.decode("utf-8", "replace").split("\n")
         self._imports = GoImportResolver()
         self.findings: list[CryptoFinding] = []
 
     def run(self, root: Node) -> None:
+        if root.descendant_count > _MAX_PARSE_NODES:
+            return
         self._imports.visit_root(root, self._source)
         for node in _walk(root):
             if node.type == "call_expression":
