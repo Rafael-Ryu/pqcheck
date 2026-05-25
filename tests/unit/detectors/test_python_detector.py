@@ -605,6 +605,26 @@ def test_pycryptodome_aes_extracts_key_size_from_key_literal() -> None:
     assert findings[0].key_size == 128
 
 
+def test_aes_wrapper_extracts_key_size_from_key_keyword() -> None:
+    src = (
+        "from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes\n"
+        "Cipher(algorithms.AES(key=b'k' * 32), modes.GCM(b'i' * 12))\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].key_size == 256
+
+
+def test_pycryptodome_aes_extracts_key_size_from_key_keyword() -> None:
+    src = (
+        "from Crypto.Cipher import AES\n"
+        "AES.new(key=b'k' * 16, mode=AES.MODE_GCM, nonce=b'n' * 12)\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].key_size == 128
+
+
 def test_aes_with_non_literal_key_emits_none() -> None:
     src = (
         "from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes\n"
