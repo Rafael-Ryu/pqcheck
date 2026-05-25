@@ -92,6 +92,7 @@ packages = ["src/pqcheck"]
 include = [
     "src/pqcheck/schemas/*",
     "src/pqcheck/policy/defaults/*.yaml",
+    "src/pqcheck/data/*.json",
 ]
 
 [tool.hatch.build.targets.sdist]
