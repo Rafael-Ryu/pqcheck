@@ -27,9 +27,12 @@ def parse(path: Path) -> list[CryptoDependency]:
     raw = safe_read_bytes(path)
     if raw is None:
         return []
+    # Deeply nested TOML (arrays/inline tables) parses recursively and can
+    # exhaust the stack; the size cap does not bound nesting depth. Catch it
+    # to keep the never-raise contract.
     try:
         data: dict[str, Any] = tomllib.loads(raw.decode("utf-8"))
-    except (tomllib.TOMLDecodeError, UnicodeDecodeError):
+    except (tomllib.TOMLDecodeError, UnicodeDecodeError, RecursionError, MemoryError):
         return []
 
     seen: set[str] = set()  # keyed on PEP 503 lowercased name for dedup

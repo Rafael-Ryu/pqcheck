@@ -1,4 +1,10 @@
-from pqcheck.detectors.algorithms import AlgorithmHit, lookup_cipher_mode, lookup_python_symbol
+from pqcheck.detectors.algorithms import (
+    AlgorithmHit,
+    lookup_cipher_mode,
+    lookup_go_symbol,
+    lookup_python_symbol,
+    normalize_curve,
+)
 from pqcheck.models import AlgorithmFamily
 
 
@@ -104,3 +110,65 @@ def test_pycryptodome_sha3_256_resolves() -> None:
 def test_pycryptodome_blake2b_resolves() -> None:
     hit = lookup_python_symbol("Crypto.Hash.BLAKE2b.new")
     assert hit == AlgorithmHit(canonical="BLAKE2B", family=AlgorithmFamily.HASH)
+
+
+# --- lookup_go_symbol ---
+
+
+def test_lookup_go_symbol_rsa_generate_key() -> None:
+    hit = lookup_go_symbol("crypto/rsa.GenerateKey")
+    assert hit == AlgorithmHit(canonical="RSA", family=AlgorithmFamily.ASYMMETRIC_ENCRYPTION)
+
+
+def test_lookup_go_symbol_ecdsa_generate_key() -> None:
+    hit = lookup_go_symbol("crypto/ecdsa.GenerateKey")
+    assert hit == AlgorithmHit(canonical="ECDSA", family=AlgorithmFamily.SIGNATURE)
+
+
+def test_lookup_go_symbol_aes_new_cipher() -> None:
+    hit = lookup_go_symbol("crypto/aes.NewCipher")
+    assert hit == AlgorithmHit(canonical="AES", family=AlgorithmFamily.SYMMETRIC_CIPHER)
+
+
+def test_lookup_go_symbol_ecdh_p256_carries_curve() -> None:
+    hit = lookup_go_symbol("crypto/ecdh.P256")
+    assert hit == AlgorithmHit(
+        canonical="ECDH", family=AlgorithmFamily.KEY_AGREEMENT, curve="P-256"
+    )
+
+
+def test_lookup_go_symbol_ed25519_carries_curve() -> None:
+    hit = lookup_go_symbol("crypto/ed25519.GenerateKey")
+    assert hit == AlgorithmHit(
+        canonical="EdDSA", family=AlgorithmFamily.SIGNATURE, curve="Ed25519"
+    )
+
+
+def test_lookup_go_symbol_unknown_returns_none() -> None:
+    assert lookup_go_symbol("os.Getenv") is None
+    assert lookup_go_symbol("") is None
+
+
+# --- normalize_curve ---
+
+
+def test_normalize_curve_p256_short() -> None:
+    assert normalize_curve("P256") == "P-256"
+
+
+def test_normalize_curve_secp256r1() -> None:
+    assert normalize_curve("SECP256R1") == "P-256"
+
+
+def test_normalize_curve_p384() -> None:
+    assert normalize_curve("P384") == "P-384"
+
+
+def test_normalize_curve_already_canonical() -> None:
+    assert normalize_curve("P-256") == "P-256"
+
+
+def test_normalize_curve_unknown_passes_through() -> None:
+    # A curve without a policy spelling keeps its original casing.
+    assert normalize_curve("X25519") == "X25519"
+    assert normalize_curve("brainpoolP256r1") == "brainpoolP256r1"

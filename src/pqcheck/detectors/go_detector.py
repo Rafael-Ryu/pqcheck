@@ -211,9 +211,8 @@ class GoDetector:
 
     def _second_arg_int(self, call: Node) -> int | None:
         # RSA key size is rsa.GenerateKey(rand, bits)'s second positional arg.
-        _MIN_ARGS_FOR_BITS = 2
         args = self._named_args(call)
-        if len(args) < _MIN_ARGS_FOR_BITS:
+        if len(args) < 2:  # need at least (rand, bits)  # noqa: PLR2004
             return None
         return _int_literal(args[1], self._source)
 
@@ -253,5 +252,7 @@ def detect_go_file(path: Path) -> list[CryptoFinding]:
         detector = GoDetector(path, raw)
         detector.run(tree.root_node)
         return detector.findings
-    except (RecursionError, MemoryError, ValueError):  # pragma: no cover - defensive
+    # OSError covers a missing/unreadable catalog (regression-tested); the
+    # others guard pathological parse trees. detect_go_file must never raise.
+    except (RecursionError, MemoryError, ValueError, OSError):
         return []
