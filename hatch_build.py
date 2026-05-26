@@ -71,8 +71,11 @@ class CryptoAnalyzerHashHook(BuildHookInterface):  # type: ignore[misc]
             return
         # A platform-specific binary is present, so this wheel must carry a
         # platform tag; without it every platform emits py3-none-any and only
-        # the last upload survives on PyPI (filename collision).
+        # the last upload survives on PyPI (filename collision). pure_python=False
+        # keeps the metadata consistent: a binary-bearing wheel targets platlib,
+        # not purelib (Root-Is-Purelib: false).
         build_data["infer_tag"] = True
+        build_data["pure_python"] = False
         force_include = build_data.setdefault("force_include", {})
         if isinstance(force_include, dict):
             force_include[str(out)] = _WHEEL_TARGET
