@@ -253,5 +253,7 @@ def detect_go_file(path: Path) -> list[CryptoFinding]:
         detector = GoDetector(path, raw)
         detector.run(tree.root_node)
         return detector.findings
-    except (RecursionError, MemoryError, ValueError):  # pragma: no cover - defensive
+    # OSError covers a missing/unreadable catalog (regression-tested); the
+    # others guard pathological parse trees. detect_go_file must never raise.
+    except (RecursionError, MemoryError, ValueError, OSError):
         return []
