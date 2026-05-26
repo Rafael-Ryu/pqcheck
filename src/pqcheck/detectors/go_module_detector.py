@@ -57,6 +57,9 @@ _CRYPTO_ANALYZER_SHA256: str | None = _generated_pin
 _ENV_OVERRIDE = "PQCHECK_CRYPTO_ANALYZER"
 
 _TIMEOUT_SECONDS = 60
+# Short reap window after a SIGKILL: the child is already dying, so waiting the
+# full _TIMEOUT_SECONDS again would only double the worst-case failure latency.
+_REAP_TIMEOUT_SECONDS = 5
 _MAX_STDOUT_BYTES = 8 * 1024 * 1024
 _READ_CHUNK_BYTES = 64 * 1024
 # Soft Go heap target. The GC works harder as the live heap approaches this
@@ -206,7 +209,19 @@ def _hardened_env() -> dict[str, str]:
 
 
 def _set_memory_limit() -> None:  # pragma: no cover - runs in the forked child
-    resource.setrlimit(resource.RLIMIT_DATA, (_MEMORY_LIMIT_BYTES, _MEMORY_LIMIT_BYTES))
+    # Lower the soft limit only, clamped to the inherited hard limit. A non-root
+    # child cannot raise a hard limit, and macOS ships a finite RLIMIT_DATA hard
+    # cap, so setting (target, target) outright raises inside the preexec_fn and
+    # aborts the spawn. GOMEMLIMIT is the primary knob; this rlimit is a
+    # best-effort crash backstop, so any platform that rejects it is tolerated.
+    try:
+        _, hard = resource.getrlimit(resource.RLIMIT_DATA)
+        target = _MEMORY_LIMIT_BYTES
+        if hard != resource.RLIM_INFINITY:
+            target = min(target, hard)
+        resource.setrlimit(resource.RLIMIT_DATA, (target, hard))
+    except (OSError, ValueError):
+        pass
 
 
 def _run_analyzer(module_root: Path, binary: Path) -> str | None:
@@ -309,7 +324,7 @@ def _kill_group(proc: subprocess.Popen[bytes], *, posix: bool) -> None:
         else:  # pragma: no cover - Windows path
             proc.kill()
     with contextlib.suppress(subprocess.TimeoutExpired, OSError):
-        proc.communicate(timeout=_TIMEOUT_SECONDS)
+        proc.communicate(timeout=_REAP_TIMEOUT_SECONDS)
 
 
 def _map_findings(stdout: str) -> list[CryptoFinding]:
