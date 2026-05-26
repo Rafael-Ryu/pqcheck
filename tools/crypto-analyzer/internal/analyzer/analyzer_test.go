@@ -185,3 +185,72 @@ func TestAnalyzeAESWithoutModeHasNoMode(t *testing.T) {
 		t.Fatalf("mode = %q, want empty (no mode constructor)", aesF.Mode)
 	}
 }
+
+// A block variable assigned in more than one branch is ambiguous: the mode must
+// not be attached to whichever assignment happened to be recorded last, because
+// that algorithm is not necessarily the one the cipher.Block holds at runtime.
+func TestAnalyzeBranchedBlockHasNoMode(t *testing.T) {
+	dir := writeModule(t, map[string]string{
+		"main.go": "package main\n" +
+			"import (\n\"crypto/aes\"\n\"crypto/cipher\"\n\"crypto/des\"\n)\n" +
+			"func enc(useAes bool, key []byte) {\n" +
+			"\tvar block cipher.Block\n" +
+			"\tif useAes {\n\t\tblock, _ = aes.NewCipher(key)\n" +
+			"\t} else {\n\t\tblock, _ = des.NewCipher(key)\n\t}\n" +
+			"\t_, _ = cipher.NewGCM(block)\n}\n" +
+			"func main() { enc(true, nil) }\n",
+	})
+	fs, err := Analyze(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	byAlgo := findingsByAlgo(fs)
+	if _, ok := byAlgo["AES"]; !ok {
+		t.Fatalf("expected AES finding, got %+v", fs)
+	}
+	if _, ok := byAlgo["DES"]; !ok {
+		t.Fatalf("expected DES finding, got %+v", fs)
+	}
+	for _, f := range fs {
+		if f.Mode != "" {
+			t.Fatalf("%s.Mode = %q, want empty: block is ambiguous across branches", f.Algorithm, f.Mode)
+		}
+	}
+}
+
+func TestAnalyzeResolvesDotImport(t *testing.T) {
+	dir := writeModule(t, map[string]string{
+		"main.go": "package main\n" +
+			"import (\n. \"crypto/md5\"\n\"fmt\"\n)\n" +
+			"func main() { fmt.Println(New()) }\n",
+	})
+	fs, err := Analyze(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := findingsByAlgo(fs)["MD5"]; !ok {
+		t.Fatalf("expected MD5 via dot-import, got %+v", fs)
+	}
+}
+
+func TestAnalyzeResolvesVendoredThirdParty(t *testing.T) {
+	dir := writeModule(t, map[string]string{
+		"go.mod": "module testmod\n\ngo 1.24\n\nrequire golang.org/x/crypto v0.0.0\n",
+		"vendor/modules.txt": "# golang.org/x/crypto v0.0.0\n" +
+			"## explicit; go 1.24\n" +
+			"golang.org/x/crypto/blake2b\n",
+		"vendor/golang.org/x/crypto/blake2b/blake2b.go": "package blake2b\n\n" +
+			"import \"hash\"\n\n" +
+			"func New(size int, key []byte) (hash.Hash, error) { return nil, nil }\n",
+		"main.go": "package main\n\n" +
+			"import \"golang.org/x/crypto/blake2b\"\n\n" +
+			"func main() { blake2b.New(32, nil) }\n",
+	})
+	fs, err := Analyze(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := findingsByAlgo(fs)["BLAKE2B"]; !ok {
+		t.Fatalf("expected BLAKE2B from vendored dep (needs -mod=vendor), got %+v", fs)
+	}
+}
