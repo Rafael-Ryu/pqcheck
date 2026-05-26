@@ -61,6 +61,21 @@ def test_initialize_sets_infer_tag_when_binary_present(tmp_path: Path) -> None:
     assert build_data.get("infer_tag") is True
 
 
+def test_initialize_marks_wheel_non_purelib_when_binary_present(tmp_path: Path) -> None:
+    # A wheel that bundles a native binary must target platlib, not purelib.
+    platform_dir = hatch_build._platform_dir()
+    binary_name = hatch_build._binary_name()
+    bin_dir = tmp_path / "src" / "pqcheck" / "bin" / platform_dir
+    bin_dir.mkdir(parents=True)
+    (bin_dir / binary_name).write_bytes(b"fake-binary")
+
+    hook = _make_hook(tmp_path)
+    build_data: dict[str, object] = {}
+    hook.initialize("1.0", build_data)  # type: ignore[union-attr]
+
+    assert build_data.get("pure_python") is False
+
+
 def test_initialize_does_not_set_infer_tag_when_binary_absent(tmp_path: Path) -> None:
     # No binary on disk — source-install path.
     hook = _make_hook(tmp_path)
