@@ -87,9 +87,11 @@ jobs:
         with:
           python-version: "3.12"
           enable-cache: true
-      # Catches a broken wheel before release: a missing data-file include
-      # (schemas/*, policy/defaults/*.yaml) would only surface at install time.
-      - run: uv build
+      # Build the wheel directly from source: plain `uv build` derives the wheel
+      # from the sdist, which omits the gitignored binary. Building the wheel
+      # straight from the tree keeps the bundled artifact, and a missing data-file
+      # include (schemas/*, policy/defaults/*.yaml) would only surface here.
+      - run: uv build --wheel
       - run: uvx twine check dist/*
       - name: Assert the wheel bundles the binary, catalog, and SHA-256 pin
         run: |
