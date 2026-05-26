@@ -105,7 +105,11 @@ def _fallback(module_root: Path) -> list[CryptoFinding]:
     """
     module_root = module_root.resolve()
     findings: list[CryptoFinding] = []
-    for go_file in sorted(module_root.rglob("*.go")):
+    try:
+        go_files = sorted(module_root.rglob("*.go"))
+    except OSError:
+        return findings  # unreadable directory while walking — honour never-raise
+    for go_file in go_files:
         if _nearest_go_mod_dir(go_file, module_root) != module_root:
             continue  # nested module: dispatched on its own root, not here
         findings.extend(detect_go_file(go_file))
