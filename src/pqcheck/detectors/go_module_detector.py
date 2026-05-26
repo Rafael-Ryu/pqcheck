@@ -39,8 +39,8 @@ if sys.platform != "win32":  # resource is POSIX-only
 _DETECTOR_ID = "go-types"
 
 # The pin is generated at wheel-build time (hatch_build.py) into _constants.py,
-# shipping alongside the binary. Absent it — a source or editable dev install
-# with no bundled binary — verification is lenient rather than refusing.
+# shipping alongside the binary. A bundled binary with no pin is unverifiable
+# and refused (fail closed); only the explicit env override runs without one.
 try:
     from pqcheck.detectors._constants import CRYPTO_ANALYZER_SHA256 as _generated_pin
 except ImportError:
@@ -66,11 +66,13 @@ def detect_go_module(module_root: Path) -> list[CryptoFinding]:
     (e.g. `go` missing / module unresolved). A clean analyzer run is trusted even
     when it finds nothing, so an empty semantic result does not trigger fallback.
     """
-    binary = _locate_binary()
-    if binary is not None and _verify_sha256(binary):
-        stdout = _run_analyzer(module_root, binary)
-        if stdout is not None:
-            return _map_findings(stdout)
+    located = _locate_binary()
+    if located is not None:
+        binary, trusted = located
+        if _verify_sha256(binary, trusted=trusted):
+            stdout = _run_analyzer(module_root, binary)
+            if stdout is not None:
+                return _map_findings(stdout)
     return _fallback(module_root)
 
 
@@ -136,28 +138,32 @@ def _platform_dir() -> str:
     return f"{goos}-{goarch}"
 
 
-def _locate_binary() -> Path | None:
-    """Find the crypto-analyzer binary, or None if it is not available.
+def _locate_binary() -> tuple[Path, bool] | None:
+    """Find the crypto-analyzer binary and whether the operator vouches for it.
 
-    Checks the dev/test override env var first, then the bundled location
-    pqcheck/bin/<goos>-<goarch>/. Returns None (never raises) when neither
-    resolves to a real file — the caller then falls back to tree-sitter.
+    The env override is an explicit operator choice (a locally built binary in
+    dev or test), returned as trusted so it runs without a pin. The bundled
+    location pqcheck/bin/<goos>-<goarch>/ is untrusted and must match the
+    build-time pin. Returns None (never raises) when neither resolves to a real
+    file — the caller then falls back to tree-sitter.
     """
     override = os.environ.get(_ENV_OVERRIDE)
     if override:
         candidate = Path(override)
-        return candidate if candidate.is_file() else None
+        return (candidate, True) if candidate.is_file() else None
     try:
         bundled = files("pqcheck.bin").joinpath(_platform_dir(), _binary_name())
     except (ModuleNotFoundError, FileNotFoundError):
         return None  # bin/ not packaged before Inc4
     path = Path(str(bundled))
-    return path if path.is_file() else None
+    return (path, False) if path.is_file() else None
 
 
-def _verify_sha256(binary: Path) -> bool:
+def _verify_sha256(binary: Path, *, trusted: bool) -> bool:
+    if trusted:
+        return True  # operator vouches for it via PQCHECK_CRYPTO_ANALYZER
     if _CRYPTO_ANALYZER_SHA256 is None:
-        return True  # lenient until the build generates the pin (Inc4)
+        return False  # bundled binary with no build-time pin: fail closed
     digest = hashlib.sha256(binary.read_bytes()).hexdigest()
     return digest == _CRYPTO_ANALYZER_SHA256
 

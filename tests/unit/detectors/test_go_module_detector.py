@@ -73,7 +73,7 @@ def test_locate_binary_uses_env_override(monkeypatch: pytest.MonkeyPatch, tmp_pa
     binary = tmp_path / "crypto-analyzer"
     binary.write_bytes(b"x")
     monkeypatch.setenv("PQCHECK_CRYPTO_ANALYZER", str(binary))
-    assert gmd._locate_binary() == binary
+    assert gmd._locate_binary() == (binary, True)
 
 
 def test_locate_binary_env_override_missing_file_returns_none(
@@ -93,27 +93,49 @@ def test_sha256_pin_absent_without_generated_constants() -> None:
     assert gmd._CRYPTO_ANALYZER_SHA256 is None
 
 
-def test_verify_sha256_lenient_when_pin_absent(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setattr(gmd, "_CRYPTO_ANALYZER_SHA256", None)
-    binary = tmp_path / "bin"
-    binary.write_bytes(b"unverified")
-    assert gmd._verify_sha256(binary) is True
-
-
 def test_verify_sha256_matches_pin(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     binary = tmp_path / "bin"
     binary.write_bytes(b"binary-bytes")
     monkeypatch.setattr(gmd, "_CRYPTO_ANALYZER_SHA256", hashlib.sha256(b"binary-bytes").hexdigest())
-    assert gmd._verify_sha256(binary) is True
+    assert gmd._verify_sha256(binary, trusted=False) is True
 
 
 def test_verify_sha256_rejects_mismatch(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     binary = tmp_path / "bin"
     binary.write_bytes(b"tampered")
     monkeypatch.setattr(gmd, "_CRYPTO_ANALYZER_SHA256", "0" * 64)
-    assert gmd._verify_sha256(binary) is False
+    assert gmd._verify_sha256(binary, trusted=False) is False
+
+
+def test_locate_binary_env_override_is_trusted(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    binary = tmp_path / "crypto-analyzer"
+    binary.write_bytes(b"x")
+    monkeypatch.setenv("PQCHECK_CRYPTO_ANALYZER", str(binary))
+    assert gmd._locate_binary() == (binary, True)
+
+
+def test_verify_sha256_fails_closed_for_bundled_binary_without_pin(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    # A bundled binary with no build-time pin is unverifiable: refuse it rather
+    # than run an unauthenticated binary off the install tree.
+    monkeypatch.setattr(gmd, "_CRYPTO_ANALYZER_SHA256", None)
+    binary = tmp_path / "bin"
+    binary.write_bytes(b"unverified")
+    assert gmd._verify_sha256(binary, trusted=False) is False
+
+
+def test_verify_sha256_trusts_override_without_pin(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    # The env override is an explicit operator choice (dev/test build), trusted
+    # without a pin so local development keeps working.
+    monkeypatch.setattr(gmd, "_CRYPTO_ANALYZER_SHA256", None)
+    binary = tmp_path / "bin"
+    binary.write_bytes(b"dev-built")
+    assert gmd._verify_sha256(binary, trusted=True) is True
 
 
 def _fake_completed(returncode: int, stdout: bytes) -> subprocess.CompletedProcess[bytes]:
@@ -274,7 +296,7 @@ def test_detect_go_module_falls_back_when_analyzer_fails(
 ) -> None:
     binary = tmp_path / "crypto-analyzer"
     binary.write_bytes(b"x")
-    monkeypatch.setattr(gmd, "_locate_binary", lambda: binary)
+    monkeypatch.setattr(gmd, "_locate_binary", lambda: (binary, True))
     monkeypatch.setattr(gmd, "_run_analyzer", lambda root, b: None)
     _write_module(tmp_path)
     (tmp_path / "m.go").write_text(_MD5_SRC, encoding="utf-8")
@@ -289,7 +311,7 @@ def test_detect_go_module_uses_analyzer_output_when_available(
 ) -> None:
     binary = tmp_path / "crypto-analyzer"
     binary.write_bytes(b"x")
-    monkeypatch.setattr(gmd, "_locate_binary", lambda: binary)
+    monkeypatch.setattr(gmd, "_locate_binary", lambda: (binary, True))
     monkeypatch.setattr(gmd, "_run_analyzer", lambda root, b: _GOLDEN)
 
     findings = detect_go_module(tmp_path)
@@ -303,7 +325,7 @@ def test_detect_go_module_trusts_empty_analyzer_result(
 ) -> None:
     binary = tmp_path / "crypto-analyzer"
     binary.write_bytes(b"x")
-    monkeypatch.setattr(gmd, "_locate_binary", lambda: binary)
+    monkeypatch.setattr(gmd, "_locate_binary", lambda: (binary, True))
     monkeypatch.setattr(gmd, "_run_analyzer", lambda root, b: "[]")
     _write_module(tmp_path)
     (tmp_path / "m.go").write_text(_MD5_SRC, encoding="utf-8")
