@@ -7,6 +7,12 @@ under a hardened subprocess and maps its JSON to `CryptoFinding`; when `go` is
 absent or the module does not resolve, it falls back to the per-file tree-sitter
 detector so the detection floor never drops below today's literal-based one.
 
+The child runs against an attacker-controlled module, so its memory is bounded
+on three levels: a GOMEMLIMIT soft GC target, an RLIMIT_DATA crash backstop, and
+an RSS poller in the collection loop that SIGKILLs the process group once the
+resident set crosses `_RSS_LIMIT_BYTES`. The RSS poller is the real hard cap on
+Linux, where the runtime grows its heap via mmap that the rlimit cannot see.
+
 De-duplication contract (consumed by the future scanner orchestrator, which does
 not exist yet — `pqcheck scan` is still a stub): the walker groups discovered
 `.go` files by their nearest `go.mod` via `group_go_files_by_module`, the
@@ -64,15 +70,27 @@ _MAX_STDOUT_BYTES = 8 * 1024 * 1024
 _READ_CHUNK_BYTES = 64 * 1024
 # Soft Go heap target. The GC works harder as the live heap approaches this
 # instead of letting RSS run away, so a heavy-but-benign module finishes rather
-# than OOM-killing. This is the primary memory knob; the rlimit below is only a
-# crash backstop for true runaways.
+# than OOM-killing. GOMEMLIMIT is only a soft GC target the runtime may exceed,
+# so the RSS poller below is the real hard backstop on Linux.
 _GOMEMLIMIT = "1500MiB"
-# Hard backstop on the analyzer child's data segment. We cap RLIMIT_DATA, not
+# Hard RSS ceiling enforced by polling /proc/<pid>/statm in the collection loop.
+# This is the real backstop against a host-OOM DoS from an attacker-controlled
+# module: GOMEMLIMIT is only a soft GC target, and on Linux RLIMIT_DATA does not
+# account for the mmap regions the Go runtime grows its heap from, so neither
+# reliably fires. 2 GiB leaves headroom above the 1500MiB soft target for a
+# heavy-but-benign module to finish while still capping a true runaway well
+# below the RLIMIT_DATA crash backstop.
+_RSS_LIMIT_BYTES = 2 * 1024**3
+# Cap on how long the selector blocks per iteration so RSS is re-sampled even
+# while the child grows its heap without writing stdout. Without it, a silent
+# memory runaway would only be caught at the wall-clock timeout, far too late.
+_RSS_POLL_SECONDS = 0.25
+# Last-ditch crash backstop on the child's data segment. We cap RLIMIT_DATA, not
 # RLIMIT_AS: the Go runtime reserves a huge virtual address space (vsz) that far
 # exceeds resident memory, so an RLIMIT_AS cap OOM-kills modules whose actual
-# RSS is modest. RLIMIT_DATA tracks the heap-backing allocations the runtime
-# really grows, so a generous ceiling here stops a runaway without falsely
-# killing a module that just touches a lot of address space.
+# RSS is modest. On Linux RLIMIT_DATA also misses mmap-backed heap growth, so it
+# is defense in depth only — the RSS poller is the primary kill. Kept for the
+# platforms (and allocation paths) where it does bite.
 _MEMORY_LIMIT_BYTES = 3 * 1024**3
 
 
@@ -224,6 +242,22 @@ def _set_memory_limit() -> None:  # pragma: no cover - runs in the forked child
         pass
 
 
+def _read_rss_bytes(pid: int) -> int | None:
+    """Current resident-set size of `pid` in bytes, or None (best-effort).
+
+    Linux exposes RSS as field 2 (resident pages) of /proc/<pid>/statm. On any
+    other platform, or if the process is gone or /proc is unreadable, return
+    None so the caller treats the sample as "unknown" rather than a breach.
+    """
+    if sys.platform != "linux":
+        return None
+    try:
+        fields = Path(f"/proc/{pid}/statm").read_text().split()
+        return int(fields[1]) * os.sysconf("SC_PAGE_SIZE")
+    except (OSError, ValueError, IndexError):
+        return None
+
+
 def _run_analyzer(module_root: Path, binary: Path) -> str | None:
     """Invoke the analyzer under the hardened envelope. Never raises.
 
@@ -257,28 +291,61 @@ def _run_analyzer(module_root: Path, binary: Path) -> str | None:
 
 
 def _collect_output(proc: subprocess.Popen[bytes]) -> str | None:
-    """Drain stdout under a wall-clock deadline and the byte cap (POSIX).
+    """Drain stdout under a wall-clock deadline, byte cap, and RSS ceiling (POSIX).
+
+    The draining and its breach checks live in `_drain_stdout`; here we only
+    guard the pipe, reap the child, and decode on a clean exit. Any timeout /
+    cap breach / RSS breach / OS error has already torn down the whole group and
+    surfaces as None.
+    """
+    deadline = time.monotonic() + _TIMEOUT_SECONDS
+    pipe = proc.stdout
+    if not isinstance(pipe, io.BufferedReader):  # stdout=PIPE; guard, asserts are -O stripped
+        _kill_group(proc, posix=True)
+        return None
+    payload = _drain_stdout(proc, pipe, deadline)
+    if payload is None:
+        return None
+    try:
+        proc.wait(timeout=max(0.0, deadline - time.monotonic()))
+    except (subprocess.TimeoutExpired, OSError):
+        _kill_group(proc, posix=True)
+        return None
+    if proc.returncode != 0:
+        return None
+    return payload.decode("utf-8", "replace")
+
+
+def _drain_stdout(
+    proc: subprocess.Popen[bytes], pipe: io.BufferedReader, deadline: float
+) -> bytes | None:
+    """Read stdout to EOF, enforcing the deadline, byte cap, and RSS ceiling.
 
     A selector lets the read respect the timeout even if the child writes
     nothing, while the running total enforces the cap before the buffer can
-    outgrow it. Any timeout / cap breach / OS error tears down the whole group.
+    outgrow it. Each iteration also samples the child's RSS, since a runaway can
+    eat host memory without ever writing past the byte cap. Returns the joined
+    bytes on EOF, or None after tearing down the group on any breach/error.
     """
-    deadline = time.monotonic() + _TIMEOUT_SECONDS
     chunks: list[bytes] = []
     total = 0
-    pipe = proc.stdout
-    assert isinstance(pipe, io.BufferedReader)  # stdout=PIPE
     selector = selectors.DefaultSelector()
     selector.register(pipe, selectors.EVENT_READ)
     try:
         while True:
-            remaining = deadline - time.monotonic()
-            if remaining <= 0 or not selector.select(timeout=remaining):
+            rss = _read_rss_bytes(proc.pid)
+            if rss is not None and rss > _RSS_LIMIT_BYTES:
                 _kill_group(proc, posix=True)
                 return None
+            remaining = deadline - time.monotonic()
+            if remaining <= 0 or not selector.select(timeout=min(remaining, _RSS_POLL_SECONDS)):
+                if deadline - time.monotonic() <= 0:
+                    _kill_group(proc, posix=True)
+                    return None
+                continue  # poll tick elapsed with no data: re-sample RSS, keep waiting
             chunk = pipe.read1(_READ_CHUNK_BYTES)  # one ready read, no refill
             if not chunk:
-                break  # EOF
+                return b"".join(chunks)  # EOF
             total += len(chunk)
             if total > _MAX_STDOUT_BYTES:
                 _kill_group(proc, posix=True)
@@ -289,14 +356,6 @@ def _collect_output(proc: subprocess.Popen[bytes]) -> str | None:
         return None
     finally:
         selector.close()
-    try:
-        proc.wait(timeout=max(0.0, deadline - time.monotonic()))
-    except (subprocess.TimeoutExpired, OSError):
-        _kill_group(proc, posix=True)
-        return None
-    if proc.returncode != 0:
-        return None
-    return b"".join(chunks).decode("utf-8", "replace")
 
 
 def _collect_output_windows(proc: subprocess.Popen[bytes]) -> str | None:  # pragma: no cover
