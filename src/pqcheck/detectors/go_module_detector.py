@@ -102,6 +102,8 @@ def detect_go_module(module_root: Path) -> list[CryptoFinding]:
     (e.g. `go` missing / module unresolved). A clean analyzer run is trusted even
     when it finds nothing, so an empty semantic result does not trigger fallback.
     """
+    if not _argv_encodable(module_root):
+        return _fallback(module_root)
     located = _locate_binary()
     if located is not None:
         binary, trusted = located
@@ -110,6 +112,21 @@ def detect_go_module(module_root: Path) -> list[CryptoFinding]:
             if stdout is not None:
                 return _map_findings(stdout)
     return _fallback(module_root)
+
+
+def _argv_encodable(module_root: Path) -> bool:
+    """True when the module path is strict UTF-8, a precondition for the argv.
+
+    A scanned repo can carry non-UTF-8 directory names, which os.fsdecode surfaces
+    as surrogate escapes. subprocess round-trips those raw bytes instead of
+    raising, so the analyzer would silently receive a non-UTF-8 argv. Reject here
+    and let the pure-Python fallback (no argv) handle the module.
+    """
+    try:
+        str(module_root).encode("utf-8")
+    except UnicodeEncodeError:
+        return False
+    return True
 
 
 def _fallback(module_root: Path) -> list[CryptoFinding]:
