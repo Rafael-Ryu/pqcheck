@@ -396,6 +396,24 @@ def test_detect_go_module_trusts_empty_analyzer_result(
     assert detect_go_module(tmp_path) == []  # exit-0 + empty trumps fallback
 
 
+def test_locate_binary_type_error_from_resources_files_returns_none(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # importlib.resources.files() raises TypeError for namespace packages that
+    # have no __file__. _locate_binary must catch it and return None rather than
+    # letting the TypeError escape through detect_go_module (which promises never
+    # to raise).
+    monkeypatch.delenv("PQCHECK_CRYPTO_ANALYZER", raising=False)
+    # Patch the name as bound in the module under test (from importlib.resources
+    # import files), not the original importlib.resources.files.
+    monkeypatch.setattr(gmd, "files", _raise_type_error)
+    assert gmd._locate_binary() is None
+
+
+def _raise_type_error(*_: object, **__: object) -> None:
+    raise TypeError("namespace package has no __file__")
+
+
 def test_detect_go_module_fallback_skips_nested_module_files(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
