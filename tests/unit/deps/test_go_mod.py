@@ -1,3 +1,4 @@
+import time
 from pathlib import Path
 
 from pqcheck.deps.go_mod import parse
@@ -152,6 +153,20 @@ def test_parse_no_require_returns_empty(tmp_path: Path) -> None:
     f = tmp_path / "go.mod"
     f.write_text("module example.com/app\n\ngo 1.22\n", encoding="utf-8")
     assert parse(f) == []
+
+
+def test_parse_unterminated_require_block_terminates_promptly(tmp_path: Path) -> None:
+    # A go.mod with many `require (` openers and no closing `)` used to trigger
+    # catastrophic regex backtracking: the lazy DOTALL block pattern rescanned
+    # to EOF from every opener (~O(n^2)). A hostile repo can ship such a file
+    # under the read cap, so the parser must stay linear and finish promptly.
+    f = tmp_path / "go.mod"
+    f.write_text("module example.com/app\n\n" + "require (\n" * 8000, encoding="utf-8")
+    start = time.perf_counter()
+    deps = parse(f)
+    elapsed = time.perf_counter() - start
+    assert elapsed < 1.0
+    assert deps == []
 
 
 def test_parse_fixture_basic(tmp_path: Path) -> None:

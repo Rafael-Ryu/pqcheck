@@ -26,22 +26,18 @@ from pqcheck.deps.packages import lookup_introduces
 from pqcheck.models import CryptoDependency
 
 # Matches a single-line require: require module/path v1.2.3 [// ...]
-_SINGLE_RE = re.compile(
-    r"^\s*require\s+(\S+)\s+(v\S+)",
-    re.MULTILINE,
-)
+_SINGLE_RE = re.compile(r"^\s*require\s+(\S+)\s+(v\S+)")
 
-# Matches a block require ( ... ) — captures the inner content. `[^\n]*` after
-# the paren tolerates a trailing line comment (`require ( // pinned deps`), which
-# is valid go.mod and would otherwise make the whole block fail to match.
-_BLOCK_RE = re.compile(
-    r"^\s*require\s*\([^\n]*\n(.*?)\n\s*\)",
-    re.MULTILINE | re.DOTALL,
-)
+# Opens a block require ( ... ). A trailing line comment (`require ( // pinned`)
+# is valid go.mod, so anything after the paren is tolerated.
+_BLOCK_OPEN_RE = re.compile(r"^\s*require\s*\(")
 
-# Matches a module line inside a block: leading whitespace, module path, version.
-# The trailing `// indirect` or any comment is ignored by taking only groups 1+2.
-_BLOCK_LINE_RE = re.compile(r"^\s*(\S+)\s+(v\S+)", re.MULTILINE)
+# Closes a block: a line that is just `)` (optionally indented / commented).
+_BLOCK_CLOSE_RE = re.compile(r"^\s*\)")
+
+# Matches a module line inside a block: module path, version. A trailing
+# `// indirect` or any comment is ignored by taking only groups 1+2.
+_BLOCK_LINE_RE = re.compile(r"^\s*(\S+)\s+(v\S+)")
 
 
 def parse(path: Path) -> list[CryptoDependency]:
@@ -72,16 +68,25 @@ def parse(path: Path) -> list[CryptoDependency]:
             )
         )
 
-    for m in _BLOCK_RE.finditer(text):
-        block_body = m.group(1)
-        for line_m in _BLOCK_LINE_RE.finditer(block_body):
-            _add(line_m.group(1), line_m.group(2))
-
-    # Remove block regions before scanning for single-line requires so we
-    # don't double-count anything that looks like a single-line require
-    # inside a block (shouldn't happen in valid go.mod but be defensive).
-    stripped = _BLOCK_RE.sub("", text)
-    for m in _SINGLE_RE.finditer(stripped):
-        _add(m.group(1), m.group(2))
+    # Single linear pass with a require-block state machine. Earlier this used a
+    # lazy DOTALL regex to capture each `require ( ... )` body, which backtracked
+    # to EOF from every opener when the closing paren was missing (~O(n^2) on
+    # hostile input). Line-oriented scanning stays linear and never backtracks.
+    in_block = False
+    for line in text.splitlines():
+        if in_block:
+            if _BLOCK_CLOSE_RE.match(line):
+                in_block = False
+                continue
+            line_m = _BLOCK_LINE_RE.match(line)
+            if line_m:
+                _add(line_m.group(1), line_m.group(2))
+            continue
+        if _BLOCK_OPEN_RE.match(line):
+            in_block = True
+            continue
+        single_m = _SINGLE_RE.match(line)
+        if single_m:
+            _add(single_m.group(1), single_m.group(2))
 
     return deps
