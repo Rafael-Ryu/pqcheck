@@ -1,6 +1,9 @@
 import hashlib
 import json
-import subprocess
+import os
+import signal
+import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -138,50 +141,110 @@ def test_verify_sha256_trusts_override_without_pin(
     assert gmd._verify_sha256(binary, trusted=True) is True
 
 
-def _fake_completed(returncode: int, stdout: bytes) -> subprocess.CompletedProcess[bytes]:
-    return subprocess.CompletedProcess(args=[], returncode=returncode, stdout=stdout, stderr=b"")
+requires_posix = pytest.mark.skipif(
+    sys.platform == "win32", reason="bridge subprocess tests assume POSIX scripts"
+)
 
 
-def test_run_analyzer_returns_stdout_on_success(
+def _script(path: Path, body: str) -> Path:
+    # Drive _run_analyzer against a real child so the selector read, the byte
+    # cap, the timeout, and the process-group kill all exercise live fds rather
+    # than a mock that cannot back a selectors.select.
+    path.write_text("#!/bin/sh\n" + body, encoding="utf-8")
+    path.chmod(0o755)
+    return path
+
+
+@requires_posix
+def test_run_analyzer_returns_stdout_on_success(tmp_path: Path) -> None:
+    binary = _script(tmp_path / "ok.sh", "printf '[]'\n")
+    assert gmd._run_analyzer(tmp_path, binary) == "[]"
+
+
+@requires_posix
+def test_run_analyzer_nonzero_exit_returns_none(tmp_path: Path) -> None:
+    binary = _script(tmp_path / "fail.sh", "printf 'partial'\nexit 1\n")
+    assert gmd._run_analyzer(tmp_path, binary) is None
+
+
+@requires_posix
+def test_run_analyzer_oversized_stdout_rejected(tmp_path: Path) -> None:
+    # Emit more than the cap; the chunked reader must abort mid-stream, not
+    # buffer it all. yes(1) would never finish on its own.
+    binary = _script(tmp_path / "flood.sh", "yes xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n")
+    assert gmd._run_analyzer(tmp_path, binary) is None
+
+
+def test_run_analyzer_spawn_os_error_returns_none(tmp_path: Path) -> None:
+    # A path that is not an executable file -> Popen raises OSError on spawn.
+    assert gmd._run_analyzer(tmp_path, tmp_path / "does-not-exist") is None
+
+
+@requires_posix
+def test_run_analyzer_timeout_returns_none(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(gmd, "_TIMEOUT_SECONDS", 1)
+    binary = _script(tmp_path / "hang.sh", "sleep 30\n")
+    assert gmd._run_analyzer(tmp_path, binary) is None
+
+
+@requires_posix
+def test_run_analyzer_partial_write_then_hang_times_out(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    monkeypatch.setattr(subprocess, "run", lambda *a, **k: _fake_completed(0, b"[]"))
-    assert gmd._run_analyzer(tmp_path, tmp_path / "bin") == "[]"
+    # Writes far less than a read chunk then hangs: the reader must not block
+    # waiting to fill a chunk, it must hit the deadline and bail.
+    monkeypatch.setattr(gmd, "_TIMEOUT_SECONDS", 1)
+    binary = _script(tmp_path / "drip.sh", "printf 'half'\nsleep 30\n")
+    assert gmd._run_analyzer(tmp_path, binary) is None
 
 
-def test_run_analyzer_timeout_returns_none(
+def test_kill_group_swallows_lookup_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Group already gone between timeout and kill: tear-down must not raise.
+    class _Dead:
+        pid = 4321
+        returncode = None
+
+        def communicate(self, timeout: float | None = None) -> tuple[bytes, bytes]:
+            return b"", b""
+
+    monkeypatch.setattr(gmd.os, "getpgid", lambda pid: pid)
+
+    def gone(pgid: int, sig: int) -> None:
+        raise ProcessLookupError
+
+    monkeypatch.setattr(gmd.os, "killpg", gone)
+    gmd._kill_group(_Dead(), posix=True)  # type: ignore[arg-type]
+
+
+@requires_posix
+def test_run_analyzer_timeout_reaps_real_grandchild(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    def raise_timeout(*a: object, **k: object) -> object:
-        raise subprocess.TimeoutExpired(cmd="crypto-analyzer", timeout=60)
+    # A real process tree: the analyzer stand-in forks a sleeping grandchild and
+    # itself hangs. The timeout must SIGKILL the whole group so the grandchild
+    # does not survive as an orphan.
+    script = _script(
+        tmp_path / "fake-analyzer.sh",
+        "sleep 300 &\n"  # grandchild, in our process group
+        'echo "$!" > "$1/grandchild.pid"\n'
+        "sleep 300\n",  # the analyzer itself hangs
+    )
+    monkeypatch.setattr(gmd, "_TIMEOUT_SECONDS", 1)
+    assert gmd._run_analyzer(tmp_path, script) is None
 
-    monkeypatch.setattr(subprocess, "run", raise_timeout)
-    assert gmd._run_analyzer(tmp_path, tmp_path / "bin") is None
-
-
-def test_run_analyzer_nonzero_exit_returns_none(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setattr(subprocess, "run", lambda *a, **k: _fake_completed(1, b""))
-    assert gmd._run_analyzer(tmp_path, tmp_path / "bin") is None
-
-
-def test_run_analyzer_oversized_stdout_rejected(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    oversized = b"x" * (gmd._MAX_STDOUT_BYTES + 1)
-    monkeypatch.setattr(subprocess, "run", lambda *a, **k: _fake_completed(0, oversized))
-    assert gmd._run_analyzer(tmp_path, tmp_path / "bin") is None
-
-
-def test_run_analyzer_os_error_returns_none(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    def raise_oserror(*a: object, **k: object) -> object:
-        raise OSError("exec format error")
-
-    monkeypatch.setattr(subprocess, "run", raise_oserror)
-    assert gmd._run_analyzer(tmp_path, tmp_path / "bin") is None
+    pid_file = tmp_path / "grandchild.pid"
+    assert pid_file.is_file(), "stand-in did not record its grandchild"
+    grandchild = int(pid_file.read_text().strip())
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline:
+        try:
+            os.kill(grandchild, 0)
+        except ProcessLookupError:
+            break  # reaped, as intended
+        time.sleep(0.05)
+    else:
+        os.kill(grandchild, signal.SIGKILL)
+        pytest.fail("grandchild survived the process-group kill")
 
 
 _GOLDEN = json.dumps(
