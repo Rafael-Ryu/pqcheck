@@ -45,14 +45,24 @@ const loadMode = packages.NeedName | packages.NeedFiles |
 // hardenedEnv returns the curated environment for the `go list` driver. The
 // scanned module is attacker-controlled, so every download/exec lever is
 // pinned off: no toolchain switch, no cgo C-compiler, no module fetch, no
-// workspace, no go env file. Inherited GO* vars are overridden because these
-// entries come last. PATH/HOME stay so the toolchain is found and functions;
-// caches are redirected to scratch so a scanned repo can't read or poison the
-// user's caches. modFlag is -mod=readonly by default, or -mod=vendor when the
-// scanned module ships a vendor tree — never -mod=mod, which would fetch and
-// rewrite go.mod.
+// workspace, no go env file. The env is a clean-slate allowlist rather than
+// os.Environ()+overrides: overriding only the enumerated GO* vars would let any
+// unlisted lever (GODEBUG, GOPRIVATE, GOINSECURE, GOFIPS140, ...) leak through
+// from the host. Only PATH/HOME/TMPDIR carry over so the toolchain resolves
+// (GOROOT is found from the go binary's own location, no env var needed) and
+// has a writable temp dir; caches are redirected to scratch so a scanned repo
+// can't read or poison the user's caches. modFlag is -mod=readonly by default,
+// or -mod=vendor when the scanned module ships a vendor tree — never -mod=mod,
+// which would fetch and rewrite go.mod. This mirrors the Python bridge's
+// _hardened_env (go_module_detector.py).
 func hardenedEnv(scratch, modFlag string) []string {
-	return append(os.Environ(),
+	env := make([]string, 0, 13)
+	for _, key := range []string{"PATH", "HOME", "TMPDIR"} {
+		if v, ok := os.LookupEnv(key); ok {
+			env = append(env, key+"="+v)
+		}
+	}
+	return append(env,
 		"GOTOOLCHAIN=local",
 		"CGO_ENABLED=0",
 		"GOFLAGS="+modFlag,
