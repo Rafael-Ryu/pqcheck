@@ -301,9 +301,9 @@ func (v *visitor) build(call *ast.CallExpr, hit catalog.Hit) Finding {
 		Curve:      hit.Curve,
 		Path:       start.Filename,
 		Line:       start.Line,
-		Column:     start.Column,
+		Column:     zeroBasedColumn(start.Column),
 		EndLine:    end.Line,
-		EndColumn:  end.Column,
+		EndColumn:  zeroBasedColumn(end.Column),
 		Evidence:   v.src.line(start.Filename, start.Line),
 		Confidence: 1.0,
 	}
@@ -323,6 +323,17 @@ func (v *visitor) build(call *ast.CallExpr, hit catalog.Hit) Finding {
 		}
 	}
 	return f
+}
+
+// zeroBasedColumn converts a 1-based go/token column to the 0-based convention
+// the tree-sitter and Python detectors emit (models.SourceLocation.column is
+// Field(ge=0)). Clamped at 0 so a synthesized 0-column position never goes
+// negative.
+func zeroBasedColumn(c int) int {
+	if c <= 1 {
+		return 0
+	}
+	return c - 1
 }
 
 // constInt returns the folded integer value of expr when it is a compile-time
