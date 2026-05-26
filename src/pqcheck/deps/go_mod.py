@@ -31,9 +31,11 @@ _SINGLE_RE = re.compile(
     re.MULTILINE,
 )
 
-# Matches a block require ( ... ) — captures the inner content.
+# Matches a block require ( ... ) — captures the inner content. `[^\n]*` after
+# the paren tolerates a trailing line comment (`require ( // pinned deps`), which
+# is valid go.mod and would otherwise make the whole block fail to match.
 _BLOCK_RE = re.compile(
-    r"^\s*require\s*\(\s*\n(.*?)\n\s*\)",
+    r"^\s*require\s*\([^\n]*\n(.*?)\n\s*\)",
     re.MULTILINE | re.DOTALL,
 )
 

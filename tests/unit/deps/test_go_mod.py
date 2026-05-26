@@ -36,6 +36,18 @@ def test_parse_basic_block_require(tmp_path: Path) -> None:
     assert by_name["github.com/youmark/pkcs8"].version == pkcs8_ver
 
 
+def test_parse_block_with_trailing_comment_on_open_paren(tmp_path: Path) -> None:
+    f = tmp_path / "go.mod"
+    f.write_text(
+        "module example.com/app\n\nrequire ( // pinned deps\n\tgolang.org/x/crypto v0.21.0\n)\n",
+        encoding="utf-8",
+    )
+    deps = parse(f)
+    assert len(deps) == 1
+    assert deps[0].name == "golang.org/x/crypto"
+    assert deps[0].version == "v0.21.0"
+
+
 def test_parse_indirect_comment_stripped(tmp_path: Path) -> None:
     f = tmp_path / "go.mod"
     f.write_text(
@@ -55,7 +67,8 @@ def test_parse_purl_three_part_path(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     deps = parse(f)
-    # github.com/golang-jwt/jwt/v5: namespace=github.com/golang-jwt, name=jwt/v5
+    # github.com/golang-jwt/jwt/v5: namespace=github.com/golang-jwt/jwt, name=v5
+    # (the PURL path round-trips to the full module path either way)
     assert deps[0].purl == "pkg:golang/github.com/golang-jwt/jwt/v5@v5.2.1"
 
 
