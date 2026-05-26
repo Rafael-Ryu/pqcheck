@@ -3,6 +3,7 @@ package analyzer
 import (
 	"os"
 	"path/filepath"
+	"sort"
 	"testing"
 )
 
@@ -262,4 +263,69 @@ func TestAnalyzeResolvesVendoredThirdParty(t *testing.T) {
 	if _, ok := findingsByAlgo(fs)["BLAKE2B"]; !ok {
 		t.Fatalf("expected BLAKE2B from vendored dep (needs -mod=vendor), got %+v", fs)
 	}
+}
+
+// TestAnalyzeFindingsAreSorted verifies that Analyze returns findings in a
+// stable (Path, Line, Column, Algorithm) order regardless of the package
+// enumeration order packages.Load produces. The two sub-packages are named so
+// that alphabetical path order ("pkga" before "pkgb") is the expected output,
+// but a naive implementation that appends in Load-order would sometimes return
+// them the other way around (or return them in a non-deterministic order across
+// runs/platforms). We also assert that the returned slice is already sorted so
+// the test catches any regression without relying on a lucky Load ordering.
+func TestAnalyzeFindingsAreSorted(t *testing.T) {
+	dir := writeModule(t, map[string]string{
+		"go.mod": "module testmod\n\ngo 1.24\n",
+		// pkga calls MD5 on line 5, pkgb calls SHA-1 on line 5.
+		// Alphabetically pkga < pkgb, so the MD5 finding must come first.
+		"pkga/a.go": "package pkga\n\nimport \"crypto/md5\"\n\nfunc A() { md5.New() }\n",
+		"pkgb/b.go": "package pkgb\n\nimport \"crypto/sha1\"\n\nfunc B() { sha1.New() }\n",
+		// A thin main so the module is valid.
+		"main.go": "package main\n\nimport (\n\"testmod/pkga\"\n\"testmod/pkgb\"\n)\nfunc main() { pkga.A(); pkgb.B() }\n",
+	})
+
+	fs, err := Analyze(dir)
+	if err != nil {
+		t.Fatalf("Analyze: %v", err)
+	}
+
+	// We need at least two findings (one per sub-package) to exercise ordering.
+	if len(fs) < 2 {
+		t.Fatalf("expected ≥2 findings, got %d: %+v", len(fs), fs)
+	}
+
+	// Build the expected (already sorted) order from the returned slice itself,
+	// then compare — if Analyze does not sort, the two orderings will differ.
+	sorted := make([]Finding, len(fs))
+	copy(sorted, fs)
+	sort.Slice(sorted, func(i, j int) bool {
+		a, b := sorted[i], sorted[j]
+		if a.Path != b.Path {
+			return a.Path < b.Path
+		}
+		if a.Line != b.Line {
+			return a.Line < b.Line
+		}
+		if a.Column != b.Column {
+			return a.Column < b.Column
+		}
+		return a.Algorithm < b.Algorithm
+	})
+
+	for i := range fs {
+		if fs[i].Path != sorted[i].Path || fs[i].Line != sorted[i].Line ||
+			fs[i].Column != sorted[i].Column || fs[i].Algorithm != sorted[i].Algorithm {
+			t.Errorf("findings not sorted: got order %v, want %v",
+				findingKeys(fs), findingKeys(sorted))
+			break
+		}
+	}
+}
+
+func findingKeys(fs []Finding) []string {
+	keys := make([]string, len(fs))
+	for i, f := range fs {
+		keys[i] = filepath.Base(f.Path) + ":" + f.Algorithm
+	}
+	return keys
 }
