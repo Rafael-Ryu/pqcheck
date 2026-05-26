@@ -9,6 +9,7 @@ import (
 	"go/constant"
 	"go/types"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/Rafael-Ryu/pqcheck/tools/crypto-analyzer/internal/catalog"
@@ -47,12 +48,14 @@ const loadMode = packages.NeedName | packages.NeedFiles |
 // workspace, no go env file. Inherited GO* vars are overridden because these
 // entries come last. PATH/HOME stay so the toolchain is found and functions;
 // caches are redirected to scratch so a scanned repo can't read or poison the
-// user's caches.
-func hardenedEnv(scratch string) []string {
+// user's caches. modFlag is -mod=readonly by default, or -mod=vendor when the
+// scanned module ships a vendor tree — never -mod=mod, which would fetch and
+// rewrite go.mod.
+func hardenedEnv(scratch, modFlag string) []string {
 	return append(os.Environ(),
 		"GOTOOLCHAIN=local",
 		"CGO_ENABLED=0",
-		"GOFLAGS=-mod=readonly",
+		"GOFLAGS="+modFlag,
 		"GOWORK=off",
 		"GOPROXY=off",
 		"GOSUMDB=off",
@@ -61,6 +64,16 @@ func hardenedEnv(scratch string) []string {
 		"GOMODCACHE="+scratch+"/modcache",
 		"GOPATH="+scratch+"/gopath",
 	)
+}
+
+// modFlagFor selects the module resolution mode. A vendor/modules.txt at the
+// module root means deps are vendored locally, so -mod=vendor resolves them
+// with no network; otherwise -mod=readonly reads only what go.sum already has.
+func modFlagFor(dir string) string {
+	if _, err := os.Stat(filepath.Join(dir, "vendor", "modules.txt")); err == nil {
+		return "-mod=vendor"
+	}
+	return "-mod=readonly"
 }
 
 // Analyze loads the module rooted at dir and returns findings. It never fails
@@ -77,7 +90,7 @@ func Analyze(dir string) ([]Finding, error) {
 	cfg := &packages.Config{
 		Mode: loadMode,
 		Dir:  dir,
-		Env:  hardenedEnv(scratch),
+		Env:  hardenedEnv(scratch, modFlagFor(dir)),
 	}
 	pkgs, err := packages.Load(cfg, "./...")
 	if err != nil {
@@ -88,7 +101,11 @@ func Analyze(dir string) ([]Finding, error) {
 	var findings []Finding
 	src := &sourceCache{lines: map[string][]string{}}
 	for _, pkg := range pkgs {
-		v := &visitor{pkg: pkg, cat: cat, src: src, callVar: map[*ast.CallExpr]*types.Var{}}
+		v := &visitor{
+			pkg: pkg, cat: cat, src: src,
+			callVar: map[*ast.CallExpr]*types.Var{},
+			assigns: map[*types.Var]int{},
+		}
 		for _, file := range pkg.Syntax {
 			ast.Inspect(file, v.visit)
 		}
@@ -109,6 +126,7 @@ type visitor struct {
 	crypto  []cryptoSite
 	modes   []modeSite
 	callVar map[*ast.CallExpr]*types.Var
+	assigns map[*types.Var]int
 }
 
 type cryptoSite struct {
@@ -161,10 +179,19 @@ func (v *visitor) recordCall(call *ast.CallExpr) {
 }
 
 // recordBindings notes, for `x := <algorithm-call>(...)`, the variable x so a
-// later mode constructor taking x can be linked back. Only single-assignment
-// in the same statement is tracked (the common block-cipher idiom); anything
-// else leaves the algorithm finding without a mode.
+// later mode constructor taking x can be linked back, and counts every
+// assignment to each variable. resolve only links a mode when the variable is
+// assigned exactly once: a var reassigned or set in multiple branches is
+// ambiguous, so the cipher.Block it holds at the mode site is not knowable from
+// a single statement and the finding is left without a mode.
 func (v *visitor) recordBindings(assign *ast.AssignStmt) {
+	for _, lhs := range assign.Lhs {
+		if ident, ok := lhs.(*ast.Ident); ok {
+			if vobj := v.varOf(ident); vobj != nil {
+				v.assigns[vobj]++
+			}
+		}
+	}
 	for i, rhs := range assign.Rhs {
 		call, ok := rhs.(*ast.CallExpr)
 		if !ok {
@@ -191,13 +218,21 @@ func (v *visitor) recordBindings(assign *ast.AssignStmt) {
 }
 
 // qualifiedCallee resolves the call's function to its <pkg-path>.<Name> identity
-// via type info, or "" if it is not a resolvable package-level function selector.
+// via type info, or "" if it is not a resolvable package-level function. Both
+// the qualified form (`md5.New`, a *ast.SelectorExpr) and the dot-imported form
+// (`New` after `import . "crypto/md5"`, a bare *ast.Ident) resolve to the same
+// types.Func, so both map to the same catalog key.
 func (v *visitor) qualifiedCallee(call *ast.CallExpr) string {
-	sel, ok := call.Fun.(*ast.SelectorExpr)
-	if !ok {
+	var name *ast.Ident
+	switch fun := call.Fun.(type) {
+	case *ast.SelectorExpr:
+		name = fun.Sel
+	case *ast.Ident:
+		name = fun
+	default:
 		return ""
 	}
-	fn, ok := v.pkg.TypesInfo.Uses[sel.Sel].(*types.Func)
+	fn, ok := v.pkg.TypesInfo.Uses[name].(*types.Func)
 	if !ok || fn.Pkg() == nil {
 		return ""
 	}
@@ -236,6 +271,9 @@ func (v *visitor) resolve(out *[]Finding) {
 		vobj := v.varOf(ident)
 		if vobj == nil {
 			continue
+		}
+		if v.assigns[vobj] != 1 {
+			continue // ambiguous: reassigned or set across branches
 		}
 		if idx, ok := varToIdx[vobj]; ok && (*out)[idx].Mode == "" {
 			(*out)[idx].Mode = m.mode
