@@ -10,6 +10,7 @@ import (
 	"go/types"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/Rafael-Ryu/pqcheck/tools/crypto-analyzer/internal/catalog"
@@ -121,6 +122,19 @@ func Analyze(dir string) ([]Finding, error) {
 		}
 		v.resolve(&findings)
 	}
+	sort.Slice(findings, func(i, j int) bool {
+		a, b := findings[i], findings[j]
+		if a.Path != b.Path {
+			return a.Path < b.Path
+		}
+		if a.Line != b.Line {
+			return a.Line < b.Line
+		}
+		if a.Column != b.Column {
+			return a.Column < b.Column
+		}
+		return a.Algorithm < b.Algorithm
+	})
 	return findings, nil
 }
 
