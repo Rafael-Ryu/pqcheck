@@ -69,6 +69,10 @@ class CryptoAnalyzerHashHook(BuildHookInterface):  # type: ignore[misc]
         out = Path(tempfile.mkdtemp(prefix="pqcheck-build-")) / "_constants.py"
         if write_sha256_constant(binary, out) is None:
             return
+        # A platform-specific binary is present, so this wheel must carry a
+        # platform tag; without it every platform emits py3-none-any and only
+        # the last upload survives on PyPI (filename collision).
+        build_data["infer_tag"] = True
         force_include = build_data.setdefault("force_include", {})
         if isinstance(force_include, dict):
             force_include[str(out)] = _WHEEL_TARGET
