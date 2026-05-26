@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 from tree_sitter import Language, Node, Parser
 
+import pqcheck.detectors.go_detector as _go_det
 from pqcheck.detectors.go_detector import (
     GoDetector,
     GoImportResolver,
@@ -197,3 +198,22 @@ def test_evidence_aligns_across_unicode_line_separator() -> None:
     )
     rsa = next(f for f in fs if f.algorithm == "RSA")
     assert rsa.evidence == "func f() { rsa.GenerateKey(nil, 2048) }"
+
+
+def test_detect_go_file_catalog_file_not_found_returns_empty(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    # A broken install where data/crypto-catalog.json is missing raises
+    # FileNotFoundError (an OSError subclass) from load_go_catalog(). Because
+    # functools.cache does not cache exceptions, every call re-raises. The
+    # never-raise contract requires that OSError is caught at the detect_go_file
+    # boundary so callers always receive [] rather than an unhandled exception.
+    f = tmp_path / "x.go"
+    f.write_text('package m\nimport "crypto/md5"\nfunc f() { md5.New() }\n')
+
+    monkeypatch.setattr(_go_det, "lookup_go_symbol", _raise_file_not_found)
+    assert detect_go_file(f) == []
+
+
+def _raise_file_not_found(*_: object, **__: object) -> None:
+    raise FileNotFoundError("data/crypto-catalog.json not found")

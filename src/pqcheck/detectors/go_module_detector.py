@@ -171,8 +171,8 @@ def _locate_binary() -> tuple[Path, bool] | None:
         return (candidate, True) if candidate.is_file() else None
     try:
         bundled = files("pqcheck.bin").joinpath(_platform_dir(), _binary_name())
-    except (ModuleNotFoundError, FileNotFoundError):
-        return None  # bin/ not packaged before Inc4
+    except (ModuleNotFoundError, FileNotFoundError, TypeError):
+        return None  # bin/ unpackaged (source install) or a namespace-package resource lookup
     path = Path(str(bundled))
     return (path, False) if path.is_file() else None
 
