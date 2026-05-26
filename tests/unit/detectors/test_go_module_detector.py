@@ -88,6 +88,11 @@ def test_locate_binary_returns_none_when_unbundled(monkeypatch: pytest.MonkeyPat
     assert gmd._locate_binary() is None  # bin/ not packaged before Inc4
 
 
+def test_sha256_pin_absent_without_generated_constants() -> None:
+    # No build-generated _constants.py in the dev tree -> lenient verification.
+    assert gmd._CRYPTO_ANALYZER_SHA256 is None
+
+
 def test_verify_sha256_lenient_when_pin_absent(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

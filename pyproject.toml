@@ -94,6 +94,15 @@ include = [
     "src/pqcheck/policy/defaults/*.yaml",
     "src/pqcheck/data/*.json",
 ]
+# The per-platform binary is a gitignored build output, so it must be declared
+# as an artifact — `include` alone won't override the VCS-ignore exclusion.
+artifacts = [
+    "src/pqcheck/bin/*/*",
+]
+
+# Pins the bundled crypto-analyzer's SHA-256 into _constants.py at build time.
+[tool.hatch.build.targets.wheel.hooks.custom]
+path = "hatch_build.py"
 
 [tool.hatch.build.targets.sdist]
 include = [
@@ -103,6 +112,24 @@ include = [
     "LICENSE",
     "pyproject.toml",
 ]
+
+[tool.cibuildwheel]
+build = "cp312-* cp313-*"
+skip = "*-musllinux_*"
+# Runs per wheel under the CIBW_ENVIRONMENT the release matrix sets (GOOS/GOARCH).
+# go:generate syncs the single-source catalog for //go:embed, then the binary is
+# compiled into the platform dir the wheel artifact picks up. Only crypto-analyzer
+# is built — the planned modfile-parser does not exist in tools/ yet.
+before-build = "cd {project}/tools/crypto-analyzer && go generate ./... && CGO_ENABLED=0 go build -trimpath -o {project}/src/pqcheck/bin/$GOOS-$GOARCH/crypto-analyzer ./cmd/crypto-analyzer"
+
+[tool.cibuildwheel.linux]
+archs = ["x86_64"]
+# The manylinux container has no Go toolchain; install the pinned floor (go.mod
+# requires 1.25.0). macOS uses the host Go from actions/setup-go instead.
+before-all = "curl -sSLo /tmp/go.tgz https://go.dev/dl/go1.25.0.linux-amd64.tar.gz && tar -C /usr/local -xzf /tmp/go.tgz"
+
+[tool.cibuildwheel.macos]
+archs = ["x86_64", "arm64"]
 
 [tool.ruff]
 target-version = "py312"
@@ -121,6 +148,11 @@ ignore = ["S101", "PLR0913"]
 python_version = "3.12"
 strict = true
 files = ["src/pqcheck"]
+
+# _constants.py is generated at wheel-build time and absent from the source tree.
+[[tool.mypy.overrides]]
+module = "pqcheck.detectors._constants"
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 addopts = "-ra --strict-markers --cov=pqcheck --cov-fail-under=85"
