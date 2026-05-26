@@ -125,3 +125,9 @@ version = "43.0.0"
     # We preserve the originally-declared name on the model but normalize
     # the PURL — matches PyPI's PEP 503 normalization.
     assert deps[0].name == "Cryptography"
+
+
+def test_parse_deeply_nested_toml_never_raises(tmp_path: Path) -> None:
+    # Nested arrays parse recursively; a hostile lock can blow the stack.
+    f = _write(tmp_path, "a = " + "[" * 3000 + "]" * 3000 + "\n")
+    assert parse(f) == []
