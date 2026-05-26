@@ -120,13 +120,13 @@ skip = "*-musllinux_*"
 # go:generate syncs the single-source catalog for //go:embed, then the binary is
 # compiled into the platform dir the wheel artifact picks up. Only crypto-analyzer
 # is built — the planned modfile-parser does not exist in tools/ yet.
-before-build = "cd {project}/tools/crypto-analyzer && go generate ./... && CGO_ENABLED=0 go build -trimpath -o {project}/src/pqcheck/bin/$GOOS-$GOARCH/crypto-analyzer ./cmd/crypto-analyzer"
+before-build = "cd {project}/tools/crypto-analyzer && go generate ./... && CGO_ENABLED=0 go build -mod=readonly -trimpath -o {project}/src/pqcheck/bin/$GOOS-$GOARCH/crypto-analyzer ./cmd/crypto-analyzer"
 
 [tool.cibuildwheel.linux]
 archs = ["x86_64"]
 # The manylinux container has no Go toolchain; install the pinned floor (go.mod
 # requires 1.25.0). macOS uses the host Go from actions/setup-go instead.
-before-all = "curl -sSLo /tmp/go.tgz https://go.dev/dl/go1.25.0.linux-amd64.tar.gz && tar -C /usr/local -xzf /tmp/go.tgz"
+before-all = "curl -sSLo /tmp/go.tgz https://go.dev/dl/go1.25.0.linux-amd64.tar.gz && echo '2852af0cb20a13139b3448992e69b868e50ed0f8a1e5940ee1de9e19a123b613  /tmp/go.tgz' | sha256sum -c - && tar -C /usr/local -xzf /tmp/go.tgz"
 
 [tool.cibuildwheel.macos]
 archs = ["x86_64", "arm64"]
@@ -140,7 +140,7 @@ archs = ["AMD64"]
 # `cd /d` switches drive too; Go honours an explicit -o name and does not append
 # .exe, so the .exe and windows-amd64 dir are spelled out to match what the
 # runtime bridge looks for (go_module_detector._binary_name/_platform_dir).
-before-build = "cd /d {project}\\tools\\crypto-analyzer && copy /Y {project}\\src\\pqcheck\\data\\crypto-catalog.json internal\\catalog\\crypto-catalog.json && set CGO_ENABLED=0 && go build -trimpath -o {project}\\src\\pqcheck\\bin\\windows-amd64\\crypto-analyzer.exe ./cmd/crypto-analyzer"
+before-build = "cd /d {project}\\tools\\crypto-analyzer && copy /Y {project}\\src\\pqcheck\\data\\crypto-catalog.json internal\\catalog\\crypto-catalog.json && set CGO_ENABLED=0 && go build -mod=readonly -trimpath -o {project}\\src\\pqcheck\\bin\\windows-amd64\\crypto-analyzer.exe ./cmd/crypto-analyzer"
 
 [tool.ruff]
 target-version = "py312"
