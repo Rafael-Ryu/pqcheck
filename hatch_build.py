@@ -38,6 +38,16 @@ def _platform_dir() -> str:
     return f"{goos}-{goarch}"
 
 
+def _binary_name() -> str:
+    """Match the name the Windows build emits and the runtime bridge expects.
+
+    cibuildwheel passes GOOS per matrix job; a local build falls back to the
+    host's sys.platform.
+    """
+    goos = os.environ.get("GOOS") or ("windows" if sys.platform == "win32" else "")
+    return "crypto-analyzer.exe" if goos == "windows" else "crypto-analyzer"
+
+
 def write_sha256_constant(binary: Path, out: Path) -> str | None:
     """Hash `binary` and write the constant module to `out`. None if absent."""
     if not binary.is_file():
@@ -55,7 +65,7 @@ class CryptoAnalyzerHashHook(BuildHookInterface):  # type: ignore[misc]
     PLUGIN_NAME = "custom"
 
     def initialize(self, version: str, build_data: dict[str, object]) -> None:
-        binary = Path(self.root) / "src" / "pqcheck" / "bin" / _platform_dir() / "crypto-analyzer"
+        binary = Path(self.root) / "src" / "pqcheck" / "bin" / _platform_dir() / _binary_name()
         out = Path(tempfile.mkdtemp(prefix="pqcheck-build-")) / "_constants.py"
         if write_sha256_constant(binary, out) is None:
             return
