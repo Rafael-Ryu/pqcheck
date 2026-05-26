@@ -43,8 +43,8 @@ jobs:
       # go:generate copies the single-source catalog in for //go:embed; the
       # package will not compile (vet/test included) without it.
       - run: go generate ./...
-      - run: go vet ./...
-      - run: go test ./...
+      - run: go vet -mod=readonly ./...
+      - run: go test -mod=readonly -race ./...
 
   test:
     needs: lint-type
@@ -80,7 +80,7 @@ jobs:
         working-directory: tools/crypto-analyzer
         run: |
           go generate ./...
-          CGO_ENABLED=0 go build -trimpath \
+          CGO_ENABLED=0 go build -mod=readonly -trimpath \
             -o "../../src/pqcheck/bin/$(go env GOOS)-$(go env GOARCH)/crypto-analyzer" \
             ./cmd/crypto-analyzer
       - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0

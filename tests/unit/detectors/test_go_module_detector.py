@@ -72,11 +72,15 @@ def test_claimed_excludes_non_module_files(tmp_path: Path) -> None:
     assert claimed_go_files(grouping) == set()
 
 
-def test_locate_binary_uses_env_override(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    binary = tmp_path / "crypto-analyzer"
-    binary.write_bytes(b"x")
-    monkeypatch.setenv("PQCHECK_CRYPTO_ANALYZER", str(binary))
-    assert gmd._locate_binary() == (binary, True)
+def test_fallback_returns_empty_when_walk_raises_oserror(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def boom(self: Path, pattern: str) -> object:
+        raise PermissionError("unreadable directory")
+
+    monkeypatch.setattr(Path, "rglob", boom)
+
+    assert gmd._fallback(tmp_path) == []
 
 
 def test_locate_binary_env_override_missing_file_returns_none(
@@ -247,6 +251,69 @@ def test_run_analyzer_timeout_reaps_real_grandchild(
         pytest.fail("grandchild survived the process-group kill")
 
 
+@pytest.mark.skipif(sys.platform != "linux", reason="/proc/<pid>/statm is Linux-only")
+def test_read_rss_bytes_reports_plausible_value_for_self() -> None:
+    # The reader must return a positive byte count for a live process. We read
+    # our own pid: the interpreter clearly has a non-trivial resident set.
+    rss = gmd._read_rss_bytes(os.getpid())
+    assert rss is not None
+    assert rss > 1024 * 1024  # at least ~1 MiB resident
+
+
+def test_read_rss_bytes_returns_none_for_dead_pid() -> None:
+    # No /proc entry (dead/never-existed pid, or non-Linux) -> best-effort None.
+    assert gmd._read_rss_bytes(2**31 - 1) is None
+
+
+@requires_posix
+def test_run_analyzer_rss_over_ceiling_is_killed(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    # The child is benign but stubbed to report RSS past the ceiling: the poller
+    # in the collection loop must tear down the group and route to failure (None)
+    # rather than waiting on the wall-clock timeout. A child that sleeps far
+    # longer than the timeout proves the RSS kill is what ended it: if the poll
+    # were a no-op the call would block for the full _TIMEOUT_SECONDS.
+    monkeypatch.setattr(gmd, "_read_rss_bytes", lambda pid: gmd._RSS_LIMIT_BYTES + 1)
+    monkeypatch.setattr(gmd, "_TIMEOUT_SECONDS", 30)
+    binary = _script(tmp_path / "hog.sh", "sleep 300\n")
+    started = time.monotonic()
+    result = gmd._run_analyzer(tmp_path, binary)
+    elapsed = time.monotonic() - started
+    assert result is None
+    assert elapsed < 5, "RSS ceiling did not fire; fell through to the timeout"
+
+
+@requires_posix
+def test_run_analyzer_rss_under_ceiling_succeeds(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    # RSS comfortably under the ceiling must not perturb a clean run.
+    monkeypatch.setattr(gmd, "_read_rss_bytes", lambda pid: 1024)
+    binary = _script(tmp_path / "ok.sh", "printf '[]'\n")
+    assert gmd._run_analyzer(tmp_path, binary) == "[]"
+
+
+@requires_posix
+def test_run_analyzer_missing_stdout_pipe_returns_none(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    # If stdout is somehow not a readable pipe, the collector guards rather than
+    # asserting (asserts vanish under python -O).
+    class _NoPipe:
+        pid = 2**31 - 1  # no such process: _kill_group's getpgid swallows it
+        returncode = None
+        stdout = None
+
+        def wait(self, timeout: float | None = None) -> int:
+            return 0
+
+        def communicate(self, timeout: float | None = None) -> tuple[bytes, bytes]:
+            return b"", b""
+
+    assert gmd._collect_output(_NoPipe()) is None  # type: ignore[arg-type]
+
+
 _GOLDEN = json.dumps(
     [
         {
@@ -394,6 +461,24 @@ def test_detect_go_module_trusts_empty_analyzer_result(
     (tmp_path / "m.go").write_text(_MD5_SRC, encoding="utf-8")
 
     assert detect_go_module(tmp_path) == []  # exit-0 + empty trumps fallback
+
+
+def test_locate_binary_type_error_from_resources_files_returns_none(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # importlib.resources.files() raises TypeError for namespace packages that
+    # have no __file__. _locate_binary must catch it and return None rather than
+    # letting the TypeError escape through detect_go_module (which promises never
+    # to raise).
+    monkeypatch.delenv("PQCHECK_CRYPTO_ANALYZER", raising=False)
+    # Patch the name as bound in the module under test (from importlib.resources
+    # import files), not the original importlib.resources.files.
+    monkeypatch.setattr(gmd, "files", _raise_type_error)
+    assert gmd._locate_binary() is None
+
+
+def _raise_type_error(*_: object, **__: object) -> None:
+    raise TypeError("namespace package has no __file__")
 
 
 def test_detect_go_module_fallback_skips_nested_module_files(

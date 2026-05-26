@@ -210,9 +210,9 @@ def emittable_canonicals() -> set[str]:
     Excludes the CIPHER_WRAPPER marker. Used by the invariant test that
     guards against catalog / QuantumRisk-map drift across all languages.
     """
-    catalog = {hit.canonical for hit in _PYTHON_SYMBOLS.values()}
-    catalog |= {hit.canonical for hit in load_go_catalog().values()}
-    return catalog - {CIPHER_WRAPPER}
+    canonicals = {hit.canonical for hit in _PYTHON_SYMBOLS.values()}
+    canonicals |= {hit.canonical for hit in load_go_catalog().values()}
+    return canonicals - {CIPHER_WRAPPER}
 
 
 def lookup_cipher_mode(qualified_name: str) -> str | None:
