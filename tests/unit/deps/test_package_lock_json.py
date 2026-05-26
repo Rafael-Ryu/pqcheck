@@ -36,10 +36,10 @@ def test_parse_v3_packages() -> None:
 def test_parse_v3_scoped_package_purl() -> None:
     deps = parse(_fixture("package_lock_v3.json"))
     by_name = {d.name: d for d in deps}
-    assert "thing" in by_name
-    assert by_name["thing"].version == "2.0.0"
-    # scoped: namespace=@scope, name=thing
-    assert by_name["thing"].purl == "pkg:npm/%40scope/thing@2.0.0"
+    # The full scoped name is preserved so different scopes can't collide.
+    assert "@scope/thing" in by_name
+    assert by_name["@scope/thing"].version == "2.0.0"
+    assert by_name["@scope/thing"].purl == "pkg:npm/%40scope/thing@2.0.0"
 
 
 def test_parse_v3_nested_path_derived_name() -> None:
@@ -133,3 +133,15 @@ def test_parse_no_packages_or_dependencies_returns_empty_list(tmp_path: Path) ->
     lock = tmp_path / "package-lock.json"
     lock.write_text('{"lockfileVersion": 3}', encoding="utf-8")
     assert parse(lock) == []
+
+
+def test_parse_deeply_nested_dependencies_never_raises(tmp_path: Path) -> None:
+    # A hostile v1 lockfile can nest "dependencies" far past the recursion
+    # limit; parse must honour the never-raise contract rather than crash.
+    inner = '{"version": "1.0.0"}'
+    for _ in range(5000):
+        inner = '{"version": "1.0.0", "dependencies": {"a": ' + inner + "}}"
+    lock = tmp_path / "package-lock.json"
+    lock.write_text('{"dependencies": {"a": ' + inner + "}}", encoding="utf-8")
+    result = parse(lock)
+    assert isinstance(result, list)

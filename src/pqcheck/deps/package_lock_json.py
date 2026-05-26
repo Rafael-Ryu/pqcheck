@@ -30,9 +30,12 @@ def parse(path: Path) -> list[CryptoDependency]:
     raw = safe_read_bytes(path)
     if raw is None:
         return []
+    # Deeply nested JSON can exhaust the C/Python stack in json.loads; bounding
+    # input size does not bound nesting depth. Catch it to keep the never-raise
+    # contract.
     try:
         data: Any = json.loads(raw.decode("utf-8"))
-    except (json.JSONDecodeError, UnicodeDecodeError):
+    except (json.JSONDecodeError, UnicodeDecodeError, RecursionError, MemoryError):
         return []
     if not isinstance(data, dict):
         return []
@@ -40,13 +43,18 @@ def parse(path: Path) -> list[CryptoDependency]:
     seen: set[tuple[str, str | None]] = set()
     deps: list[CryptoDependency] = []
 
-    packages = data.get("packages")
-    if isinstance(packages, dict):
-        _collect_from_packages(packages, path, seen, deps)
-    else:
-        dependencies = data.get("dependencies")
-        if isinstance(dependencies, dict):
-            _collect_from_dependencies(dependencies, path, seen, deps)
+    # A v1 "dependencies" tree is walked recursively; a hostile lockfile can nest
+    # it deep enough to overflow the stack. Bail with whatever resolved so far.
+    try:
+        packages = data.get("packages")
+        if isinstance(packages, dict):
+            _collect_from_packages(packages, path, seen, deps)
+        else:
+            dependencies = data.get("dependencies")
+            if isinstance(dependencies, dict):
+                _collect_from_dependencies(dependencies, path, seen, deps)
+    except (RecursionError, MemoryError):
+        return deps
 
     return deps
 
@@ -65,20 +73,13 @@ def _add(
     deps.append(
         CryptoDependency(
             purl=npm_purl(name, version),
-            name=_short_name(name),
+            name=name,
             version=version,
             ecosystem="npm",
             declared_in=path,
             introduces_algorithms=lookup_introduces("npm", name),
         )
     )
-
-
-def _short_name(name: str) -> str:
-    """Return the bare package name (without scope prefix) for display."""
-    if name.startswith("@") and "/" in name:
-        return name.split("/", 1)[1]
-    return name
 
 
 def _collect_from_packages(
