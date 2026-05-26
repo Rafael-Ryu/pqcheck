@@ -1,13 +1,13 @@
 package analyzer
 
 import (
+	"os"
 	"strings"
 	"testing"
 )
 
 // resolveEnv collapses a KEY=VALUE slice the way exec would: the last entry for
-// a key wins. hardenedEnv appends its pins after os.Environ(), so this is how
-// the `go list` child actually sees them.
+// a key wins. This is how the `go list` child actually sees the env.
 func resolveEnv(entries []string) map[string]string {
 	out := map[string]string{}
 	for _, e := range entries {
@@ -44,6 +44,46 @@ func TestHardenedEnvPinsWinOverHostileHost(t *testing.T) {
 		if got := env[k]; got != v {
 			t.Errorf("%s = %q, want %q (host value must not win)", k, got, v)
 		}
+	}
+}
+
+// The env is built from a fixed allowlist, not inherited wholesale. A GO* lever
+// that hardenedEnv does not explicitly pin (GODEBUG, GOPRIVATE, GOINSECURE,
+// GOFIPS140, ...) must not leak through from the host, even though it is not in
+// the override list — a clean slate is the only way to guarantee that.
+func TestHardenedEnvDropsUnlistedHostVars(t *testing.T) {
+	t.Setenv("GODEBUG", "x509sha1=1")
+	t.Setenv("GOPRIVATE", "evil.example/*")
+	t.Setenv("GOINSECURE", "evil.example/*")
+	t.Setenv("GOFIPS140", "off")
+	t.Setenv("SECRET_TOKEN", "leak-me")
+
+	env := resolveEnv(hardenedEnv("/scratch", "-mod=readonly"))
+
+	for _, k := range []string{"GODEBUG", "GOPRIVATE", "GOINSECURE", "GOFIPS140", "SECRET_TOKEN"} {
+		if v, ok := env[k]; ok {
+			t.Errorf("%s leaked from host as %q; the env must be a clean-slate allowlist", k, v)
+		}
+	}
+}
+
+// PATH and HOME carry over so the toolchain resolves and runs; absent host vars
+// must not appear as empty entries.
+func TestHardenedEnvCarriesOverPathHome(t *testing.T) {
+	t.Setenv("PATH", "/usr/bin")
+	t.Setenv("HOME", "/home/scan")
+	os.Unsetenv("TMPDIR")
+
+	env := resolveEnv(hardenedEnv("/scratch", "-mod=readonly"))
+
+	if env["PATH"] != "/usr/bin" {
+		t.Errorf("PATH = %q, want /usr/bin (needed to find the toolchain)", env["PATH"])
+	}
+	if env["HOME"] != "/home/scan" {
+		t.Errorf("HOME = %q, want /home/scan", env["HOME"])
+	}
+	if _, ok := env["TMPDIR"]; ok {
+		t.Error("TMPDIR was unset on the host; it must not appear in the env")
 	}
 }
 
