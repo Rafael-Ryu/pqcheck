@@ -38,10 +38,14 @@ if sys.platform != "win32":  # resource is POSIX-only
 
 _DETECTOR_ID = "go-types"
 
-# Populated at build time in Inc4 (mirrors the modfile-parser pin). While None,
-# verification is lenient: the bundled binary and its pin ship together in Inc4,
-# so an unpinned dev/test build is trusted rather than refused.
-_CRYPTO_ANALYZER_SHA256: str | None = None
+# The pin is generated at wheel-build time (hatch_build.py) into _constants.py,
+# shipping alongside the binary. Absent it — a source or editable dev install
+# with no bundled binary — verification is lenient rather than refusing.
+try:
+    from pqcheck.detectors._constants import CRYPTO_ANALYZER_SHA256 as _generated_pin
+except ImportError:
+    _generated_pin = None
+_CRYPTO_ANALYZER_SHA256: str | None = _generated_pin
 
 # Dev/test override pointing at a locally built binary; Inc4 ships the binary
 # under pqcheck/bin/<goos>-<goarch>/ and this stays as an escape hatch.
