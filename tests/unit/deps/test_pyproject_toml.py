@@ -242,3 +242,9 @@ test = ["cryptography", "CRYPTOGRAPHY"]
     # First-seen casing wins — "Cryptography" appeared in [project.dependencies].
     assert deps[0].name == "Cryptography"
     assert deps[0].purl == "pkg:pypi/cryptography"
+
+
+def test_parse_deeply_nested_toml_never_raises(tmp_path: Path) -> None:
+    # Nested arrays parse recursively; a hostile pyproject can blow the stack.
+    f = _write(tmp_path, "a = " + "[" * 3000 + "]" * 3000 + "\n")
+    assert parse(f) == []
