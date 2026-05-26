@@ -52,6 +52,15 @@ func TestAnalyzeResolvesStdlibCall(t *testing.T) {
 	if md5.Line != 5 {
 		t.Errorf("line = %d, want 5", md5.Line)
 	}
+	// Columns are 0-based to match the tree-sitter and Python detectors (and
+	// models.SourceLocation.column, Field(ge=0)). `md5.New()` starts at the
+	// 15th rune of "func main() { md5.New() }", so the 0-based column is 14.
+	if md5.Column != 14 {
+		t.Errorf("column = %d, want 14 (0-based)", md5.Column)
+	}
+	if md5.EndColumn <= md5.Column {
+		t.Errorf("end column = %d, want > start column %d", md5.EndColumn, md5.Column)
+	}
 	if md5.Confidence != 1.0 {
 		t.Errorf("confidence = %v, want 1.0", md5.Confidence)
 	}
