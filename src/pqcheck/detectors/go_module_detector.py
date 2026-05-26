@@ -18,12 +18,17 @@ them. Without that marking the same `.go` would be counted twice. Files under no
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
+import io
 import json
 import os
 import platform
+import selectors
+import signal
 import subprocess
 import sys
+import time
 from collections.abc import Iterable
 from importlib.resources import files
 from pathlib import Path
@@ -53,9 +58,19 @@ _ENV_OVERRIDE = "PQCHECK_CRYPTO_ANALYZER"
 
 _TIMEOUT_SECONDS = 60
 _MAX_STDOUT_BYTES = 8 * 1024 * 1024
-# RLIMIT_AS ceiling for the analyzer child: go/types can blow up memory on a
-# pathological module before the timeout fires, so cap address space too.
-_MEMORY_LIMIT_BYTES = 2 * 1024**3
+_READ_CHUNK_BYTES = 64 * 1024
+# Soft Go heap target. The GC works harder as the live heap approaches this
+# instead of letting RSS run away, so a heavy-but-benign module finishes rather
+# than OOM-killing. This is the primary memory knob; the rlimit below is only a
+# crash backstop for true runaways.
+_GOMEMLIMIT = "1500MiB"
+# Hard backstop on the analyzer child's data segment. We cap RLIMIT_DATA, not
+# RLIMIT_AS: the Go runtime reserves a huge virtual address space (vsz) that far
+# exceeds resident memory, so an RLIMIT_AS cap OOM-kills modules whose actual
+# RSS is modest. RLIMIT_DATA tracks the heap-backing allocations the runtime
+# really grows, so a generous ceiling here stops a runaway without falsely
+# killing a module that just touches a lot of address space.
+_MEMORY_LIMIT_BYTES = 3 * 1024**3
 
 
 def detect_go_module(module_root: Path) -> list[CryptoFinding]:
@@ -185,12 +200,13 @@ def _hardened_env() -> dict[str, str]:
         GOPROXY="off",
         GOSUMDB="off",
         GOENV="off",
+        GOMEMLIMIT=_GOMEMLIMIT,
     )
     return env
 
 
 def _set_memory_limit() -> None:  # pragma: no cover - runs in the forked child
-    resource.setrlimit(resource.RLIMIT_AS, (_MEMORY_LIMIT_BYTES, _MEMORY_LIMIT_BYTES))
+    resource.setrlimit(resource.RLIMIT_DATA, (_MEMORY_LIMIT_BYTES, _MEMORY_LIMIT_BYTES))
 
 
 def _run_analyzer(module_root: Path, binary: Path) -> str | None:
@@ -198,24 +214,102 @@ def _run_analyzer(module_root: Path, binary: Path) -> str | None:
 
     Returns decoded stdout on a clean exit, or None on timeout, non-zero exit,
     oversized output, or any OS error — every failure routes to the fallback.
+
+    The child runs in its own session/process group so a timeout can SIGKILL the
+    whole group: `go list` and the compiler it spawns are grandchildren that
+    `subprocess.run`'s timeout would leave orphaned. stdout is drained chunk by
+    chunk against the byte cap so a flood of output is rejected and the child
+    torn down the moment the cap is crossed, never buffered past it.
     """
-    preexec = _set_memory_limit if sys.platform != "win32" else None
+    posix = sys.platform != "win32"
+    preexec = _set_memory_limit if posix else None
     try:
         # binary is our SHA-256-verified analyzer and argv is fully controlled;
         # the scanned repo is read by the child under the hardened env, not here.
-        proc = subprocess.run(  # noqa: S603
+        proc = subprocess.Popen(  # noqa: S603
             [str(binary), str(module_root)],
-            capture_output=True,
-            timeout=_TIMEOUT_SECONDS,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
             env=_hardened_env(),
-            preexec_fn=preexec,
-            check=False,
+            preexec_fn=preexec,  # noqa: PLW1509 - single-threaded scanner, POSIX-only
+            start_new_session=posix,
         )
+    except OSError:
+        return None
+    if posix:
+        return _collect_output(proc)
+    return _collect_output_windows(proc)
+
+
+def _collect_output(proc: subprocess.Popen[bytes]) -> str | None:
+    """Drain stdout under a wall-clock deadline and the byte cap (POSIX).
+
+    A selector lets the read respect the timeout even if the child writes
+    nothing, while the running total enforces the cap before the buffer can
+    outgrow it. Any timeout / cap breach / OS error tears down the whole group.
+    """
+    deadline = time.monotonic() + _TIMEOUT_SECONDS
+    chunks: list[bytes] = []
+    total = 0
+    pipe = proc.stdout
+    assert isinstance(pipe, io.BufferedReader)  # stdout=PIPE
+    selector = selectors.DefaultSelector()
+    selector.register(pipe, selectors.EVENT_READ)
+    try:
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0 or not selector.select(timeout=remaining):
+                _kill_group(proc, posix=True)
+                return None
+            chunk = pipe.read1(_READ_CHUNK_BYTES)  # one ready read, no refill
+            if not chunk:
+                break  # EOF
+            total += len(chunk)
+            if total > _MAX_STDOUT_BYTES:
+                _kill_group(proc, posix=True)
+                return None
+            chunks.append(chunk)
+    except OSError:
+        _kill_group(proc, posix=True)
+        return None
+    finally:
+        selector.close()
+    try:
+        proc.wait(timeout=max(0.0, deadline - time.monotonic()))
     except (subprocess.TimeoutExpired, OSError):
+        _kill_group(proc, posix=True)
         return None
-    if proc.returncode != 0 or len(proc.stdout) > _MAX_STDOUT_BYTES:
+    if proc.returncode != 0:
         return None
-    return proc.stdout.decode("utf-8", "replace")
+    return b"".join(chunks).decode("utf-8", "replace")
+
+
+def _collect_output_windows(proc: subprocess.Popen[bytes]) -> str | None:  # pragma: no cover
+    """Windows fallback: no selector on pipes, so lean on communicate()."""
+    try:
+        stdout, _ = proc.communicate(timeout=_TIMEOUT_SECONDS)
+    except (subprocess.TimeoutExpired, OSError):
+        _kill_group(proc, posix=False)
+        return None
+    if proc.returncode != 0 or len(stdout) > _MAX_STDOUT_BYTES:
+        return None
+    return stdout.decode("utf-8", "replace")
+
+
+def _kill_group(proc: subprocess.Popen[bytes], *, posix: bool) -> None:
+    """Tear down the analyzer and any grandchildren it spawned, then reap.
+
+    On POSIX the child leads its own process group, so signalling the group
+    reaches the `go list`/compiler grandchildren that would otherwise orphan.
+    On Windows there is no killpg, so fall back to killing the direct child.
+    """
+    with contextlib.suppress(OSError, ProcessLookupError):
+        if posix:
+            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+        else:  # pragma: no cover - Windows path
+            proc.kill()
+    with contextlib.suppress(subprocess.TimeoutExpired, OSError):
+        proc.communicate(timeout=_TIMEOUT_SECONDS)
 
 
 def _map_findings(stdout: str) -> list[CryptoFinding]:
