@@ -14,7 +14,7 @@ from pqcheck.detectors.go_module_detector import (
     detect_go_module,
     group_go_files_by_module,
 )
-from pqcheck.models import AlgorithmFamily, QuantumRisk
+from pqcheck.models import AlgorithmFamily, CryptoFinding, QuantumRisk
 
 _MD5_SRC = 'package main\nimport "crypto/md5"\nfunc main() { md5.New() }\n'
 
@@ -27,6 +27,27 @@ def _touch(path: Path) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("", encoding="utf-8")
     return path
+
+
+def test_detect_go_module_rejects_non_utf8_path(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    # The spec requires strict-UTF-8 argv. A module path carrying non-UTF-8
+    # bytes (here a lone surrogate from os.fsdecode of a non-UTF-8 dir name)
+    # must never reach the subprocess; the bridge routes it to the tree-sitter
+    # fallback instead. Force the analyzer path so the guard is what diverts it.
+    bad_root = Path(str(tmp_path) + "/\udcffmod")
+    marker: list[CryptoFinding] = []
+
+    def _must_not_run(*args: object, **kwargs: object) -> None:
+        raise AssertionError("analyzer spawned with a non-UTF-8 path")
+
+    monkeypatch.setattr(gmd, "_locate_binary", lambda: (Path("/fake/analyzer"), True))
+    monkeypatch.setattr(gmd, "_verify_sha256", lambda binary, trusted: True)
+    monkeypatch.setattr(gmd, "_run_analyzer", _must_not_run)
+    monkeypatch.setattr(gmd, "_fallback", lambda root: marker)
+
+    assert detect_go_module(bad_root) is marker
 
 
 def test_groups_files_by_nearest_go_mod(tmp_path: Path) -> None:
