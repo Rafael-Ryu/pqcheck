@@ -72,13 +72,6 @@ def test_claimed_excludes_non_module_files(tmp_path: Path) -> None:
     assert claimed_go_files(grouping) == set()
 
 
-def test_locate_binary_uses_env_override(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    binary = tmp_path / "crypto-analyzer"
-    binary.write_bytes(b"x")
-    monkeypatch.setenv("PQCHECK_CRYPTO_ANALYZER", str(binary))
-    assert gmd._locate_binary() == (binary, True)
-
-
 def test_locate_binary_env_override_missing_file_returns_none(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

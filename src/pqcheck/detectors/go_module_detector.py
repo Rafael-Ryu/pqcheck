@@ -95,6 +95,14 @@ def detect_go_module(module_root: Path) -> list[CryptoFinding]:
 
 
 def _fallback(module_root: Path) -> list[CryptoFinding]:
+    """Tree-sitter fallback for one module root. Never raises.
+
+    Walks every `.go` file under `module_root`, skipping files that belong to a
+    nested module (those have a `go.mod` ancestor below the root that is not the
+    root itself, so they will be dispatched on their own root). Returns [] on an
+    empty or unreadable module rather than propagating any error — callers rely on
+    the never-raise contract.
+    """
     module_root = module_root.resolve()
     findings: list[CryptoFinding] = []
     for go_file in sorted(module_root.rglob("*.go")):
@@ -127,7 +135,7 @@ def claimed_go_files(grouping: dict[Path | None, list[Path]]) -> set[Path]:
     The per-file fallback loop must skip these to avoid double-counting. Files
     grouped under `None` (no module) are not claimed; they stay per-file.
     """
-    return {f for root, files in grouping.items() if root is not None for f in files}
+    return {f for root, paths in grouping.items() if root is not None for f in paths}
 
 
 def _nearest_go_mod_dir(go_file: Path, scan_root: Path) -> Path | None:
