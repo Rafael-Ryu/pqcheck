@@ -91,6 +91,21 @@ def golang_purl(module_path: str, version: str | None) -> str:
     ).to_string()
 
 
+def npm_purl(name: str, version: str | None) -> str:
+    """Build a PURL for an npm package.
+
+    Scoped packages (@scope/pkg) map namespace=@scope, name=pkg so the
+    PURL round-trips correctly through packageurl-python's percent-encoding.
+    Unscoped packages carry name only, no namespace.
+    """
+    if name.startswith("@") and "/" in name:
+        namespace, pkg_name = name.split("/", 1)
+        return PackageURL(
+            type="npm", namespace=namespace, name=pkg_name, version=version
+        ).to_string()
+    return PackageURL(type="npm", name=name, version=version).to_string()
+
+
 # PEP 508 distribution-name grammar: a letter or digit followed by any of
 # letters, digits, dot, hyphen, underscore. We do not validate the full
 # grammar — we only extract the leading name token.
