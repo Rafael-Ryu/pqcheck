@@ -253,5 +253,5 @@ def detect_go_file(path: Path) -> list[CryptoFinding]:
         detector = GoDetector(path, raw)
         detector.run(tree.root_node)
         return detector.findings
-    except (RecursionError, MemoryError, ValueError):  # pragma: no cover - defensive
+    except (RecursionError, MemoryError, ValueError, OSError):  # pragma: no cover - defensive
         return []
