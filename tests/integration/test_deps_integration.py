@@ -1,4 +1,4 @@
-"""End-to-end fixture-driven tests for the three v0.1 deps parsers.
+"""End-to-end fixture-driven tests for the deps parsers.
 
 Run independently with `uv run pytest tests/integration -v -m integration`.
 The default `uv run pytest` includes them too via the `-ra` config.
@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from pqcheck.deps import pom_xml, pyproject_toml, uv_lock
+from pqcheck.deps import go_mod, package_lock_json, pom_xml, pyproject_toml, uv_lock
 
 pytestmark = pytest.mark.integration
 
@@ -125,3 +125,46 @@ def test_pom_billion_laughs_fixture_terminates_safely() -> None:
 
 def test_pom_invalid_fixture_returns_empty() -> None:
     assert pom_xml.parse(FIXTURES / "pom_invalid.xml") == []
+
+
+def test_gomod_basic_fixture_emits_single_line_and_block_requires() -> None:
+    deps = go_mod.parse(FIXTURES / "gomod_basic.mod")
+    by_name = {d.name: d for d in deps}
+    assert set(by_name) == {
+        "golang.org/x/crypto",
+        "github.com/youmark/pkcs8",
+        "github.com/golang-jwt/jwt/v5",
+    }
+    assert by_name["golang.org/x/crypto"].version == "v0.21.0"
+    assert by_name["github.com/youmark/pkcs8"].version.startswith("v0.0.0-")
+    # Single-line require outside the block, with a multi-segment module path.
+    assert by_name["github.com/golang-jwt/jwt/v5"].purl == (
+        "pkg:golang/github.com/golang-jwt/jwt/v5@v5.2.1"
+    )
+
+
+def test_gomod_invalid_fixture_returns_empty() -> None:
+    assert go_mod.parse(FIXTURES / "gomod_invalid.mod") == []
+
+
+def test_package_lock_v1_fixture_flattens_nested_dependencies() -> None:
+    deps = package_lock_json.parse(FIXTURES / "package_lock_v1.json")
+    by_name = {d.name: d for d in deps}
+    assert by_name["node-forge"].version == "1.3.1"
+    assert by_name["jsonwebtoken"].version == "9.0.2"
+    # jws is nested under jsonwebtoken.dependencies; the v1 tree must flatten it.
+    assert by_name["jws"].version == "3.2.2"
+
+
+def test_package_lock_v3_fixture_preserves_scoped_name() -> None:
+    deps = package_lock_json.parse(FIXTURES / "package_lock_v3.json")
+    by_name = {d.name: d for d in deps}
+    assert by_name["node-forge"].version == "1.3.1"
+    assert by_name["jws"].version == "3.2.2"
+    # Scoped package keeps its full @scope/name and PURL-encodes the @ as %40.
+    assert by_name["@scope/thing"].version == "2.0.0"
+    assert by_name["@scope/thing"].purl == "pkg:npm/%40scope/thing@2.0.0"
+
+
+def test_package_lock_invalid_fixture_returns_empty() -> None:
+    assert package_lock_json.parse(FIXTURES / "package_lock_invalid.json") == []
