@@ -135,10 +135,12 @@ archs = ["x86_64", "arm64"]
 archs = ["AMD64"]
 # cibuildwheel runs before-build through cmd.exe on Windows, so the POSIX form
 # above (inline env prefix, $GOOS-$GOARCH, forward-slash output) does not apply.
-# This override mirrors it in cmd syntax: Go honours an explicit -o name and does
-# not append .exe, so the .exe and the windows-amd64 dir are spelled out to match
-# what the runtime bridge looks for (go_module_detector._binary_name/_platform_dir).
-before-build = "cd {project}\\tools\\crypto-analyzer && set CGO_ENABLED=0 && go generate ./... && go build -trimpath -o {project}\\src\\pqcheck\\bin\\windows-amd64\\crypto-analyzer.exe ./cmd/crypto-analyzer"
+# go generate is replaced by an inline copy: the //go:generate directive shells
+# out to `cp`, which cmd.exe does not have, so it would fail before the build.
+# `cd /d` switches drive too; Go honours an explicit -o name and does not append
+# .exe, so the .exe and windows-amd64 dir are spelled out to match what the
+# runtime bridge looks for (go_module_detector._binary_name/_platform_dir).
+before-build = "cd /d {project}\\tools\\crypto-analyzer && copy /Y {project}\\src\\pqcheck\\data\\crypto-catalog.json internal\\catalog\\crypto-catalog.json && set CGO_ENABLED=0 && go build -trimpath -o {project}\\src\\pqcheck\\bin\\windows-amd64\\crypto-analyzer.exe ./cmd/crypto-analyzer"
 
 [tool.ruff]
 target-version = "py312"
