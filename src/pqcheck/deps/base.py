@@ -70,6 +70,27 @@ def maven_purl(group_id: str, artifact_id: str, version: str | None) -> str:
     ).to_string()
 
 
+def golang_purl(module_path: str, version: str | None) -> str:
+    """Build a pkg:golang PURL from a Go module path.
+
+    Go module paths are slash-separated: everything up to (but not including)
+    the last segment is the namespace; the last segment is the name.  A bare
+    path with no slash produces no namespace.
+
+    Examples:
+      "github.com/foo/bar"      -> namespace="github.com/foo", name="bar"
+      "golang.org/x/crypto"     -> namespace="golang.org/x",   name="crypto"
+      "stdlib"                  -> namespace=None,              name="stdlib"
+    """
+    if "/" in module_path:
+        namespace, _, name = module_path.rpartition("/")
+    else:
+        namespace, name = None, module_path
+    return PackageURL(
+        type="golang", namespace=namespace, name=name, version=version
+    ).to_string()
+
+
 # PEP 508 distribution-name grammar: a letter or digit followed by any of
 # letters, digits, dot, hyphen, underscore. We do not validate the full
 # grammar — we only extract the leading name token.
