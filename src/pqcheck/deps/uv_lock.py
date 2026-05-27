@@ -51,9 +51,12 @@ def parse(path: Path) -> list[CryptoDependency]:
         if key in seen:
             continue
         seen.add(key)
+        purl = pypi_purl(name, version)
+        if purl is None:
+            continue
         deps.append(
             CryptoDependency(
-                purl=pypi_purl(name, version),
+                purl=purl,
                 name=name,
                 version=version,
                 ecosystem="pypi",
