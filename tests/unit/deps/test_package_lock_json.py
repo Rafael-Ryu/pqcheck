@@ -17,6 +17,21 @@ def test_parse_v1_flat_deps() -> None:
     assert by_name["node-forge"].purl == "pkg:npm/node-forge@1.3.1"
 
 
+def test_parse_skips_blank_package_name_keeps_valid(tmp_path: Path) -> None:
+    # A "node_modules/ " key yields a whitespace-only name that survives the
+    # empty-name guard but breaks PackageURL. The parser must skip it and still
+    # emit the valid sibling — never crash parse() (never-raise contract).
+    f = tmp_path / "package-lock.json"
+    f.write_text(
+        '{"lockfileVersion":3,"packages":{'
+        '"node_modules/ ":{"version":"1.0.0"},'
+        '"node_modules/node-forge":{"version":"1.3.1"}}}',
+        encoding="utf-8",
+    )
+    deps = parse(f)
+    assert {d.name for d in deps} == {"node-forge"}
+
+
 def test_parse_v1_nested_deps_flattened() -> None:
     deps = parse(_fixture("package_lock_v1.json"))
     by_name = {d.name: d for d in deps}
