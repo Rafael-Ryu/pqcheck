@@ -111,9 +111,15 @@ def test_locate_binary_env_override_missing_file_returns_none(
     assert gmd._locate_binary() is None
 
 
-def test_locate_binary_returns_none_when_unbundled(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_locate_binary_returns_none_when_unbundled(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    # No env override and no binary on the resource path -> None. Point the
+    # resource lookup at an empty dir so the result does not depend on whether a
+    # local build left a binary under pqcheck/bin/ in the working tree.
     monkeypatch.delenv("PQCHECK_CRYPTO_ANALYZER", raising=False)
-    assert gmd._locate_binary() is None  # bin/ not packaged before Inc4
+    monkeypatch.setattr(gmd, "files", lambda _pkg: tmp_path)
+    assert gmd._locate_binary() is None
 
 
 def test_sha256_pin_absent_without_generated_constants() -> None:
