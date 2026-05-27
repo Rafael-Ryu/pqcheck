@@ -234,12 +234,16 @@ def _verify_sha256(binary: Path, *, trusted: bool) -> bool:
 
 
 def _hardened_env() -> dict[str, str]:
-    """Curated env for the analyzer process.
+    """Curated env for the analyzer's own process — clean slate, not inherited.
 
-    The binary itself re-pins the `go list` driver env (see analyzer.go); these
-    duplicate it so intent survives even if that append order changes, and PATH/
-    HOME are kept so the toolchain resolves. The scanned repo is attacker-
-    controlled, so every download/exec/workspace lever is pinned off.
+    Only PATH/HOME/TMPDIR pass through so the toolchain resolves; every
+    download/exec/workspace lever is pinned off because the scanned repo is
+    attacker-controlled. This governs the analyzer process itself. The binary is
+    authoritative for the `go list` grandchild that actually resolves modules
+    (see analyzer.go:hardenedEnv): it re-derives the env there, choosing
+    -mod=vendor vs -mod=readonly from the repo and pointing GOCACHE/GOMODCACHE/
+    GOPATH at a scratch dir. The pins here are a best-effort process-level floor,
+    not a full mirror of that layer.
     """
     env = {key: os.environ[key] for key in ("PATH", "HOME", "TMPDIR") if key in os.environ}
     env.update(
@@ -335,8 +339,13 @@ def _collect_output(proc: subprocess.Popen[bytes]) -> str | None:
     payload = _drain_stdout(proc, pipe, deadline)
     if payload is None:
         return None
+    # The child has closed stdout (EOF) and is exiting; grant a fixed reap grace
+    # rather than the leftover read budget, which can be ~0 when a slow child
+    # trickled valid output up to the deadline — waiting ~0 would SIGKILL a child
+    # that already produced a usable payload. Worst-case latency stays bounded at
+    # _TIMEOUT_SECONDS + _REAP_TIMEOUT_SECONDS.
     try:
-        proc.wait(timeout=max(0.0, deadline - time.monotonic()))
+        proc.wait(timeout=_REAP_TIMEOUT_SECONDS)
     except (subprocess.TimeoutExpired, OSError):
         _kill_group(proc, posix=True)
         return None
