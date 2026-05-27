@@ -37,6 +37,22 @@ def test_parse_basic_block_require(tmp_path: Path) -> None:
     assert by_name["github.com/youmark/pkcs8"].version == pkcs8_ver
 
 
+def test_parse_skips_malformed_module_path_keeps_valid(tmp_path: Path) -> None:
+    # A module path ending in "/" has an empty name segment, which PackageURL
+    # rejects. The parser must skip that one line and still emit the valid
+    # sibling — a single bad entry must never crash parse() or discard the
+    # whole file (never-raise contract).
+    f = tmp_path / "go.mod"
+    f.write_text(
+        "module example.com/app\n\ngo 1.22\n\nrequire (\n"
+        "\tgithub.com/foo/ v1.2.3\n"
+        "\tgolang.org/x/crypto v0.21.0\n)\n",
+        encoding="utf-8",
+    )
+    deps = parse(f)
+    assert {d.name for d in deps} == {"golang.org/x/crypto"}
+
+
 def test_parse_block_with_trailing_comment_on_open_paren(tmp_path: Path) -> None:
     f = tmp_path / "go.mod"
     f.write_text(

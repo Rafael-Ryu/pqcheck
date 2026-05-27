@@ -70,9 +70,12 @@ def _add(
     if key in seen:
         return
     seen.add(key)
+    purl = npm_purl(name, version)
+    if purl is None:
+        return
     deps.append(
         CryptoDependency(
-            purl=npm_purl(name, version),
+            purl=purl,
             name=name,
             version=version,
             ecosystem="npm",

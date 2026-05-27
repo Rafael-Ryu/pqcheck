@@ -60,22 +60,35 @@ def safe_read_bytes(path: Path) -> bytes | None:
     return b"".join(chunks)
 
 
-def pypi_purl(name: str, version: str | None) -> str:
-    return PackageURL(type="pypi", name=name.lower(), version=version).to_string()
+# A name token that passes a parser's shape check can still be rejected by
+# PackageURL (e.g. an empty or whitespace-only name segment), which raises
+# ValueError/TypeError. The builders catch that and return None so the caller
+# skips the one bad entry instead of letting the exception escape parse() and
+# discard every dependency in the file. CryptoDependency.purl is min_length=1,
+# so None could never be a valid PURL anyway.
+def pypi_purl(name: str, version: str | None) -> str | None:
+    try:
+        return PackageURL(type="pypi", name=name.lower(), version=version).to_string()
+    except (ValueError, TypeError):
+        return None
 
 
-def maven_purl(group_id: str, artifact_id: str, version: str | None) -> str:
-    return PackageURL(
-        type="maven", namespace=group_id, name=artifact_id, version=version
-    ).to_string()
+def maven_purl(group_id: str, artifact_id: str, version: str | None) -> str | None:
+    try:
+        return PackageURL(
+            type="maven", namespace=group_id, name=artifact_id, version=version
+        ).to_string()
+    except (ValueError, TypeError):
+        return None
 
 
-def golang_purl(module_path: str, version: str | None) -> str:
+def golang_purl(module_path: str, version: str | None) -> str | None:
     """Build a pkg:golang PURL from a Go module path.
 
     Go module paths are slash-separated: everything up to (but not including)
     the last segment is the namespace; the last segment is the name.  A bare
-    path with no slash produces no namespace.
+    path with no slash produces no namespace. Returns None on a path PackageURL
+    rejects (e.g. one ending in "/", which yields an empty name segment).
 
     Examples:
       "github.com/foo/bar"      -> namespace="github.com/foo", name="bar"
@@ -86,24 +99,31 @@ def golang_purl(module_path: str, version: str | None) -> str:
         namespace, _, name = module_path.rpartition("/")
     else:
         namespace, name = None, module_path
-    return PackageURL(
-        type="golang", namespace=namespace, name=name, version=version
-    ).to_string()
+    try:
+        return PackageURL(
+            type="golang", namespace=namespace, name=name, version=version
+        ).to_string()
+    except (ValueError, TypeError):
+        return None
 
 
-def npm_purl(name: str, version: str | None) -> str:
+def npm_purl(name: str, version: str | None) -> str | None:
     """Build a PURL for an npm package.
 
     Scoped packages (@scope/pkg) map namespace=@scope, name=pkg so the
     PURL round-trips correctly through packageurl-python's percent-encoding.
-    Unscoped packages carry name only, no namespace.
+    Unscoped packages carry name only, no namespace. Returns None on a name
+    PackageURL rejects (e.g. whitespace-only).
     """
-    if name.startswith("@") and "/" in name:
-        namespace, pkg_name = name.split("/", 1)
-        return PackageURL(
-            type="npm", namespace=namespace, name=pkg_name, version=version
-        ).to_string()
-    return PackageURL(type="npm", name=name, version=version).to_string()
+    try:
+        if name.startswith("@") and "/" in name:
+            namespace, pkg_name = name.split("/", 1)
+            return PackageURL(
+                type="npm", namespace=namespace, name=pkg_name, version=version
+            ).to_string()
+        return PackageURL(type="npm", name=name, version=version).to_string()
+    except (ValueError, TypeError):
+        return None
 
 
 # PEP 508 distribution-name grammar: a letter or digit followed by any of

@@ -6,7 +6,9 @@ import pytest
 from pqcheck.deps.base import (
     MAX_FILE_BYTES,
     extract_pep508_name,
+    golang_purl,
     maven_purl,
+    npm_purl,
     pypi_purl,
     safe_read_bytes,
 )
@@ -28,6 +30,30 @@ def test_maven_purl_preserves_group_id_case() -> None:
 def test_maven_purl_without_version() -> None:
     result = maven_purl("org.bouncycastle", "bcprov-jdk18on", None)
     assert result == "pkg:maven/org.bouncycastle/bcprov-jdk18on"
+
+
+# A name token can survive the parsers' shape checks (non-empty, slash-shaped)
+# yet still be rejected by PackageURL — e.g. a module path ending in "/" yields
+# an empty name segment. The builders must fail closed to None so one malformed
+# entry is skipped rather than crashing parse() and discarding the whole file.
+def test_golang_purl_returns_none_for_empty_trailing_segment() -> None:
+    assert golang_purl("github.com/foo/", "v1.2.3") is None
+
+
+def test_golang_purl_returns_none_for_bare_slash() -> None:
+    assert golang_purl("/", "v1") is None
+
+
+def test_npm_purl_returns_none_for_blank_name() -> None:
+    assert npm_purl(" ", "1.0.0") is None
+
+
+def test_pypi_purl_returns_none_for_blank_name() -> None:
+    assert pypi_purl("   ", None) is None
+
+
+def test_maven_purl_returns_none_for_empty_artifact() -> None:
+    assert maven_purl("org.example", "", "1.0") is None
 
 
 def test_extract_pep508_name_simple() -> None:

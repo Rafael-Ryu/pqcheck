@@ -57,9 +57,12 @@ def parse(path: Path) -> list[CryptoDependency]:
         if key in seen:
             return
         seen.add(key)
+        purl = golang_purl(module_path, version)
+        if purl is None:
+            return
         deps.append(
             CryptoDependency(
-                purl=golang_purl(module_path, version),
+                purl=purl,
                 name=module_path,
                 version=version,
                 ecosystem="golang",

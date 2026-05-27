@@ -9,6 +9,25 @@ def _write(tmp_path: Path, content: str) -> Path:
     return f
 
 
+def test_parse_skips_blank_name_keeps_valid(tmp_path: Path) -> None:
+    # A whitespace-only package name survives the empty-name guard but breaks
+    # PackageURL. The parser must skip it and still emit the valid sibling —
+    # never crash parse() (never-raise contract).
+    f = _write(tmp_path, """
+version = 1
+
+[[package]]
+name = " "
+version = "1.0.0"
+
+[[package]]
+name = "cryptography"
+version = "43.0.0"
+""")
+    deps = parse(f)
+    assert {d.name for d in deps} == {"cryptography"}
+
+
 def test_parse_basic_uv_lock(tmp_path: Path) -> None:
     f = _write(tmp_path, """
 version = 1
