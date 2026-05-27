@@ -223,6 +223,44 @@ def test_run_analyzer_partial_write_then_hang_times_out(
     assert gmd._run_analyzer(tmp_path, binary) is None
 
 
+@requires_posix
+def test_run_analyzer_steady_trickle_under_cap_still_times_out(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    # A child that streams a little at a time, staying under the byte cap and
+    # RSS ceiling, must still be bounded by the wall-clock deadline. The deadline
+    # has to be checked on every loop iteration, not only when the selector
+    # reports no data — otherwise a continuous slow trickle keeps reading past
+    # the timeout until the child finishes on its own. The child runs ~6s; with
+    # a 1s deadline the call must return None in well under 3s.
+    monkeypatch.setattr(gmd, "_TIMEOUT_SECONDS", 1)
+    binary = _script(
+        tmp_path / "trickle.sh",
+        "i=0\nwhile [ $i -lt 60 ]; do printf 'x'; sleep 0.1; i=$((i+1)); done\n",
+    )
+    started = time.monotonic()
+    result = gmd._run_analyzer(tmp_path, binary)
+    elapsed = time.monotonic() - started
+    assert result is None
+    assert elapsed < 3, "wall-clock deadline not enforced under steady trickle"
+
+
+@requires_posix
+def test_run_analyzer_grants_exit_grace_after_read_deadline(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    # A child that produced valid output but closed stdout just as the read
+    # deadline lapsed must still get a small grace window to exit. Tying the
+    # post-drain wait to the leftover read budget would wait(~0) and SIGKILL a
+    # child that already emitted a valid payload, dropping it to the fallback.
+    # Drain is stubbed to a clean payload with the deadline already in the past;
+    # the child needs a moment to exit, which the reap grace must cover.
+    monkeypatch.setattr(gmd, "_TIMEOUT_SECONDS", -1)  # read deadline already past
+    monkeypatch.setattr(gmd, "_drain_stdout", lambda proc, pipe, deadline: b"[]")
+    binary = _script(tmp_path / "slow_exit.sh", "sleep 0.3\n")
+    assert gmd._run_analyzer(tmp_path, binary) == "[]"
+
+
 def test_kill_group_swallows_lookup_error(monkeypatch: pytest.MonkeyPatch) -> None:
     # Group already gone between timeout and kill: tear-down must not raise.
     class _Dead:
