@@ -2,6 +2,7 @@ package analyzer
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"time"
 )
@@ -19,6 +20,16 @@ func TestWithRecoverConvertsPanicToError(t *testing.T) {
 	}
 	if findings != nil {
 		t.Fatalf("expected nil findings on panic, got %v", findings)
+	}
+	if !strings.Contains(err.Error(), "boom") {
+		t.Errorf("expected the panic value in the error, got %q", err.Error())
+	}
+	if !strings.Contains(err.Error(), "withRecover") {
+		t.Errorf("expected a stack trace in the error, got %q", err.Error())
+	}
+	// main owns the single "crypto-analyzer:" prefix; this error must not add one.
+	if strings.Contains(err.Error(), "crypto-analyzer:") {
+		t.Errorf("error should not carry the crypto-analyzer prefix, got %q", err.Error())
 	}
 }
 
