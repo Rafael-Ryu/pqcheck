@@ -227,7 +227,12 @@ func (v *visitor) recordBindings(assign *ast.AssignStmt) {
 		var lhs ast.Expr
 		switch {
 		case len(assign.Rhs) == 1 && len(assign.Lhs) >= 1:
-			lhs = assign.Lhs[0] // multi-value call: block is the first result
+			// Multi-value call: the catalog's mode-wrappable constructors
+			// (aes/des/rc4 NewCipher) all return (cipher.Block, error), so the
+			// block is Lhs[0]. A future entry returning its cipher in a later
+			// position would need this revisited; the single-assignment gate
+			// below bounds the blast radius until then.
+			lhs = assign.Lhs[0]
 		case i < len(assign.Lhs):
 			lhs = assign.Lhs[i]
 		}
