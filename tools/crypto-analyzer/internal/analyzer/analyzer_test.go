@@ -3,7 +3,7 @@ package analyzer
 import (
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"testing"
 )
 
@@ -124,6 +124,36 @@ func TestAnalyzeFoldsRSAKeySizeFromConst(t *testing.T) {
 	}
 }
 
+func TestAnalyzeClampsAbsurdRSAKeySize(t *testing.T) {
+	// constInt bounds the folded value to a plausible key-size range so an
+	// attacker-supplied negative or huge constant cannot flow downstream as a
+	// key size. The RSA call must still be reported (detection is by callee),
+	// but with no key size. maxKeySize is 1<<20, so 1<<21 is over the bound.
+	for name, bits := range map[string]string{
+		"negative": "-1",
+		"zero":     "0",
+		"oversize": "1 << 21",
+	} {
+		t.Run(name, func(t *testing.T) {
+			dir := writeModule(t, map[string]string{
+				"main.go": "package main\nimport (\n\"crypto/rsa\"\n\"crypto/rand\"\n)\n" +
+					"const bits = " + bits + "\nfunc main(){ rsa.GenerateKey(rand.Reader, bits) }\n",
+			})
+			fs, err := Analyze(dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			rsa := findingsByAlgo(fs)["RSA"]
+			if rsa.Algorithm != "RSA" {
+				t.Fatalf("expected an RSA finding, got %+v", rsa)
+			}
+			if rsa.KeySize != nil {
+				t.Fatalf("key size = %d, want nil (absurd constant must not flow)", *rsa.KeySize)
+			}
+		})
+	}
+}
+
 func TestAnalyzeExtractsECDSACurve(t *testing.T) {
 	dir := writeModule(t, map[string]string{
 		"main.go": "package main\nimport (\n\"crypto/ecdsa\"\n\"crypto/elliptic\"\n\"crypto/rand\"\n)\nfunc main(){ ecdsa.GenerateKey(elliptic.P256(), rand.Reader) }\n",
@@ -135,6 +165,32 @@ func TestAnalyzeExtractsECDSACurve(t *testing.T) {
 	ec := findingsByAlgo(fs)["ECDSA"]
 	if ec.Curve != "P-256" {
 		t.Fatalf("curve = %q, want P-256", ec.Curve)
+	}
+}
+
+func TestAnalyzeNormalizesECDSACurves(t *testing.T) {
+	// normalizeCurve maps every crypto/elliptic constructor to the policy
+	// vocabulary, not just P-256. Asserting "P-224"/"P-384"/"P-521" (not the
+	// raw "P224" etc.) proves the mapping ran for each.
+	for ctor, want := range map[string]string{
+		"P224": "P-224",
+		"P384": "P-384",
+		"P521": "P-521",
+	} {
+		t.Run(ctor, func(t *testing.T) {
+			dir := writeModule(t, map[string]string{
+				"main.go": "package main\nimport (\n\"crypto/ecdsa\"\n\"crypto/elliptic\"\n\"crypto/rand\"\n)\n" +
+					"func main(){ ecdsa.GenerateKey(elliptic." + ctor + "(), rand.Reader) }\n",
+			})
+			fs, err := Analyze(dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			ec := findingsByAlgo(fs)["ECDSA"]
+			if ec.Curve != want {
+				t.Fatalf("curve = %q, want %q", ec.Curve, want)
+			}
+		})
 	}
 }
 
@@ -289,36 +345,12 @@ func TestAnalyzeFindingsAreSorted(t *testing.T) {
 		t.Fatalf("Analyze: %v", err)
 	}
 
-	// We need at least two findings (one per sub-package) to exercise ordering.
-	if len(fs) < 2 {
-		t.Fatalf("expected ≥2 findings, got %d: %+v", len(fs), fs)
-	}
-
-	// Build the expected (already sorted) order from the returned slice itself,
-	// then compare — if Analyze does not sort, the two orderings will differ.
-	sorted := make([]Finding, len(fs))
-	copy(sorted, fs)
-	sort.Slice(sorted, func(i, j int) bool {
-		a, b := sorted[i], sorted[j]
-		if a.Path != b.Path {
-			return a.Path < b.Path
-		}
-		if a.Line != b.Line {
-			return a.Line < b.Line
-		}
-		if a.Column != b.Column {
-			return a.Column < b.Column
-		}
-		return a.Algorithm < b.Algorithm
-	})
-
-	for i := range fs {
-		if fs[i].Path != sorted[i].Path || fs[i].Line != sorted[i].Line ||
-			fs[i].Column != sorted[i].Column || fs[i].Algorithm != sorted[i].Algorithm {
-			t.Errorf("findings not sorted: got order %v, want %v",
-				findingKeys(fs), findingKeys(sorted))
-			break
-		}
+	// pkga sorts before pkgb by path and both call on line 5, so the MD5
+	// finding must precede the SHA-1 one. Assert the exact expected order
+	// rather than re-sorting the output and comparing it to itself.
+	want := []string{"a.go:MD5", "b.go:SHA-1"}
+	if got := findingKeys(fs); !slices.Equal(got, want) {
+		t.Errorf("findings not in sorted order: got %v, want %v", got, want)
 	}
 }
 
