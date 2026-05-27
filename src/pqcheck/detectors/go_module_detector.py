@@ -41,7 +41,7 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
-from pqcheck.detectors.go_detector import detect_go_file
+from pqcheck.detectors.go_detector import _MAX_KEY_SIZE, detect_go_file
 from pqcheck.models import AlgorithmFamily, CryptoFinding, SourceLocation
 
 if sys.platform != "win32":  # resource is POSIX-only
@@ -110,7 +110,7 @@ def detect_go_module(module_root: Path) -> list[CryptoFinding]:
         if _verify_sha256(binary, trusted=trusted):
             stdout = _run_analyzer(module_root, binary)
             if stdout is not None:
-                return _map_findings(stdout)
+                return _map_findings(stdout, module_root)
     return _fallback(module_root)
 
 
@@ -424,7 +424,7 @@ def _kill_group(proc: subprocess.Popen[bytes], *, posix: bool) -> None:
         proc.communicate(timeout=_REAP_TIMEOUT_SECONDS)
 
 
-def _map_findings(stdout: str) -> list[CryptoFinding]:
+def _map_findings(stdout: str, module_root: Path) -> list[CryptoFinding]:
     """Map the analyzer's JSON array to CryptoFindings. Never raises.
 
     Malformed JSON or a non-array payload yields []. A single item that fails
@@ -439,18 +439,21 @@ def _map_findings(stdout: str) -> list[CryptoFinding]:
         return []
     findings: list[CryptoFinding] = []
     for item in raw:
-        finding = _build_finding(item)
+        finding = _build_finding(item, module_root)
         if finding is not None:
             findings.append(finding)
     return findings
 
 
-def _build_finding(item: object) -> CryptoFinding | None:
+def _build_finding(item: object, module_root: Path) -> CryptoFinding | None:
     if not isinstance(item, dict):
         return None
     try:
+        path = Path(item["path"])
+        if not _path_within(path, module_root):
+            return None  # a finding outside the scanned module is not trusted
         location = SourceLocation(
-            path=Path(item["path"]),
+            path=path,
             line=item["line"],
             column=item["column"],
             end_line=item.get("end_line"),
@@ -459,7 +462,7 @@ def _build_finding(item: object) -> CryptoFinding | None:
         return CryptoFinding(
             algorithm=item["algorithm"],
             family=AlgorithmFamily(item["family"]),
-            key_size=item.get("key_size"),
+            key_size=_clamp_key_size(item.get("key_size")),
             curve=item.get("curve") or None,
             mode=item.get("mode") or None,
             padding=item.get("padding") or None,
@@ -470,3 +473,26 @@ def _build_finding(item: object) -> CryptoFinding | None:
         )
     except (KeyError, TypeError, ValueError, ValidationError):
         return None
+
+
+def _clamp_key_size(value: object) -> int | None:
+    """Bound an analyzer-reported key size, mirroring go_detector's clamp.
+
+    The bundled binary already clamps in constInt, but the PQCHECK_CRYPTO_ANALYZER
+    override runs unpinned, so its key_size is untrusted. A value outside a
+    plausible range is not a real key and is dropped (the finding survives)
+    rather than carried into CBOM/SARIF.
+    """
+    if isinstance(value, bool) or not isinstance(value, int):
+        return None
+    return value if 0 < value <= _MAX_KEY_SIZE else None
+
+
+def _path_within(path: Path, root: Path) -> bool:
+    """True when path resolves inside root. The binary emits absolute source
+    paths under the scanned module; one outside it (`..`, an absolute escape)
+    is not a location this scan produced."""
+    try:
+        return path.resolve().is_relative_to(root.resolve())
+    except (OSError, ValueError):
+        return False
