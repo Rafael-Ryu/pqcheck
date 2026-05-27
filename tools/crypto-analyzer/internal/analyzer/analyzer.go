@@ -12,6 +12,7 @@ import (
 	"go/types"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"sort"
 	"strings"
 	"time"
@@ -109,11 +110,13 @@ func Analyze(dir string) ([]Finding, error) {
 // withRecover converts a panic during analysis into an error. go/types can
 // panic on pathological input (e.g. recursive generics); the production path
 // turns a non-zero exit into a fallback, but in-process callers have no such
-// boundary, so the binary contains the panic itself.
+// boundary, so the binary contains the panic itself. The stack is kept in the
+// error so a standalone run (where main prints err to stderr) can diagnose the
+// panic site; the "crypto-analyzer:" prefix is left to main, the single owner.
 func withRecover(fn func() ([]Finding, error)) (findings []Finding, err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			findings, err = nil, fmt.Errorf("crypto-analyzer: recovered from panic: %v", r)
+			findings, err = nil, fmt.Errorf("recovered from panic: %v\n%s", r, debug.Stack())
 		}
 	}()
 	return fn()
