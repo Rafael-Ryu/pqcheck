@@ -83,7 +83,7 @@ jobs:
         working-directory: tools/crypto-analyzer
         run: |
           go generate ./...
-          CGO_ENABLED=0 go build -mod=readonly -trimpath -buildvcs=false \
+          CGO_ENABLED=0 go build -mod=readonly -trimpath -buildvcs=false -ldflags=-buildid= \
             -o "../../src/pqcheck/bin/$(go env GOOS)-$(go env GOARCH)/crypto-analyzer" \
             ./cmd/crypto-analyzer
       - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
