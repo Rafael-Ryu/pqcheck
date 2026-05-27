@@ -76,9 +76,12 @@ def parse(path: Path) -> list[CryptoDependency]:
         if key in seen:
             continue
         seen.add(key)
+        purl = maven_purl(group_id, artifact_id, version)
+        if purl is None:
+            continue
         deps.append(
             CryptoDependency(
-                purl=maven_purl(group_id, artifact_id, version),
+                purl=purl,
                 name=artifact_id,
                 version=version,
                 ecosystem="maven",
