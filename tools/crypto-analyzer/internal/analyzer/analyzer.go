@@ -5,17 +5,27 @@
 package analyzer
 
 import (
+	"context"
+	"fmt"
 	"go/ast"
 	"go/constant"
 	"go/types"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/Rafael-Ryu/pqcheck/tools/crypto-analyzer/internal/catalog"
 	"golang.org/x/tools/go/packages"
 )
+
+// analyzeTimeout bounds a single packages.Load so a standalone invocation —
+// one that bypasses the Python bridge, which owns the real per-scan deadline —
+// cannot hang forever on a pathological module. It is a var so tests can
+// shorten it; the bridge stays the primary deadline.
+var analyzeTimeout = 5 * time.Minute
 
 // maxKeySize mirrors the Python detector's _MAX_KEY_SIZE: a key-size literal
 // beyond this is not a real key, and bounding it stops an attacker-supplied
@@ -90,18 +100,42 @@ func modFlagFor(dir string) string {
 // Analyze loads the module rooted at dir and returns findings. It never fails
 // on the scanned code's own type errors: packages.Load records those in
 // pkg.Errors and Analyze processes whatever type information did resolve. A
-// returned error means the loader itself could not run (e.g. `go` missing).
+// returned error means the loader itself could not run (e.g. `go` missing), the
+// load timed out, or analysis panicked — never a process crash, so an
+// in-process or standalone caller is as safe as one behind the Python bridge.
 func Analyze(dir string) ([]Finding, error) {
+	return withRecover(func() ([]Finding, error) { return analyze(dir) })
+}
+
+// withRecover converts a panic during analysis into an error. go/types can
+// panic on pathological input (e.g. recursive generics); the production path
+// turns a non-zero exit into a fallback, but in-process callers have no such
+// boundary, so the binary contains the panic itself. The stack is kept in the
+// error so a standalone run (where main prints err to stderr) can diagnose the
+// panic site; the "crypto-analyzer:" prefix is left to main, the single owner.
+func withRecover(fn func() ([]Finding, error)) (findings []Finding, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			findings, err = nil, fmt.Errorf("recovered from panic: %v\n%s", r, debug.Stack())
+		}
+	}()
+	return fn()
+}
+
+func analyze(dir string) ([]Finding, error) {
 	scratch, err := os.MkdirTemp("", "crypto-analyzer-")
 	if err != nil {
 		return nil, err
 	}
 	defer os.RemoveAll(scratch)
 
+	ctx, cancel := context.WithTimeout(context.Background(), analyzeTimeout)
+	defer cancel()
 	cfg := &packages.Config{
-		Mode: loadMode,
-		Dir:  dir,
-		Env:  hardenedEnv(scratch, modFlagFor(dir)),
+		Mode:    loadMode,
+		Dir:     dir,
+		Env:     hardenedEnv(scratch, modFlagFor(dir)),
+		Context: ctx,
 	}
 	pkgs, err := packages.Load(cfg, "./...")
 	if err != nil {
