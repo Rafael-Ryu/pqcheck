@@ -410,7 +410,7 @@ _GOLDEN = json.dumps(
 
 
 def test_map_findings_builds_cryptofindings() -> None:
-    findings = gmd._map_findings(_GOLDEN)
+    findings = gmd._map_findings(_GOLDEN, Path("/m"))
 
     assert [f.algorithm for f in findings] == ["RSA", "AES"]
     rsa = findings[0]
@@ -424,12 +424,12 @@ def test_map_findings_builds_cryptofindings() -> None:
 
 
 def test_map_findings_malformed_json_returns_empty() -> None:
-    assert gmd._map_findings("{not json") == []
-    assert gmd._map_findings("") == []
+    assert gmd._map_findings("{not json", Path("/m")) == []
+    assert gmd._map_findings("", Path("/m")) == []
 
 
 def test_map_findings_non_array_returns_empty() -> None:
-    assert gmd._map_findings('{"algorithm": "RSA"}') == []
+    assert gmd._map_findings('{"algorithm": "RSA"}', Path("/m")) == []
 
 
 def test_map_findings_skips_invalid_item_keeps_valid() -> None:
@@ -449,12 +449,56 @@ def test_map_findings_skips_invalid_item_keeps_valid() -> None:
             },
         ]
     )
-    findings = gmd._map_findings(stdout)
+    findings = gmd._map_findings(stdout, Path("/m"))
     assert [f.algorithm for f in findings] == ["MD5"]
 
 
 def test_map_findings_skips_non_dict_items() -> None:
-    assert gmd._map_findings('[1, "x", null]') == []  # non-object elements skipped
+    assert gmd._map_findings('[1, "x", null]', Path("/m")) == []  # non-object elements skipped
+
+
+def _finding_item(**overrides: object) -> dict[str, object]:
+    item: dict[str, object] = {
+        "algorithm": "RSA",
+        "family": "asymmetric-encryption",
+        "path": "/m/main.go",
+        "line": 1,
+        "column": 0,
+        "end_line": 1,
+        "end_column": 5,
+        "evidence": "x",
+        "confidence": 1,
+    }
+    item.update(overrides)
+    return item
+
+
+def test_build_finding_clamps_oversized_key_size() -> None:
+    finding = gmd._build_finding(_finding_item(key_size=10**12), Path("/m"))
+    assert finding is not None  # the finding survives, only the bogus size is dropped
+    assert finding.key_size is None
+
+
+def test_build_finding_keeps_plausible_key_size() -> None:
+    finding = gmd._build_finding(_finding_item(key_size=2048), Path("/m"))
+    assert finding is not None
+    assert finding.key_size == 2048
+
+
+def test_build_finding_rejects_non_int_key_size() -> None:
+    assert gmd._build_finding(_finding_item(key_size=True), Path("/m")).key_size is None
+    assert gmd._build_finding(_finding_item(key_size="2048"), Path("/m")).key_size is None
+
+
+def test_build_finding_drops_path_outside_module_root() -> None:
+    assert gmd._build_finding(_finding_item(path="/etc/passwd"), Path("/m")) is None
+    assert gmd._build_finding(_finding_item(path="/m/../etc/x.go"), Path("/m")) is None
+
+
+def test_build_finding_keeps_path_inside_module_root() -> None:
+    finding = gmd._build_finding(_finding_item(path="/m/sub/x.go"), Path("/m"))
+    assert finding is not None
+    assert finding.location.path == Path("/m/sub/x.go")
 
 
 def test_platform_dir_maps_to_goos_goarch(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -506,8 +550,11 @@ def test_detect_go_module_uses_analyzer_output_when_available(
 ) -> None:
     binary = tmp_path / "crypto-analyzer"
     binary.write_bytes(b"x")
+    # The real binary emits absolute source paths under the scanned module; the
+    # bridge drops anything outside it, so the golden must live under tmp_path.
+    golden = _GOLDEN.replace("/m/", str(tmp_path) + "/")
     monkeypatch.setattr(gmd, "_locate_binary", lambda: (binary, True))
-    monkeypatch.setattr(gmd, "_run_analyzer", lambda root, b: _GOLDEN)
+    monkeypatch.setattr(gmd, "_run_analyzer", lambda root, b: golden)
 
     findings = detect_go_module(tmp_path)
 
