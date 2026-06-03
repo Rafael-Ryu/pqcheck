@@ -67,10 +67,16 @@ func TestAnalyzeExcludesCgoPackage(t *testing.T) {
 		"main.go": "package main\n\n// #include <stdlib.h>\nimport \"C\"\n" +
 			"import \"crypto/md5\"\nfunc main(){ _ = C.malloc(1); md5.New() }\n",
 	})
-	// CGO_ENABLED=0 excludes the package; the C compiler is never invoked. The
-	// only contract here is a controlled return, not a crash.
-	if _, err := Analyze(dir); err != nil {
+	// CGO_ENABLED=0 drops the package before type-checking, so the C compiler is
+	// never invoked on attacker source. The observable proof is the md5.New() in
+	// that package producing no finding: a surviving MD5 would mean the package
+	// compiled, i.e. cgo ran.
+	fs, err := Analyze(dir)
+	if err != nil {
 		t.Fatalf("cgo package should be excluded, not abort the load: %v", err)
+	}
+	if _, ok := findingsByAlgo(fs)["MD5"]; ok {
+		t.Fatalf("MD5 surfaced from the cgo package; CGO_ENABLED=0 must exclude it before compile: %+v", fs)
 	}
 }
 
