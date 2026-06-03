@@ -10,8 +10,11 @@ detector so the detection floor never drops below today's literal-based one.
 The child runs against an attacker-controlled module, so its memory is bounded
 on three levels: a GOMEMLIMIT soft GC target, an RLIMIT_DATA crash backstop, and
 an RSS poller in the collection loop that SIGKILLs the process group once the
-resident set crosses `_RSS_LIMIT_BYTES`. The RSS poller is the real hard cap on
-Linux, where the runtime grows its heap via mmap that the rlimit cannot see.
+analyzer's resident set crosses `_RSS_LIMIT_BYTES`. The RSS poller is the hard
+cap on the analyzer process on Linux, where the runtime grows its heap via mmap
+that the rlimit cannot see; it samples only that process, so the `go list`/
+compile grandchildren are bounded instead by the GOMEMLIMIT both envelopes pin on
+them (analyzer.go:hardenedEnv) plus the wall-clock deadline that reaps the group.
 
 De-duplication contract (consumed by the future scanner orchestrator, which does
 not exist yet — `pqcheck scan` is still a stub): the walker groups discovered
@@ -299,9 +302,11 @@ def _run_analyzer(module_root: Path, binary: Path) -> str | None:
 
     The child runs in its own session/process group so a timeout can SIGKILL the
     whole group: `go list` and the compiler it spawns are grandchildren that
-    `subprocess.run`'s timeout would leave orphaned. stdout is drained chunk by
-    chunk against the byte cap so a flood of output is rejected and the child
-    torn down the moment the cap is crossed, never buffered past it.
+    `subprocess.run`'s timeout would leave orphaned. On POSIX stdout is drained
+    chunk by chunk against the byte cap, so a flood is rejected and the child
+    torn down the moment the cap is crossed, never buffered past it. Windows has
+    no selector on pipes and falls back to `_collect_output_windows`, where the
+    cap is checked after the timeout-bounded read, not incrementally.
     """
     posix = sys.platform != "win32"
     preexec = _set_memory_limit if posix else None
@@ -397,7 +402,12 @@ def _drain_stdout(
 
 
 def _collect_output_windows(proc: subprocess.Popen[bytes]) -> str | None:  # pragma: no cover
-    """Windows fallback: no selector on pipes, so lean on communicate()."""
+    """Windows fallback: no selector on pipes, so lean on communicate().
+
+    The byte cap is enforced after communicate() returns, not incrementally as on
+    POSIX: output is bounded by the timeout-limited read window rather than torn
+    down the moment the cap is crossed.
+    """
     try:
         stdout, _ = proc.communicate(timeout=_TIMEOUT_SECONDS)
     except (subprocess.TimeoutExpired, OSError):
