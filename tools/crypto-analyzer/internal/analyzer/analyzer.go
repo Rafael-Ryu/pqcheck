@@ -64,10 +64,12 @@ const loadMode = packages.NeedName | packages.NeedFiles |
 // has a writable temp dir; caches are redirected to scratch so a scanned repo
 // can't read or poison the user's caches. modFlag is -mod=readonly by default,
 // or -mod=vendor when the scanned module ships a vendor tree — never -mod=mod,
-// which would fetch and rewrite go.mod. This mirrors the Python bridge's
-// _hardened_env (go_module_detector.py).
+// which would fetch and rewrite go.mod. GOMEMLIMIT gives the go list/compile
+// children a soft heap cap: the Python bridge's RSS poller only watches the
+// analyzer process, not these grandchildren, so this is their memory backstop.
+// This mirrors the Python bridge's _hardened_env (go_module_detector.py).
 func hardenedEnv(scratch, modFlag string) []string {
-	env := make([]string, 0, 13)
+	env := make([]string, 0, 14)
 	for _, key := range []string{"PATH", "HOME", "TMPDIR"} {
 		if v, ok := os.LookupEnv(key); ok {
 			env = append(env, key+"="+v)
@@ -81,6 +83,7 @@ func hardenedEnv(scratch, modFlag string) []string {
 		"GOPROXY=off",
 		"GOSUMDB=off",
 		"GOENV=off",
+		"GOMEMLIMIT=1500MiB",
 		"GOCACHE="+scratch+"/cache",
 		"GOMODCACHE="+scratch+"/modcache",
 		"GOPATH="+scratch+"/gopath",
