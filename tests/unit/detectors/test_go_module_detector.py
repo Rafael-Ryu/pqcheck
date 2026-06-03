@@ -50,6 +50,27 @@ def test_detect_go_module_rejects_non_utf8_path(
     assert detect_go_module(bad_root) is marker
 
 
+def test_hardened_env_is_clean_slate_allowlist(monkeypatch: pytest.MonkeyPatch) -> None:
+    # The scanned module is attacker-controlled, so the analyzer's env must be a
+    # curated allowlist, not os.environ + overrides: an unlisted host lever
+    # (GOPRIVATE, GODEBUG, ...) must not leak through, and every download/exec
+    # lever must be pinned off. Mirrors the Go-side TestHardenedEnvDropsUnlistedHostVars.
+    for var in ("GOPROXY", "GOPRIVATE", "GOINSECURE", "GODEBUG", "GOFLAGS", "SECRET_TOKEN"):
+        monkeypatch.setenv(var, "leak-me")
+    monkeypatch.setenv("PATH", "/usr/bin")
+
+    env = gmd._hardened_env()
+
+    assert env["PATH"] == "/usr/bin"
+    assert env["GOPROXY"] == "off"
+    assert env["GOFLAGS"] == "-mod=readonly"
+    assert env["CGO_ENABLED"] == "0"
+    assert env["GOTOOLCHAIN"] == "local"
+    assert env["GOMEMLIMIT"] == gmd._GOMEMLIMIT
+    for leaked in ("GOPRIVATE", "GOINSECURE", "GODEBUG", "SECRET_TOKEN"):
+        assert leaked not in env
+
+
 def test_groups_files_by_nearest_go_mod(tmp_path: Path) -> None:
     _touch(tmp_path / "go.mod")
     a = _touch(tmp_path / "a.go")
