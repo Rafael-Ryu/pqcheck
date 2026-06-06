@@ -610,3 +610,95 @@ def test_detect_go_module_fallback_skips_nested_module_files(
 
     assert "MD5" in algorithms
     assert "SHA-1" not in algorithms  # nested module is dispatched on its own
+
+
+# _hardened_env and _set_memory_limit are the Python half of the hostile-input
+# security envelope (the analyzer runs over attacker-controlled code). The Go
+# side has equivalent coverage in analyzer_envelope_test.go; these guard the
+# bridge side against a silent regression that re-enables a lever or breaks the
+# rlimit clamp.
+
+
+def test_hardened_env_pins_levers_over_hostile_host(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("GOPROXY", "https://evil.example")
+    monkeypatch.setenv("GOFLAGS", "-mod=mod")
+    monkeypatch.setenv("GOTOOLCHAIN", "auto")
+
+    env = gmd._hardened_env()
+
+    assert env["GOTOOLCHAIN"] == "local"
+    assert env["CGO_ENABLED"] == "0"
+    assert env["GOFLAGS"] == "-mod=readonly"
+    assert env["GOWORK"] == "off"
+    assert env["GOPROXY"] == "off"
+    assert env["GOSUMDB"] == "off"
+    assert env["GOENV"] == "off"
+    assert env["GOMEMLIMIT"] == gmd._GOMEMLIMIT
+
+
+def test_hardened_env_does_not_inherit_unlisted_host_vars(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("GODEBUG", "x509sha1=1")
+    monkeypatch.setenv("GOPRIVATE", "evil.example/*")
+    monkeypatch.setenv("GOINSECURE", "evil.example/*")
+    monkeypatch.setenv("SECRET_TOKEN", "leak-me")
+
+    env = gmd._hardened_env()
+
+    for leaked in ("GODEBUG", "GOPRIVATE", "GOINSECURE", "SECRET_TOKEN"):
+        assert leaked not in env
+    allowed = {
+        "PATH", "HOME", "TMPDIR", "GOTOOLCHAIN", "CGO_ENABLED", "GOFLAGS",
+        "GOWORK", "GOPROXY", "GOSUMDB", "GOENV", "GOMEMLIMIT",
+    }
+    assert set(env) <= allowed
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="resource/preexec is POSIX-only")
+def test_set_memory_limit_clamps_soft_to_finite_hard(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: list[tuple[int, tuple[int, int]]] = []
+    hard = gmd._MEMORY_LIMIT_BYTES // 2  # finite, below the desired target
+    monkeypatch.setattr(
+        gmd.resource, "getrlimit", lambda _which: (gmd.resource.RLIM_INFINITY, hard)
+    )
+    monkeypatch.setattr(
+        gmd.resource, "setrlimit", lambda which, limits: captured.append((which, limits))
+    )
+
+    gmd._set_memory_limit()
+
+    # Soft clamped down to the hard cap; the hard cap itself is left untouched.
+    assert captured == [(gmd.resource.RLIMIT_DATA, (hard, hard))]
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="resource/preexec is POSIX-only")
+def test_set_memory_limit_keeps_target_when_hard_is_infinite(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: list[tuple[int, tuple[int, int]]] = []
+    inf = gmd.resource.RLIM_INFINITY
+    monkeypatch.setattr(gmd.resource, "getrlimit", lambda _which: (inf, inf))
+    monkeypatch.setattr(
+        gmd.resource, "setrlimit", lambda which, limits: captured.append((which, limits))
+    )
+
+    gmd._set_memory_limit()
+
+    assert captured == [(gmd.resource.RLIMIT_DATA, (gmd._MEMORY_LIMIT_BYTES, inf))]
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="resource/preexec is POSIX-only")
+def test_set_memory_limit_swallows_rlimit_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def boom(*_args: object) -> None:
+        raise OSError("rlimit rejected")
+
+    monkeypatch.setattr(gmd.resource, "getrlimit", boom)
+
+    gmd._set_memory_limit()  # tolerated: the spawn must proceed, not abort

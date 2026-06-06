@@ -259,7 +259,7 @@ def _hardened_env() -> dict[str, str]:
     return env
 
 
-def _set_memory_limit() -> None:  # pragma: no cover - runs in the forked child
+def _set_memory_limit() -> None:
     # Lower the soft limit only, clamped to the inherited hard limit. A non-root
     # child cannot raise a hard limit, and macOS ships a finite RLIMIT_DATA hard
     # cap, so setting (target, target) outright raises inside the preexec_fn and
