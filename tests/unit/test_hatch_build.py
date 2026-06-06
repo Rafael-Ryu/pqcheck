@@ -3,6 +3,8 @@ import importlib.util
 import types
 from pathlib import Path
 
+from packaging.tags import sys_tags
+
 _ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -46,8 +48,11 @@ def _make_hook(root: Path) -> object:
     return hook
 
 
-def test_initialize_sets_infer_tag_when_binary_present(tmp_path: Path) -> None:
-    # Lay out a fake binary at the path the hook expects.
+def test_initialize_tags_wheel_abi_agnostic_platform(tmp_path: Path) -> None:
+    # The bundled binary is invoked as a subprocess, not linked against the
+    # CPython ABI, so the wheel installs on any Python 3 for this platform. It
+    # must be tagged py3-none-<platform>, not the interpreter-specific tag
+    # infer_tag would derive (which would lock each wheel to one minor version).
     platform_dir = hatch_build._platform_dir()
     binary_name = hatch_build._binary_name()
     bin_dir = tmp_path / "src" / "pqcheck" / "bin" / platform_dir
@@ -58,7 +63,8 @@ def test_initialize_sets_infer_tag_when_binary_present(tmp_path: Path) -> None:
     build_data: dict[str, object] = {}
     hook.initialize("1.0", build_data)  # type: ignore[union-attr]
 
-    assert build_data.get("infer_tag") is True
+    assert build_data.get("tag") == f"py3-none-{next(sys_tags()).platform}"
+    assert "infer_tag" not in build_data  # no interpreter-specific tag
 
 
 def test_initialize_marks_wheel_non_purelib_when_binary_present(tmp_path: Path) -> None:
@@ -82,4 +88,5 @@ def test_initialize_does_not_set_infer_tag_when_binary_absent(tmp_path: Path) ->
     build_data: dict[str, object] = {}
     hook.initialize("1.0", build_data)  # type: ignore[union-attr]
 
+    assert "tag" not in build_data
     assert "infer_tag" not in build_data
