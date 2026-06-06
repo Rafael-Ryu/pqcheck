@@ -77,6 +77,53 @@ def test_parse_indirect_comment_stripped(tmp_path: Path) -> None:
     assert deps[0].name == "golang.org/x/crypto"
 
 
+def test_parse_block_skips_compact_comment_line(tmp_path: Path) -> None:
+    # A full-line comment inside a require block with no space after `//`
+    # (`//evil v1.0.0`) shape-matches the module-line regex. Without a comment
+    # guard the parser forges a dependency named `//evil`. go.mod's lexer treats
+    # the whole line as a comment, so it must yield no dependency.
+    f = tmp_path / "go.mod"
+    f.write_text(
+        "module example.com/app\n\nrequire (\n"
+        "\t//evil v1.0.0\n"
+        "\tgolang.org/x/crypto v0.21.0\n)\n",
+        encoding="utf-8",
+    )
+    deps = parse(f)
+    assert {d.name for d in deps} == {"golang.org/x/crypto"}
+
+
+def test_parse_integrity_verified_true_when_no_go_sum(tmp_path: Path) -> None:
+    f = tmp_path / "go.mod"
+    f.write_text(
+        "module example.com/app\n\nrequire golang.org/x/crypto v0.21.0\n",
+        encoding="utf-8",
+    )
+    deps = parse(f)
+    # No go.sum to cross-reference: the parser makes no negative integrity claim.
+    assert all(d.integrity_verified for d in deps)
+
+
+def test_parse_integrity_unverified_when_go_sum_lacks_entry(tmp_path: Path) -> None:
+    # go.sum is the cryptographic checksum companion to go.mod. A require whose
+    # (module, version) is absent from a present go.sum is not checksum-pinned —
+    # the tamper signal the spec asks us to surface.
+    (tmp_path / "go.mod").write_text(
+        "module example.com/app\n\nrequire (\n"
+        "\tgolang.org/x/crypto v0.21.0\n"
+        "\tgithub.com/foo/bar v1.0.0\n)\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "go.sum").write_text(
+        "golang.org/x/crypto v0.21.0/go.mod h1:abc=\n"
+        "golang.org/x/crypto v0.21.0 h1:def=\n",
+        encoding="utf-8",
+    )
+    by_name = {d.name: d for d in parse(tmp_path / "go.mod")}
+    assert by_name["golang.org/x/crypto"].integrity_verified is True
+    assert by_name["github.com/foo/bar"].integrity_verified is False
+
+
 def test_parse_purl_three_part_path(tmp_path: Path) -> None:
     f = tmp_path / "go.mod"
     f.write_text(
