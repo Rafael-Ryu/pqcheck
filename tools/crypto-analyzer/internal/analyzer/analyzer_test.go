@@ -235,6 +235,40 @@ func TestAnalyzeLinksCBCWeakMode(t *testing.T) {
 	}
 }
 
+// A cipher.Block produced by a `var` declaration (a ValueSpec, not an
+// AssignStmt) must still link its mode. `var x = call()` is idiomatic Go and
+// common at package scope; missing it silently drops the mode on the algorithm
+// finding, under-reporting weak modes (CBC/CFB/ECB).
+func TestAnalyzeLinksModeToVarDeclaredBlock(t *testing.T) {
+	for name, src := range map[string]string{
+		"package-level": "package main\nimport (\n\"crypto/aes\"\n\"crypto/cipher\"\n)\n" +
+			"var block, _ = aes.NewCipher(make([]byte, 32))\n" +
+			"func main(){ _, _ = cipher.NewGCM(block) }\n",
+		"function-local": "package main\nimport (\n\"crypto/aes\"\n\"crypto/cipher\"\n)\n" +
+			"func main(){\nvar block, _ = aes.NewCipher(make([]byte, 32))\n_, _ = cipher.NewGCM(block)\n}\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			dir := writeModule(t, map[string]string{"main.go": src})
+			fs, err := Analyze(dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var aesF []Finding
+			for _, f := range fs {
+				if f.Algorithm == "AES" {
+					aesF = append(aesF, f)
+				}
+			}
+			if len(aesF) != 1 {
+				t.Fatalf("want exactly 1 AES finding (no double-count), got %d: %+v", len(aesF), fs)
+			}
+			if aesF[0].Mode != "GCM" {
+				t.Fatalf("mode = %q, want GCM (use-def linked through var decl)", aesF[0].Mode)
+			}
+		})
+	}
+}
+
 func TestAnalyzeAESWithoutModeHasNoMode(t *testing.T) {
 	dir := writeModule(t, map[string]string{
 		"main.go": "package main\nimport \"crypto/aes\"\nfunc main(){ aes.NewCipher(make([]byte, 32)) }\n",
