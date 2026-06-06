@@ -39,6 +39,9 @@ _BLOCK_CLOSE_RE = re.compile(r"^\s*\)")
 # `// indirect` or any comment is ignored by taking only groups 1+2.
 _BLOCK_LINE_RE = re.compile(r"^\s*(\S+)\s+(v\S+)")
 
+# A go.sum line is `module version hash` (3 whitespace-separated fields).
+_GO_SUM_MIN_FIELDS = 3
+
 
 def parse(path: Path) -> list[CryptoDependency]:
     raw = safe_read_bytes(path)
@@ -51,6 +54,7 @@ def parse(path: Path) -> list[CryptoDependency]:
 
     seen: set[tuple[str, str]] = set()
     deps: list[CryptoDependency] = []
+    summed = _load_go_sum(path)
 
     def _add(module_path: str, version: str) -> None:
         key = (module_path, version)
@@ -68,6 +72,8 @@ def parse(path: Path) -> list[CryptoDependency]:
                 ecosystem="golang",
                 declared_in=path,
                 introduces_algorithms=lookup_introduces("golang", module_path),
+                # No go.sum to consult => no negative claim (default True).
+                integrity_verified=summed is None or key in summed,
             )
         )
 
@@ -86,6 +92,8 @@ def parse(path: Path) -> list[CryptoDependency]:
             if _BLOCK_CLOSE_RE.match(line):
                 in_block = False
                 continue
+            if line.lstrip().startswith("//"):
+                continue  # a full-line comment is not a module entry
             line_m = _BLOCK_LINE_RE.match(line)
             if line_m:
                 _add(line_m.group(1), line_m.group(2))
@@ -98,3 +106,28 @@ def parse(path: Path) -> list[CryptoDependency]:
             _add(single_m.group(1), single_m.group(2))
 
     return deps
+
+
+def _load_go_sum(go_mod_path: Path) -> set[tuple[str, str]] | None:
+    """Index the (module, version) pairs checksummed in the sibling go.sum.
+
+    Returns None when no go.sum sits next to go.mod (nothing to cross-reference,
+    so callers make no integrity claim). go.sum lines are `module version hash`
+    and `module version/go.mod hash`; the `/go.mod` suffix is stripped so both
+    forms collapse to the same (module, version) key the require block uses.
+    """
+    raw = safe_read_bytes(go_mod_path.with_name("go.sum"))
+    if raw is None:
+        return None
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+    summed: set[tuple[str, str]] = set()
+    for raw_line in text.split("\n"):
+        parts = raw_line.split()
+        if len(parts) < _GO_SUM_MIN_FIELDS:
+            continue
+        module, version = parts[0], parts[1].removesuffix("/go.mod")
+        summed.add((module, version))
+    return summed

@@ -152,10 +152,20 @@ def test_detect_go_file_reads_and_detects(tmp_path: Path) -> None:
     assert [x.algorithm for x in fs] == ["MD5"]
 
 
-def test_detect_go_file_broken_source_returns_empty(tmp_path: Path) -> None:
+def test_detect_go_file_broken_source_without_crypto_returns_empty(tmp_path: Path) -> None:
     f = tmp_path / "broken.go"
     f.write_text("package m\nfunc f( { @@@ not valid %%% }\n")
     assert detect_go_file(f) == []
+
+
+def test_detect_go_file_broken_source_still_emits_crypto_finding(tmp_path: Path) -> None:
+    # tree-sitter builds a partial tree from broken input: a well-formed
+    # call_expression that survives inside the ERROR region is still matched, so
+    # a crypto call in otherwise-invalid Go is reported (never-raise, not
+    # never-detect). Guards the docstring contract against a vacuous fixture.
+    f = tmp_path / "broken.go"
+    f.write_text('package m\nimport "crypto/md5"\nfunc f( { @@@ md5.New() %%% }\n')
+    assert [x.algorithm for x in detect_go_file(f)] == ["MD5"]
 
 
 def test_backtick_import_binds_last_segment() -> None:
