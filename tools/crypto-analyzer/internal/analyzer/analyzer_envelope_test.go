@@ -39,6 +39,10 @@ func TestHardenedEnvPinsWinOverHostileHost(t *testing.T) {
 		"GOCACHE":     "/scratch/cache",
 		"GOMODCACHE":  "/scratch/modcache",
 		"GOPATH":      "/scratch/gopath",
+		// Soft memory target for the `go list`/compiler grandchildren, which run
+		// over attacker-controlled code; the clean-slate env means the parent's
+		// GOMEMLIMIT does not reach them unless pinned here.
+		"GOMEMLIMIT": goMemLimit,
 	}
 	for k, v := range want {
 		if got := env[k]; got != v {
