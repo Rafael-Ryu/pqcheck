@@ -172,6 +172,29 @@ def test_verify_sha256_trusts_override_without_pin(
     assert gmd._verify_sha256(binary, trusted=True) is True
 
 
+def test_detect_go_module_falls_back_when_bundled_pin_mismatches(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    # End-to-end fail-closed: a present, untrusted (bundled) binary whose bytes
+    # do not match the build-time pin must never run — detect_go_module routes to
+    # the tree-sitter fallback. Drives the real _verify_sha256 (not mocked) so the
+    # security-critical mismatch path is proven through the full entry point.
+    binary = tmp_path / "bin" / "crypto-analyzer"
+    binary.parent.mkdir()
+    binary.write_bytes(b"tampered-binary")
+    marker: list[CryptoFinding] = []
+
+    def _must_not_run(*args: object, **kwargs: object) -> None:
+        raise AssertionError("analyzer ran despite a SHA-256 pin mismatch")
+
+    monkeypatch.setattr(gmd, "_locate_binary", lambda: (binary, False))
+    monkeypatch.setattr(gmd, "_CRYPTO_ANALYZER_SHA256", "0" * 64)
+    monkeypatch.setattr(gmd, "_run_analyzer", _must_not_run)
+    monkeypatch.setattr(gmd, "_fallback", lambda root: marker)
+
+    assert detect_go_module(tmp_path) is marker
+
+
 requires_posix = pytest.mark.skipif(
     sys.platform == "win32", reason="bridge subprocess tests assume POSIX scripts"
 )

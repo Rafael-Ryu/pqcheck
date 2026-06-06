@@ -76,7 +76,24 @@ jobs:
               || { echo "missing binary in $whl"; exit 1; }
             unzip -l "$whl" | grep -q 'pqcheck/data/crypto-catalog.json' \
               || { echo "missing catalog in $whl"; exit 1; }
+            # The SHA-256 pin (hatch_build.py) is skipped silently if the binary
+            # is absent at hook time; without it the runtime can't verify the
+            # bundled binary and falls back to tree-sitter on every scan.
+            unzip -l "$whl" | grep -q 'pqcheck/detectors/_constants.py' \
+              || { echo "missing SHA-256 pin (_constants.py) in $whl"; exit 1; }
           done
+      - name: Smoke-test the linux wheel
+        # The ubuntu runner can only install the linux wheel; running the entry
+        # point catches a broken import or console-script before users do.
+        run: |
+          linux_whl=""
+          for whl in dist/*.whl; do
+            if unzip -l "$whl" | grep -q 'pqcheck/bin/linux-amd64/crypto-analyzer'; then
+              linux_whl="$whl"; break
+            fi
+          done
+          [ -n "$linux_whl" ] || { echo "no linux wheel to smoke-test"; exit 1; }
+          uv run --no-project --with "$linux_whl" pqcheck --help
       # Publish first, while dist/ holds only wheels; signing adds .sigstore
       # bundles that PyPI must not receive.
       - uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # v1.14.0
