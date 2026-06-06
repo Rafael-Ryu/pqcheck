@@ -32,6 +32,13 @@ var analyzeTimeout = 5 * time.Minute
 // huge constant from flowing downstream.
 const maxKeySize = 1 << 20
 
+// goMemLimit is the soft memory target handed to the `go list`/compiler
+// grandchildren that run over attacker-controlled code. The clean-slate env
+// means the Python bridge's own GOMEMLIMIT does not propagate to them, so it is
+// pinned here too; it mirrors the bridge's _GOMEMLIMIT. A soft target lets the
+// GC reclaim before the bridge's hard RSS kill has to fire.
+const goMemLimit = "1500MiB"
+
 // Finding is one detected crypto primitive use. JSON tags match the Python
 // bridge's CryptoFinding mapping.
 type Finding struct {
@@ -67,7 +74,7 @@ const loadMode = packages.NeedName | packages.NeedFiles |
 // which would fetch and rewrite go.mod. This mirrors the Python bridge's
 // _hardened_env (go_module_detector.py).
 func hardenedEnv(scratch, modFlag string) []string {
-	env := make([]string, 0, 13)
+	env := make([]string, 0, 14)
 	for _, key := range []string{"PATH", "HOME", "TMPDIR"} {
 		if v, ok := os.LookupEnv(key); ok {
 			env = append(env, key+"="+v)
@@ -84,6 +91,7 @@ func hardenedEnv(scratch, modFlag string) []string {
 		"GOCACHE="+scratch+"/cache",
 		"GOMODCACHE="+scratch+"/modcache",
 		"GOPATH="+scratch+"/gopath",
+		"GOMEMLIMIT="+goMemLimit,
 	)
 }
 
@@ -215,11 +223,28 @@ var goModeConstructors = map[string]string{
 func (v *visitor) visit(n ast.Node) bool {
 	switch node := n.(type) {
 	case *ast.AssignStmt:
-		v.recordBindings(node)
+		v.recordBindings(node.Lhs, node.Rhs)
+	case *ast.ValueSpec:
+		// `var block, _ = aes.NewCipher(...)` binds a cipher.Block the same way
+		// `block, _ := ...` does, but as a ValueSpec inside a GenDecl rather than
+		// an AssignStmt. Both function-local and package-level var decls reach
+		// here via the walk. Names hold no value (e.g. `var x cipher.Block`) are
+		// skipped because there is no call to bind.
+		if len(node.Values) > 0 {
+			v.recordBindings(identsToExprs(node.Names), node.Values)
+		}
 	case *ast.CallExpr:
 		v.recordCall(node)
 	}
 	return true
+}
+
+func identsToExprs(names []*ast.Ident) []ast.Expr {
+	out := make([]ast.Expr, len(names))
+	for i, n := range names {
+		out[i] = n
+	}
+	return out
 }
 
 func (v *visitor) recordCall(call *ast.CallExpr) {
@@ -241,36 +266,37 @@ func (v *visitor) recordCall(call *ast.CallExpr) {
 // assignment to each variable. resolve only links a mode when the variable is
 // assigned exactly once: a var reassigned or set in multiple branches is
 // ambiguous, so the cipher.Block it holds at the mode site is not knowable from
-// a single statement and the finding is left without a mode.
-func (v *visitor) recordBindings(assign *ast.AssignStmt) {
-	for _, lhs := range assign.Lhs {
-		if ident, ok := lhs.(*ast.Ident); ok {
+// a single statement and the finding is left without a mode. lhs/rhs come from
+// either an AssignStmt or a var ValueSpec; the binding shape is identical.
+func (v *visitor) recordBindings(lhs, rhs []ast.Expr) {
+	for _, l := range lhs {
+		if ident, ok := l.(*ast.Ident); ok {
 			if vobj := v.varOf(ident); vobj != nil {
 				v.assigns[vobj]++
 			}
 		}
 	}
-	for i, rhs := range assign.Rhs {
-		call, ok := rhs.(*ast.CallExpr)
+	for i, r := range rhs {
+		call, ok := r.(*ast.CallExpr)
 		if !ok {
 			continue
 		}
 		if _, ok := v.cat[v.qualifiedCallee(call)]; !ok {
 			continue
 		}
-		var lhs ast.Expr
+		var target ast.Expr
 		switch {
-		case len(assign.Rhs) == 1 && len(assign.Lhs) >= 1:
+		case len(rhs) == 1 && len(lhs) >= 1:
 			// Multi-value call: the catalog's mode-wrappable constructors
 			// (aes/des/rc4 NewCipher) all return (cipher.Block, error), so the
-			// block is Lhs[0]. A future entry returning its cipher in a later
+			// block is lhs[0]. A future entry returning its cipher in a later
 			// position would need this revisited; the single-assignment gate
 			// below bounds the blast radius until then.
-			lhs = assign.Lhs[0]
-		case i < len(assign.Lhs):
-			lhs = assign.Lhs[i]
+			target = lhs[0]
+		case i < len(lhs):
+			target = lhs[i]
 		}
-		ident, ok := lhs.(*ast.Ident)
+		ident, ok := target.(*ast.Ident)
 		if !ok {
 			continue
 		}
