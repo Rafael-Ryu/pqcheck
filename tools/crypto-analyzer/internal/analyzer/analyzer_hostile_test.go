@@ -2,9 +2,24 @@ package analyzer
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 )
+
+// hasCCompiler reports whether a C compiler is reachable, so cgo-dependent
+// assertions can be skipped on hosts (e.g. minimal CI) that lack one.
+func hasCCompiler() bool {
+	cc := os.Getenv("CC")
+	if cc == "" {
+		cc = "cc"
+	}
+	if _, err := exec.LookPath(cc); err == nil {
+		return true
+	}
+	_, err := exec.LookPath("gcc")
+	return err == nil
+}
 
 // The scanned module is attacker-controlled. These tests pin the envelope's
 // behaviour on hostile inputs: tolerate type errors, ignore a workspace file,
@@ -63,6 +78,13 @@ func TestAnalyzeIgnoresHostileGoWork(t *testing.T) {
 }
 
 func TestAnalyzeExcludesCgoPackage(t *testing.T) {
+	// The MD5-absence assertion only proves CGO_ENABLED=0 when a C compiler is
+	// present: without one, a regressed CGO_ENABLED=1 would also drop the package
+	// (go list fails it for lack of a compiler), so the test would pass for the
+	// wrong reason. Skip rather than give false assurance.
+	if !hasCCompiler() {
+		t.Skip("no C compiler on PATH; cgo exclusion is indistinguishable from a missing toolchain")
+	}
 	dir := writeModule(t, map[string]string{
 		"main.go": "package main\n\n// #include <stdlib.h>\nimport \"C\"\n" +
 			"import \"crypto/md5\"\nfunc main(){ _ = C.malloc(1); md5.New() }\n",
