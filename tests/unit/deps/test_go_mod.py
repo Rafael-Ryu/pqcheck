@@ -194,3 +194,19 @@ def test_parse_fixture_basic(tmp_path: Path) -> None:
     assert "github.com/youmark/pkcs8" in by_name
     assert by_name["github.com/golang-jwt/jwt/v5"].version == "v5.2.1"
     assert by_name["golang.org/x/crypto"].version == "v0.21.0"
+
+
+def test_parse_ignores_non_go_line_terminators(tmp_path: Path) -> None:
+    # go.mod's lexer terminates a line only on \n. A form-feed (\x0c) is not a
+    # line break to Go, so a `require` smuggled after one on the same physical
+    # line must not be parsed as a second dependency. str.splitlines() would
+    # split here and forge evil.example/pkg.
+    f = tmp_path / "go.mod"
+    f.write_bytes(
+        b"module example.com/m\n\n"
+        b"require golang.org/x/crypto v0.21.0\x0crequire evil.example/pkg v9.9.9\n"
+    )
+    deps = parse(f)
+    names = {d.name for d in deps}
+    assert "golang.org/x/crypto" in names  # the real require still parses
+    assert "evil.example/pkg" not in names  # the smuggled one does not
