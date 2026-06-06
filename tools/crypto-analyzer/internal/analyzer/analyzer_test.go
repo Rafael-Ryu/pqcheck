@@ -318,6 +318,79 @@ func TestAnalyzeBranchedBlockHasNoMode(t *testing.T) {
 	}
 }
 
+func TestAnalyzeResolvesMLKEM(t *testing.T) {
+	// crypto/mlkem (Go 1.24+) is the only PQC primitive in the catalog. Both
+	// GenerateKey768 and GenerateKey1024 must resolve, so a catalog regression
+	// dropping either is caught: two calls => two ML-KEM findings.
+	dir := writeModule(t, map[string]string{
+		"main.go": "package main\nimport \"crypto/mlkem\"\n" +
+			"func main(){ _, _ = mlkem.GenerateKey768(); _, _ = mlkem.GenerateKey1024() }\n",
+	})
+	fs, err := Analyze(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var mlkem int
+	for _, f := range fs {
+		if f.Algorithm == "ML-KEM" {
+			if f.Family != "key-encapsulation" {
+				t.Errorf("family = %q, want key-encapsulation", f.Family)
+			}
+			mlkem++
+		}
+	}
+	if mlkem != 2 {
+		t.Fatalf("ML-KEM findings = %d, want 2 (768 + 1024), got %+v", mlkem, fs)
+	}
+}
+
+func TestAnalyzeAmbiguousModeLowersConfidence(t *testing.T) {
+	// A cipher.Block assigned across branches cannot be pinned to a single
+	// producer, so the mode is left unlinked (TestAnalyzeBranchedBlockHasNoMode)
+	// AND the affected findings drop to reduced confidence: we know a mode was
+	// applied but not to which cipher. 0.7 is the project's reduced-confidence
+	// value (matches python_detector / go tree-sitter).
+	dir := writeModule(t, map[string]string{
+		"main.go": "package main\n" +
+			"import (\n\"crypto/aes\"\n\"crypto/cipher\"\n\"crypto/des\"\n)\n" +
+			"func enc(useAes bool, key []byte) {\n" +
+			"\tvar block cipher.Block\n" +
+			"\tif useAes {\n\t\tblock, _ = aes.NewCipher(key)\n" +
+			"\t} else {\n\t\tblock, _ = des.NewCipher(key)\n\t}\n" +
+			"\t_, _ = cipher.NewGCM(block)\n}\n" +
+			"func main() { enc(true, nil) }\n",
+	})
+	fs, err := Analyze(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(fs) == 0 {
+		t.Fatalf("expected AES and DES findings, got none")
+	}
+	for _, f := range fs {
+		if f.Confidence != 0.7 {
+			t.Errorf("%s.Confidence = %v, want 0.7 (ambiguous mode)", f.Algorithm, f.Confidence)
+		}
+	}
+}
+
+func TestAnalyzeLinkedModeKeepsFullConfidence(t *testing.T) {
+	// Positive control: a single-assignment block that links cleanly to GCM
+	// stays at full confidence — only ambiguity lowers it.
+	dir := writeModule(t, map[string]string{
+		"main.go": "package main\nimport (\n\"crypto/aes\"\n\"crypto/cipher\"\n)\n" +
+			"func main(){\nblock, _ := aes.NewCipher(make([]byte, 32))\n_, _ = cipher.NewGCM(block)\n}\n",
+	})
+	fs, err := Analyze(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	aes := findingsByAlgo(fs)["AES"]
+	if aes.Confidence != 1.0 {
+		t.Errorf("confidence = %v, want 1.0 (cleanly linked)", aes.Confidence)
+	}
+}
+
 func TestAnalyzeResolvesDotImport(t *testing.T) {
 	dir := writeModule(t, map[string]string{
 		"main.go": "package main\n" +
