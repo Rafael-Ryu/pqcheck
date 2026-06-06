@@ -139,6 +139,10 @@ class CryptoDependency(BaseModel):
     ecosystem: str = Field(min_length=1)
     declared_in: Path
     introduces_algorithms: tuple[str, ...] = ()
+    # False only when a companion checksum file (e.g. go.sum) is present but
+    # carries no entry for this (name, version) — a not-pinned / tampered
+    # signal. True when verified, or when no checksum file applies.
+    integrity_verified: bool = True
 
     @field_validator("purl")
     @classmethod
