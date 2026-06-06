@@ -343,12 +343,16 @@ func (v *visitor) varOf(ident *ast.Ident) *types.Var {
 // (AES + GCM), not two.
 func (v *visitor) resolve(out *[]Finding) {
 	varToIdx := map[*types.Var]int{}
+	producer := map[int]*types.Var{}
 	for _, site := range v.crypto {
 		*out = append(*out, v.build(site.call, site.hit))
 		if vobj, ok := v.callVar[site.call]; ok {
-			varToIdx[vobj] = len(*out) - 1
+			idx := len(*out) - 1
+			varToIdx[vobj] = idx
+			producer[idx] = vobj
 		}
 	}
+	ambiguous := map[*types.Var]bool{}
 	for _, m := range v.modes {
 		if len(m.call.Args) < 1 {
 			continue
@@ -362,13 +366,26 @@ func (v *visitor) resolve(out *[]Finding) {
 			continue
 		}
 		if v.assigns[vobj] != 1 {
-			continue // ambiguous: reassigned or set across branches
+			ambiguous[vobj] = true // reassigned or set across branches
+			continue
 		}
 		if idx, ok := varToIdx[vobj]; ok && (*out)[idx].Mode == "" {
 			(*out)[idx].Mode = m.mode
 		}
 	}
+	// A mode constructor consumed a block we could not pin to one producer: the
+	// cipher resolves but its mode does not, so the finding is less certain.
+	for idx, vobj := range producer {
+		if ambiguous[vobj] {
+			(*out)[idx].Confidence = ambiguousModeConfidence
+		}
+	}
 }
+
+// ambiguousModeConfidence is the project's reduced-confidence value (matches
+// the Python AST and tree-sitter detectors), applied when a cipher resolves but
+// its mode cannot be use-def linked to a single producer.
+const ambiguousModeConfidence = 0.7
 
 func (v *visitor) build(call *ast.CallExpr, hit catalog.Hit) Finding {
 	fset := v.pkg.Fset
