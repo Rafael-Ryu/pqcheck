@@ -75,8 +75,13 @@ def parse(path: Path) -> list[CryptoDependency]:
     # lazy DOTALL regex to capture each `require ( ... )` body, which backtracked
     # to EOF from every opener when the closing paren was missing (~O(n^2) on
     # hostile input). Line-oriented scanning stays linear and never backtracks.
+    # Split on the Go line terminator only. str.splitlines() also breaks on
+    # form-feed, vertical-tab, NEL, and the Unicode line/paragraph separators,
+    # none of which terminate a line in go.mod's lexer — splitting on them lets
+    # a control char inside one physical line forge a second `require`.
     in_block = False
-    for line in text.splitlines():
+    for raw_line in text.split("\n"):
+        line = raw_line.rstrip("\r")
         if in_block:
             if _BLOCK_CLOSE_RE.match(line):
                 in_block = False
