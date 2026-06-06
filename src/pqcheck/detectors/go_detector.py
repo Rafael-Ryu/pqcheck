@@ -6,9 +6,11 @@ Two passes over a tree-sitter Go parse tree:
   2. GoDetector visits every call_expression of the form pkg.Func(...),
      resolves it against pqcheck.detectors.algorithms, and emits findings.
 
-tree-sitter never raises on invalid syntax — ERROR nodes simply match no
-selectors. detect_go_file therefore returns [] for unparseable input rather
-than crashing, matching the Python detector's never-raise contract.
+tree-sitter never raises on invalid syntax: it builds a partial tree where the
+broken span becomes ERROR nodes. The walk descends through them, so a well-formed
+`pkg.Func(...)` call surviving inside otherwise-invalid Go is still resolved and
+reported — malformed input degrades coverage, it does not crash. detect_go_file
+honours the Python detector's never-raise contract.
 """
 
 from __future__ import annotations
@@ -242,7 +244,8 @@ def detect_go_file(path: Path) -> list[CryptoFinding]:
 
     Returns [] for: missing file, symlink, non-regular file, file > 2 MiB,
     unreadable bytes, or an unexpected internal failure. tree-sitter tolerates
-    invalid syntax (ERROR nodes match nothing), so malformed Go yields [].
+    invalid syntax by parsing a partial tree, so a crypto call surviving inside
+    malformed Go is still reported; only input with no resolvable call yields [].
     """
     raw = read_source_bytes(path)
     if raw is None:
