@@ -114,7 +114,11 @@ include = [
 ]
 
 [tool.cibuildwheel]
-build = "cp312-* cp313-*"
+# One interpreter per platform: the wheel is tagged py3-none-<platform>
+# (hatch_build.py), so a single build serves every supported 3.x. Building
+# more interpreters would only re-emit byte-identical wheels that collide on
+# upload.
+build = "cp312-*"
 skip = "*-musllinux_*"
 # Runs per wheel under the CIBW_ENVIRONMENT the release matrix sets (GOOS/GOARCH).
 # go:generate syncs the single-source catalog for //go:embed, then the binary is
