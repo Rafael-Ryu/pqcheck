@@ -1,16 +1,16 @@
-"""Domain types emitted by language detectors and dependency parsers.
+"""Domain types for the pqcheck analysis pipeline.
 
-Slice consumed by the Python AST detector and the v0.1 deps parsers
-(pyproject.toml, uv.lock, pom.xml) lives here today.
-Downstream computed fields (severity, base_severity, confidence_band,
-ScanResult, policy_decisions) are added when the
-policy engine and scanner orchestrator land.
+Detector and dependency-parser outputs — `CryptoFinding` and
+`CryptoDependency` — live here alongside the policy/scan result types
+(`RuleAction`, `PolicyDecision`, `ScanResult`) consumed by the policy
+engine and scanner orchestrator.
 """
 
 from __future__ import annotations
 
 from enum import StrEnum
 from pathlib import Path
+from typing import Literal
 
 from packageurl import PackageURL
 from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
@@ -53,6 +53,12 @@ class ConfidenceBand(StrEnum):
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
+
+
+class RuleAction(StrEnum):
+    ALLOW = "allow"
+    WARN = "warn"
+    FAIL = "fail"
 
 
 _QUANTUM_MAP: dict[str, QuantumRisk] = {
@@ -155,3 +161,33 @@ class CryptoDependency(BaseModel):
         except ValueError as exc:
             raise ValueError(f"invalid PURL: {value!r}") from exc
         return value
+
+
+class PolicyDecision(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    finding: CryptoFinding
+    action: RuleAction
+    base_severity: Severity
+    severity: Severity
+    confidence_band: ConfidenceBand
+    rule_kind: Literal["approved", "banned", "default"]
+    # The policy rule's algorithm token that matched, or "default-action".
+    matched: str
+    reason: str | None = None
+    # A consciously-deferred audit hint: a matching exception exists but is NOT
+    # auto-applied in v0.1 (findings carry no usage-context). None otherwise.
+    exception_id: str | None = None
+
+
+class ScanResult(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    target: Path
+    scanner_version: str = Field(min_length=1)
+    findings: tuple[CryptoFinding, ...] = ()
+    dependencies: tuple[CryptoDependency, ...] = ()
+    policy_decisions: tuple[PolicyDecision, ...] = ()
+    policy_id: str | None = None
+    # Per-file error messages from the walk, surfaced rather than hidden.
+    errors: tuple[str, ...] = ()
