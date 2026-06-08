@@ -55,6 +55,12 @@ class ConfidenceBand(StrEnum):
     HIGH = "high"
 
 
+class RuleAction(StrEnum):
+    ALLOW = "allow"
+    WARN = "warn"
+    FAIL = "fail"
+
+
 _QUANTUM_MAP: dict[str, QuantumRisk] = {
     "RSA": QuantumRisk.VULNERABLE,
     "DSA": QuantumRisk.VULNERABLE,

@@ -1,6 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
+from pqcheck.models import RuleAction as ModelsRuleAction
 from pqcheck.policy.schema import (
     AlgorithmRule,
     CryptoPolicy,
@@ -120,3 +121,8 @@ def test_missing_metadata_field_rejected():
     md = {k: v for k, v in _VALID["metadata"].items() if k != "version"}
     with pytest.raises(ValidationError):
         CryptoPolicy.model_validate({**_VALID, "metadata": md})
+
+
+def test_rule_action_is_reexported_from_schema():
+    assert RuleAction is ModelsRuleAction
+    assert {a.value for a in RuleAction} == {"allow", "warn", "fail"}
