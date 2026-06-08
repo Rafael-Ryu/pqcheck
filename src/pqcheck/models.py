@@ -161,3 +161,34 @@ class CryptoDependency(BaseModel):
         except ValueError as exc:
             raise ValueError(f"invalid PURL: {value!r}") from exc
         return value
+
+
+class PolicyDecision(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    finding: CryptoFinding
+    action: RuleAction
+    base_severity: Severity
+    severity: Severity
+    confidence_band: ConfidenceBand
+    # "approved" | "banned" | "default" — where the verdict came from.
+    rule_kind: str
+    # The policy rule's algorithm token that matched, or "default-action".
+    matched: str
+    reason: str | None = None
+    # A consciously-deferred audit hint: a matching exception exists but is NOT
+    # auto-applied in v0.1 (findings carry no usage-context). None otherwise.
+    exception_id: str | None = None
+
+
+class ScanResult(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    target: Path
+    scanner_version: str
+    findings: tuple[CryptoFinding, ...] = ()
+    dependencies: tuple[CryptoDependency, ...] = ()
+    policy_decisions: tuple[PolicyDecision, ...] = ()
+    policy_id: str | None = None
+    # Per-file errors swallowed during the walk (path: reason), surfaced not hidden.
+    errors: tuple[str, ...] = ()
