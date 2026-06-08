@@ -6,8 +6,15 @@ per finding. The scanner calls this; the CLI gates on the results.
 
 from __future__ import annotations
 
-from pqcheck.models import AlgorithmFamily, ConfidenceBand, CryptoFinding, Severity
-from pqcheck.policy.schema import AlgorithmRule, PolicyFamily, SeverityRuleAction
+from pqcheck.models import (
+    AlgorithmFamily,
+    ConfidenceBand,
+    CryptoFinding,
+    PolicyDecision,
+    RuleAction,
+    Severity,
+)
+from pqcheck.policy.schema import AlgorithmRule, CryptoPolicy, PolicyFamily, SeverityRuleAction
 
 _SEVERITY_ORDER: list[Severity] = list(Severity)  # INFO .. CRITICAL
 
@@ -60,3 +67,50 @@ def rule_matches(rule: AlgorithmRule, finding: CryptoFinding) -> bool:
     # detector does not emit in v0.1; context-scoped rules are matched on
     # family+algorithm+params only. Documented limitation, not a silent gap.
     return rule.modes is None or finding.mode in rule.modes
+
+
+_DEFAULT_BASE = Severity.MEDIUM  # base for default-action (unmatched) findings
+
+
+def _band_action(policy: CryptoPolicy) -> dict[ConfidenceBand, SeverityRuleAction]:
+    return {r.confidence_band: r.action for r in policy.spec.severity_rules}
+
+
+def _exception_id(policy: CryptoPolicy, finding: CryptoFinding) -> str | None:
+    for exc in policy.spec.exceptions:
+        if exc.banned_algorithm and exc.banned_algorithm.upper() == finding.algorithm.upper():
+            return exc.id
+    return None
+
+
+def _decide(finding: CryptoFinding, policy: CryptoPolicy,
+            band_action: dict[ConfidenceBand, SeverityRuleAction]) -> PolicyDecision:
+    band = confidence_to_band(finding.confidence)
+    sev_action = band_action.get(band, SeverityRuleAction.AS_DECLARED)
+
+    for rule in policy.spec.banned:
+        if rule_matches(rule, finding):
+            base = rule.severity or Severity.HIGH
+            return PolicyDecision(
+                finding=finding, action=rule.action, base_severity=base,
+                severity=demote(base, sev_action), confidence_band=band,
+                rule_kind="banned", matched=rule.algorithm, reason=rule.reason,
+                exception_id=_exception_id(policy, finding),
+            )
+    for rule in policy.spec.approved:
+        if rule_matches(rule, finding):
+            return PolicyDecision(
+                finding=finding, action=RuleAction.ALLOW, base_severity=Severity.INFO,
+                severity=Severity.INFO, confidence_band=band,
+                rule_kind="approved", matched=rule.algorithm, reason=rule.reason,
+            )
+    return PolicyDecision(
+        finding=finding, action=policy.spec.default_action, base_severity=_DEFAULT_BASE,
+        severity=demote(_DEFAULT_BASE, sev_action), confidence_band=band,
+        rule_kind="default", matched="default-action", reason=None,
+    )
+
+
+def evaluate(findings: list[CryptoFinding], policy: CryptoPolicy) -> list[PolicyDecision]:
+    band_action = _band_action(policy)
+    return [_decide(f, policy, band_action) for f in findings]
