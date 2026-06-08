@@ -1,3 +1,4 @@
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -12,7 +13,14 @@ from pqcheck.models import (
 )
 from pqcheck.policy.engine import confidence_to_band, demote, evaluate, rule_matches
 from pqcheck.policy.loader import load_default_policy
-from pqcheck.policy.schema import AlgorithmRule, PolicyFamily, SeverityRuleAction
+from pqcheck.policy.schema import (
+    AlgorithmRule,
+    CryptoPolicy,
+    PolicyFamily,
+    PolicyMetadata,
+    PolicySpec,
+    SeverityRuleAction,
+)
 
 
 @pytest.mark.parametrize("conf,band", [
@@ -104,3 +112,39 @@ def test_evaluate_does_not_auto_apply_exception_to_rsa():
     assert d.action == RuleAction.FAIL
     assert d.rule_kind == "banned"
     assert d.exception_id == "EXC-001"  # recorded for audit, disposition unchanged
+
+
+def test_rule_matches_size_scoped_no_match_when_key_size_absent():
+    aes128 = AlgorithmRule(family=PolicyFamily.SYMMETRIC_CIPHER, algorithm="AES",
+                           parameter_sets=["128"], action=RuleAction.FAIL)
+    # key_size absent: the token becomes None, which is not in ["128"]
+    assert not rule_matches(aes128, _find("AES", AlgorithmFamily.SYMMETRIC_CIPHER))
+
+
+def test_rule_matches_curves_scoped_no_match_when_curve_differs():
+    eddsa = AlgorithmRule(family=PolicyFamily.SIGNATURE, algorithm="EdDSA",
+                          curves=["Ed25519"], action=RuleAction.FAIL)
+    assert not rule_matches(eddsa, _find("EdDSA", AlgorithmFamily.SIGNATURE, curve="Ed448"))
+
+
+def test_evaluate_banned_ecdsa_default_policy_exception_id_is_none():
+    policy = load_default_policy("cryptoct-default")
+    [d] = evaluate([_f("ECDSA", AlgorithmFamily.SIGNATURE, 0.9)], policy)
+    assert d.rule_kind == "banned"
+    assert d.action == RuleAction.FAIL
+    assert d.exception_id is None
+
+
+def test_banned_rule_without_severity_falls_back_to_high():
+    rule = AlgorithmRule(family=PolicyFamily.ASYMMETRIC_ENCRYPTION, algorithm="RSA",
+                         action=RuleAction.FAIL)
+    policy = CryptoPolicy(
+        apiVersion="pqcheck.cryptoct.com/v1", kind="CryptoPolicy",
+        metadata=PolicyMetadata(name="t", version="0.0.1", publisher="t",
+                                applies_to="t", effective_from=date.today(),
+                                review_date=date.today()),
+        spec=PolicySpec(default_action=RuleAction.WARN, banned=[rule]),
+    )
+    [d] = evaluate([_f("RSA", AlgorithmFamily.ASYMMETRIC_ENCRYPTION, 1.0)], policy)
+    assert d.base_severity == Severity.HIGH
+    assert d.rule_kind == "banned"
