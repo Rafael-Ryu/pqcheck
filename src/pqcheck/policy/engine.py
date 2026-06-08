@@ -6,6 +6,8 @@ per finding. The scanner calls this; the CLI gates on the results.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from pqcheck.models import (
     AlgorithmFamily,
     ConfidenceBand,
@@ -111,6 +113,6 @@ def _decide(finding: CryptoFinding, policy: CryptoPolicy,
     )
 
 
-def evaluate(findings: list[CryptoFinding], policy: CryptoPolicy) -> list[PolicyDecision]:
+def evaluate(findings: Sequence[CryptoFinding], policy: CryptoPolicy) -> list[PolicyDecision]:
     band_action = _band_action(policy)
     return [_decide(f, policy, band_action) for f in findings]
