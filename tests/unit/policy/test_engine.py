@@ -148,3 +148,20 @@ def test_banned_rule_without_severity_falls_back_to_high():
     [d] = evaluate([_f("RSA", AlgorithmFamily.ASYMMETRIC_ENCRYPTION, 1.0)], policy)
     assert d.base_severity == Severity.HIGH
     assert d.rule_kind == "banned"
+
+
+def test_evaluate_accepts_a_tuple_of_findings():
+    # ScanResult.findings is a tuple; evaluate must accept any Sequence, not only list.
+    policy = load_default_policy("cryptoct-default")
+    decisions = evaluate((_f("RSA", AlgorithmFamily.ASYMMETRIC_ENCRYPTION, 0.9),), policy)
+    assert len(decisions) == 1
+
+
+def test_evaluate_banned_medium_confidence_demotes_one_tier():
+    # AES-128 is banned at HIGH; 0.6 confidence is the MEDIUM band -> demote-one-tier -> MEDIUM.
+    policy = load_default_policy("cryptoct-default")
+    [d] = evaluate([_f("AES", AlgorithmFamily.SYMMETRIC_CIPHER, 0.6, key_size=128)], policy)
+    assert d.rule_kind == "banned"
+    assert d.base_severity == Severity.HIGH
+    assert d.confidence_band == ConfidenceBand.MEDIUM
+    assert d.severity == Severity.MEDIUM

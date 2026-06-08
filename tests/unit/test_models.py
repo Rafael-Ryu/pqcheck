@@ -192,3 +192,8 @@ def test_scan_result_defaults_are_empty_tuples():
     r = ScanResult(target=Path(), scanner_version="0.0.1")
     assert r.findings == () and r.dependencies == ()
     assert r.policy_decisions == () and r.policy_id is None and r.errors == ()
+
+
+def test_scan_result_rejects_empty_scanner_version():
+    with pytest.raises(ValidationError):
+        ScanResult(target=Path(), scanner_version="")

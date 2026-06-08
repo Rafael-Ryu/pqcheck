@@ -184,7 +184,7 @@ class ScanResult(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     target: Path
-    scanner_version: str
+    scanner_version: str = Field(min_length=1)
     findings: tuple[CryptoFinding, ...] = ()
     dependencies: tuple[CryptoDependency, ...] = ()
     policy_decisions: tuple[PolicyDecision, ...] = ()
