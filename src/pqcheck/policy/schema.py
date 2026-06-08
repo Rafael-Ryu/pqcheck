@@ -12,7 +12,7 @@ from datetime import date
 from enum import StrEnum
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from pqcheck.models import ConfidenceBand, RuleAction, Severity
 
@@ -124,6 +124,29 @@ class PolicySpec(BaseModel):
     fail_on: list[SeveritySelector] = Field(default_factory=list)
     warn_on: list[SeveritySelector] = Field(default_factory=list)
     info_only: list[SeveritySelector] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _validate_rule_actions(self) -> PolicySpec:
+        # A banned rule resolving to allow (or an approved rule resolving to
+        # fail/warn) would be a silently fail-open policy. Reject it at load time
+        # so a malformed or tampered policy file cannot disarm the gate.
+        for rule in self.banned:
+            if rule.action not in (RuleAction.FAIL, RuleAction.WARN):
+                raise ValueError(
+                    f"banned rule for {rule.algorithm!r} must use action fail or warn, "
+                    f"not {rule.action.value}"
+                )
+        for rule in self.approved:
+            if rule.action is not RuleAction.ALLOW:
+                raise ValueError(
+                    f"approved rule for {rule.algorithm!r} must use action allow, "
+                    f"not {rule.action.value}"
+                )
+        bands = [r.confidence_band for r in self.severity_rules]
+        duplicates = sorted({b.value for b in bands if bands.count(b) > 1})
+        if duplicates:
+            raise ValueError(f"severity-rules has duplicate confidence-band entries: {duplicates}")
+        return self
 
 
 class CryptoPolicy(BaseModel):

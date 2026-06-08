@@ -1,14 +1,18 @@
 import pytest
 from pydantic import ValidationError
 
+from pqcheck.models import ConfidenceBand
 from pqcheck.models import RuleAction as ModelsRuleAction
 from pqcheck.policy.schema import (
     AlgorithmRule,
     CryptoPolicy,
     HybridRule,
     PolicyException,
+    PolicyFamily,
+    PolicySpec,
     RuleAction,
     SeverityRule,
+    SeverityRuleAction,
     SeveritySelector,
 )
 
@@ -126,3 +130,31 @@ def test_missing_metadata_field_rejected():
 def test_rule_action_is_reexported_from_schema():
     assert RuleAction is ModelsRuleAction
     assert {a.value for a in RuleAction} == {"allow", "warn", "fail"}
+
+
+def test_policyspec_rejects_banned_rule_with_allow_action():
+    rule = AlgorithmRule(
+        family=PolicyFamily.ASYMMETRIC_ENCRYPTION, algorithm="RSA", action=RuleAction.ALLOW
+    )
+    with pytest.raises(ValidationError, match="must use action fail or warn"):
+        PolicySpec(default_action=RuleAction.WARN, banned=[rule])
+
+
+def test_policyspec_rejects_approved_rule_with_non_allow_action():
+    rule = AlgorithmRule(family=PolicyFamily.HASH, algorithm="SHA-256", action=RuleAction.FAIL)
+    with pytest.raises(ValidationError, match="must use action allow"):
+        PolicySpec(default_action=RuleAction.WARN, approved=[rule])
+
+
+def test_policyspec_rejects_duplicate_confidence_band_in_severity_rules():
+    rules = [
+        SeverityRule(
+            confidence_band=ConfidenceBand.HIGH, action=SeverityRuleAction.AS_DECLARED
+        ),
+        SeverityRule(
+            confidence_band=ConfidenceBand.HIGH,
+            action=SeverityRuleAction.DEMOTE_ONE_TIER,
+        ),
+    ]
+    with pytest.raises(ValidationError, match="duplicate confidence-band"):
+        PolicySpec(default_action=RuleAction.WARN, severity_rules=rules)
