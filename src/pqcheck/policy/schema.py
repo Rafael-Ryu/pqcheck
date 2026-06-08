@@ -14,7 +14,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from pqcheck.models import ConfidenceBand, Severity
+from pqcheck.models import ConfidenceBand, RuleAction, Severity
 
 
 def _to_kebab(name: str) -> str:
@@ -22,12 +22,6 @@ def _to_kebab(name: str) -> str:
 
 
 _CONFIG = ConfigDict(alias_generator=_to_kebab, populate_by_name=True, extra="forbid")
-
-
-class RuleAction(StrEnum):
-    ALLOW = "allow"
-    WARN = "warn"
-    FAIL = "fail"
 
 
 class SeverityRuleAction(StrEnum):
