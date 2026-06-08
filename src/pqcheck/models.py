@@ -1,16 +1,16 @@
-"""Domain types emitted by language detectors and dependency parsers.
+"""Domain types for the pqcheck analysis pipeline.
 
-Slice consumed by the Python AST detector and the v0.1 deps parsers
-(pyproject.toml, uv.lock, pom.xml) lives here today.
-Downstream computed fields (severity, base_severity, confidence_band,
-ScanResult, policy_decisions) are added when the
-policy engine and scanner orchestrator land.
+Detector and dependency-parser outputs — `CryptoFinding` and
+`CryptoDependency` — live here alongside the policy/scan result types
+(`RuleAction`, `PolicyDecision`, `ScanResult`) consumed by the policy
+engine and scanner orchestrator.
 """
 
 from __future__ import annotations
 
 from enum import StrEnum
 from pathlib import Path
+from typing import Literal
 
 from packageurl import PackageURL
 from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
@@ -171,8 +171,7 @@ class PolicyDecision(BaseModel):
     base_severity: Severity
     severity: Severity
     confidence_band: ConfidenceBand
-    # "approved" | "banned" | "default" — where the verdict came from.
-    rule_kind: str
+    rule_kind: Literal["approved", "banned", "default"]
     # The policy rule's algorithm token that matched, or "default-action".
     matched: str
     reason: str | None = None
@@ -190,5 +189,5 @@ class ScanResult(BaseModel):
     dependencies: tuple[CryptoDependency, ...] = ()
     policy_decisions: tuple[PolicyDecision, ...] = ()
     policy_id: str | None = None
-    # Per-file errors swallowed during the walk (path: reason), surfaced not hidden.
+    # Per-file error messages from the walk, surfaced rather than hidden.
     errors: tuple[str, ...] = ()
