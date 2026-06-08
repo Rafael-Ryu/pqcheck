@@ -8,7 +8,10 @@ from pqcheck.models import (
     ConfidenceBand,
     CryptoDependency,
     CryptoFinding,
+    PolicyDecision,
     QuantumRisk,
+    RuleAction,
+    ScanResult,
     Severity,
     SourceLocation,
 )
@@ -163,3 +166,29 @@ def test_severity_members_and_order():
 
 def test_confidence_band_members():
     assert {b.value for b in ConfidenceBand} == {"low", "medium", "high"}
+
+
+def _finding() -> CryptoFinding:
+    return CryptoFinding(
+        algorithm="RSA", family=AlgorithmFamily.ASYMMETRIC_ENCRYPTION,
+        location=SourceLocation(path=Path("a.py"), line=1, column=0),
+        evidence="rsa.generate_private_key(...)", detector_id="python-ast", confidence=0.4,
+    )
+
+
+def test_policy_decision_holds_base_and_demoted_severity():
+    d = PolicyDecision(
+        finding=_finding(), action=RuleAction.FAIL,
+        base_severity=Severity.CRITICAL, severity=Severity.MEDIUM,
+        confidence_band=ConfidenceBand.LOW, rule_kind="banned",
+        matched="RSA", reason="Shor", exception_id=None,
+    )
+    assert d.base_severity == Severity.CRITICAL
+    assert d.severity == Severity.MEDIUM
+    assert d.action == RuleAction.FAIL
+
+
+def test_scan_result_defaults_are_empty_tuples():
+    r = ScanResult(target=Path(), scanner_version="0.0.1")
+    assert r.findings == () and r.dependencies == ()
+    assert r.policy_decisions == () and r.policy_id is None and r.errors == ()
