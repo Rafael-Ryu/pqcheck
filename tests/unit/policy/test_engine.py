@@ -94,3 +94,13 @@ def test_evaluate_unmatched_uses_default_action():
     assert d.rule_kind == "default"
     assert d.action == RuleAction.WARN
     assert d.matched == "default-action"
+
+
+def test_evaluate_does_not_auto_apply_exception_to_rsa():
+    # default policy has EXC-001 (RSA under github-app-jwt). A bare RSA finding
+    # must still FAIL — the exception is audit metadata, not an auto-pass.
+    policy = load_default_policy("cryptoct-default")
+    [d] = evaluate([_f("RSA", AlgorithmFamily.ASYMMETRIC_ENCRYPTION, 0.95)], policy)
+    assert d.action == RuleAction.FAIL
+    assert d.rule_kind == "banned"
+    assert d.exception_id == "EXC-001"  # recorded for audit, disposition unchanged
