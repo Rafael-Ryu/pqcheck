@@ -6,26 +6,36 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/Rafael-Ryu/pqcheck/tools/crypto-analyzer/internal/analyzer"
 )
 
 func main() {
-	if len(os.Args) != 2 {
-		fmt.Fprintln(os.Stderr, "usage: crypto-analyzer <module-dir>")
-		os.Exit(2)
+	os.Exit(run(os.Args, os.Stdout, os.Stderr))
+}
+
+// run is the testable core of main: it returns the process exit code instead of
+// calling os.Exit, so the envelope — usage error (2), loader error (1), the
+// nil→[] normalisation, and the JSON encoding — is exercised without spawning a
+// subprocess. main is then a thin os.Exit(run(...)) shim.
+func run(args []string, stdout, stderr io.Writer) int {
+	if len(args) != 2 {
+		fmt.Fprintln(stderr, "usage: crypto-analyzer <module-dir>")
+		return 2
 	}
-	findings, err := analyzer.Analyze(os.Args[1])
+	findings, err := analyzer.Analyze(args[1])
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "crypto-analyzer:", err)
-		os.Exit(1)
+		fmt.Fprintln(stderr, "crypto-analyzer:", err)
+		return 1
 	}
 	if findings == nil {
 		findings = []analyzer.Finding{}
 	}
-	if err := json.NewEncoder(os.Stdout).Encode(findings); err != nil {
-		fmt.Fprintln(os.Stderr, "crypto-analyzer:", err)
-		os.Exit(1)
+	if err := json.NewEncoder(stdout).Encode(findings); err != nil {
+		fmt.Fprintln(stderr, "crypto-analyzer:", err)
+		return 1
 	}
+	return 0
 }
