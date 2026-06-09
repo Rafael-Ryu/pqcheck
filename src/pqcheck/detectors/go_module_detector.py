@@ -9,9 +9,11 @@ detector so the detection floor never drops below today's literal-based one.
 
 The child runs against an attacker-controlled module, so its memory is bounded
 on three levels: a GOMEMLIMIT soft GC target, an RLIMIT_DATA crash backstop, and
-an RSS poller in the collection loop that SIGKILLs the process group once the
-resident set crosses `_RSS_LIMIT_BYTES`. The RSS poller is the real hard cap on
-Linux, where the runtime grows its heap via mmap that the rlimit cannot see.
+an RSS poller in the collection loop that sums the resident set across the whole
+process group — the `go list` grandchildren do the heavy allocation — and
+SIGKILLs the group once the total crosses `_RSS_LIMIT_BYTES`. The RSS poller is
+the real hard cap on Linux, where the runtime grows its heap via mmap that the
+rlimit cannot see.
 
 De-duplication contract (consumed by the future scanner orchestrator, which does
 not exist yet — `pqcheck scan` is still a stub): the walker groups discovered
@@ -31,9 +33,11 @@ import json
 import os
 import platform
 import selectors
+import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 import time
 from collections.abc import Iterable
 from importlib.resources import files
@@ -73,9 +77,10 @@ _READ_CHUNK_BYTES = 64 * 1024
 # than OOM-killing. GOMEMLIMIT is only a soft GC target the runtime may exceed,
 # so the RSS poller below is the real hard backstop on Linux.
 _GOMEMLIMIT = "1500MiB"
-# Hard RSS ceiling enforced by polling /proc/<pid>/statm in the collection loop.
-# This is the real backstop against a host-OOM DoS from an attacker-controlled
-# module: GOMEMLIMIT is only a soft GC target, and on Linux RLIMIT_DATA does not
+# Hard RSS ceiling enforced by summing /proc/<pid>/statm across the child's whole
+# process group in the collection loop. This is the real backstop against a
+# host-OOM DoS from an attacker-controlled module: GOMEMLIMIT is only a soft GC
+# target, and on Linux RLIMIT_DATA does not
 # account for the mmap regions the Go runtime grows its heap from, so neither
 # reliably fires. 2 GiB leaves headroom above the 1500MiB soft target for a
 # heavy-but-benign module to finish while still capping a true runaway well
@@ -233,19 +238,25 @@ def _verify_sha256(binary: Path, *, trusted: bool) -> bool:
     return digest == _CRYPTO_ANALYZER_SHA256
 
 
-def _hardened_env() -> dict[str, str]:
+def _hardened_env(scratch: str) -> dict[str, str]:
     """Curated env for the analyzer's own process — clean slate, not inherited.
 
-    Only PATH/HOME/TMPDIR pass through so the toolchain resolves; every
+    Only PATH/HOME pass through so the toolchain resolves; every
     download/exec/workspace lever is pinned off because the scanned repo is
-    attacker-controlled. This governs the analyzer process itself. The binary is
-    authoritative for the `go list` grandchild that actually resolves modules
-    (see analyzer.go:hardenedEnv): it re-derives the env there, choosing
-    -mod=vendor vs -mod=readonly from the repo and pointing GOCACHE/GOMODCACHE/
-    GOPATH at a scratch dir. The pins here are a best-effort process-level floor,
-    not a full mirror of that layer.
+    attacker-controlled. TMPDIR is pinned to `scratch`, a dir the caller owns and
+    removes after reaping: the binary's GOCACHE/GOMODCACHE and its own MkdirTemp
+    land inside it, so a SIGKILL that skips the binary's in-process cleanup cannot
+    leak them. The binary is authoritative for the `go list` grandchild that
+    actually resolves modules (see analyzer.go:hardenedEnv): it re-derives the env
+    there, choosing -mod=vendor vs -mod=readonly from the repo and pointing
+    GOCACHE/GOMODCACHE/GOPATH at a scratch dir under this TMPDIR. The pins here are
+    a best-effort process-level floor, not a full mirror of that layer.
     """
-    env = {key: os.environ[key] for key in ("PATH", "HOME", "TMPDIR") if key in os.environ}
+    env = {key: os.environ[key] for key in ("PATH", "HOME") if key in os.environ}
+    env["TMPDIR"] = scratch
+    if sys.platform == "win32":
+        env["TEMP"] = scratch
+        env["TMP"] = scratch
     env.update(
         GOTOOLCHAIN="local",
         CGO_ENABLED="0",
@@ -291,6 +302,42 @@ def _read_rss_bytes(pid: int) -> int | None:
         return None
 
 
+def _read_group_rss_bytes(pgid: int) -> int | None:
+    """Summed RSS (bytes) of every process in group `pgid`, or None if unknown.
+
+    The analyzer's `go list` grandchildren do the heavy allocation, so the cap
+    must cover the whole process group, not just the direct child. Walks /proc
+    and sums the resident set of each process whose pgrp matches. Returns None
+    only when no member could be sampled (group gone / non-Linux / /proc
+    unreadable), so the caller treats that as "unknown" rather than a breach.
+    """
+    if sys.platform != "linux":
+        return None
+    try:
+        entries = list(Path("/proc").iterdir())
+    except OSError:
+        return None
+    page = os.sysconf("SC_PAGE_SIZE")
+    total = 0
+    sampled = False
+    for entry in entries:
+        if not entry.name.isdigit():
+            continue
+        try:
+            stat = (entry / "stat").read_text()
+            # comm (field 2) is parenthesised and may contain spaces; pgrp is the
+            # third whitespace field after the closing ')'.
+            pgrp = int(stat[stat.rindex(")") + 1 :].split()[2])
+            if pgrp != pgid:
+                continue
+            rss_pages = int((entry / "statm").read_text().split()[1])
+        except (OSError, ValueError, IndexError):
+            continue
+        total += rss_pages * page
+        sampled = True
+    return total if sampled else None
+
+
 def _run_analyzer(module_root: Path, binary: Path) -> str | None:
     """Invoke the analyzer under the hardened envelope. Never raises.
 
@@ -305,22 +352,29 @@ def _run_analyzer(module_root: Path, binary: Path) -> str | None:
     """
     posix = sys.platform != "win32"
     preexec = _set_memory_limit if posix else None
+    # A scratch dir the bridge owns and removes after reaping. The child's caches
+    # and its own MkdirTemp land here (via TMPDIR), so a SIGKILL teardown — which
+    # skips the binary's in-process os.RemoveAll — does not leak them.
+    scratch = tempfile.mkdtemp(prefix="pqcheck-analyzer-")
     try:
-        # binary is our SHA-256-verified analyzer and argv is fully controlled;
-        # the scanned repo is read by the child under the hardened env, not here.
-        proc = subprocess.Popen(  # noqa: S603
-            [str(binary), str(module_root)],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            env=_hardened_env(),
-            preexec_fn=preexec,  # noqa: PLW1509 - single-threaded scanner, POSIX-only
-            start_new_session=posix,
-        )
-    except OSError:
-        return None
-    if posix:
-        return _collect_output(proc)
-    return _collect_output_windows(proc)
+        try:
+            # binary is our SHA-256-verified analyzer and argv is fully controlled;
+            # the scanned repo is read by the child under the hardened env, not here.
+            proc = subprocess.Popen(  # noqa: S603
+                [str(binary), str(module_root)],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                env=_hardened_env(scratch),
+                preexec_fn=preexec,  # noqa: PLW1509 - single-threaded scanner, POSIX-only
+                start_new_session=posix,
+            )
+        except OSError:
+            return None
+        if posix:
+            return _collect_output(proc)
+        return _collect_output_windows(proc)
+    finally:
+        shutil.rmtree(scratch, ignore_errors=True)
 
 
 def _collect_output(proc: subprocess.Popen[bytes]) -> str | None:
@@ -371,7 +425,9 @@ def _drain_stdout(
     selector.register(pipe, selectors.EVENT_READ)
     try:
         while True:
-            rss = _read_rss_bytes(proc.pid)
+            # proc.pid leads its own group (start_new_session=True), so this sums
+            # the analyzer and its `go list` grandchildren, not just the parent.
+            rss = _read_group_rss_bytes(proc.pid)
             if rss is not None and rss > _RSS_LIMIT_BYTES:
                 _kill_group(proc, posix=True)
                 return None

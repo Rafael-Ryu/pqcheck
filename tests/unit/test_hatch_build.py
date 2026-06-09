@@ -3,7 +3,10 @@ import importlib.util
 import types
 from pathlib import Path
 
+import pytest
 from packaging.tags import sys_tags
+
+from pqcheck.detectors import go_module_detector as gmd
 
 _ROOT = Path(__file__).resolve().parents[2]
 
@@ -90,3 +93,18 @@ def test_initialize_does_not_set_infer_tag_when_binary_absent(tmp_path: Path) ->
 
     assert "tag" not in build_data
     assert "infer_tag" not in build_data
+
+
+def test_platform_dir_and_binary_name_match_runtime_bridge(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The hook writes the binary into <goos>-<goarch>/ and the runtime bridge must
+    # look there. The two derive the directory and filename independently (the hook
+    # also honours GOOS/GOARCH for cross-builds), so with no cross-build env they
+    # must agree on the host — otherwise a wheel ships a binary the bridge never
+    # finds and the Go detector silently degrades to tree-sitter.
+    monkeypatch.delenv("GOOS", raising=False)
+    monkeypatch.delenv("GOARCH", raising=False)
+
+    assert hatch_build._platform_dir() == gmd._platform_dir()
+    assert hatch_build._binary_name() == gmd._binary_name()

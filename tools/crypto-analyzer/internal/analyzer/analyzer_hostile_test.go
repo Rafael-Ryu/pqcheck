@@ -102,6 +102,58 @@ func TestAnalyzeExcludesCgoPackage(t *testing.T) {
 	}
 }
 
+func TestAnalyzeDropsFindingFromSymlinkEscapingModule(t *testing.T) {
+	// A .go file that is a symlink to a target outside the scanned module would
+	// leak the target's source line into `evidence` (and its path) — file-content
+	// disclosure from an attacker-chosen path. The binary drops findings whose
+	// real path escapes the module root, so a standalone run is contained too,
+	// not only the path-checking Python bridge.
+	outside := t.TempDir()
+	secret := filepath.Join(outside, "secret.go")
+	if err := os.WriteFile(secret,
+		[]byte("package main\nimport \"crypto/sha1\"\nfunc leak(){ sha1.New() } // SECRET_CONTENT\n"),
+		0o644); err != nil {
+		t.Fatal(err)
+	}
+	dir := writeModule(t, map[string]string{
+		"main.go": "package main\nimport \"crypto/md5\"\nfunc main(){ md5.New() }\n",
+	})
+	if err := os.Symlink(secret, filepath.Join(dir, "evil.go")); err != nil {
+		t.Skipf("symlink unsupported on this platform: %v", err)
+	}
+	fs, err := Analyze(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	byAlgo := findingsByAlgo(fs)
+	if _, ok := byAlgo["MD5"]; !ok {
+		t.Fatalf("expected MD5 from the real in-module file, got %+v", fs)
+	}
+	if _, ok := byAlgo["SHA-1"]; ok {
+		t.Fatalf("SHA-1 came from a symlink escaping the module; it must be dropped: %+v", fs)
+	}
+}
+
+func TestAnalyzeRefusesHostileToolchainDirective(t *testing.T) {
+	// The `toolchain` directive (distinct from the `go` language-version directive
+	// already covered by TestAnalyzeRefusesHostileToolchain) names a toolchain to
+	// switch to. The `go` line here is satisfiable, so only the toolchain directive
+	// is exercised: GOTOOLCHAIN=local ignores the unsatisfiable switch rather than
+	// downloading it. The contract is no fetch, no hang, no panic — analysis still
+	// resolves the in-module call.
+	dir := writeModule(t, map[string]string{
+		"go.mod":  "module tc\n\ngo 1.24\n\ntoolchain go1.99.0\n",
+		"main.go": "package main\nimport \"crypto/md5\"\nfunc main(){ md5.New() }\n",
+	})
+	fs, err := Analyze(dir)
+	if err != nil {
+		t.Fatalf("toolchain directive should be ignored under GOTOOLCHAIN=local, not error: %v", err)
+	}
+	if _, ok := findingsByAlgo(fs)["MD5"]; !ok {
+		t.Fatalf("expected MD5 to still resolve under a hostile toolchain directive, got %+v", fs)
+	}
+}
+
 func TestAnalyzeRefusesHostileToolchain(t *testing.T) {
 	dir := writeModule(t, map[string]string{
 		"go.mod":  "module tc\n\ngo 1.99.0\n",

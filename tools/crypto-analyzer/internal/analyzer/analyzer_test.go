@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -315,6 +316,116 @@ func TestAnalyzeBranchedBlockHasNoMode(t *testing.T) {
 		if f.Mode != "" {
 			t.Fatalf("%s.Mode = %q, want empty: block is ambiguous across branches", f.Algorithm, f.Mode)
 		}
+	}
+}
+
+// A single-assignment cipher.Block consumed by two *distinct* mode constructors
+// (GCM and CBC) cannot be pinned to one mode: which mode a given call site uses
+// is not knowable from the call graph. Reporting the first in source order at
+// full confidence would silently mask the weak mode (CBC) — exactly the one the
+// policy engine most wants to gate. So the block is treated like a branch-
+// ambiguous one: no mode, reduced confidence, regardless of source order.
+func TestAnalyzeBlockWithTwoDistinctModesIsAmbiguous(t *testing.T) {
+	for name, src := range map[string]string{
+		"gcm-then-cbc": "package main\nimport (\n\"crypto/aes\"\n\"crypto/cipher\"\n)\n" +
+			"func main(){\nblock, _ := aes.NewCipher(make([]byte, 32))\niv := make([]byte, 16)\n" +
+			"_, _ = cipher.NewGCM(block)\n_ = cipher.NewCBCEncrypter(block, iv)\n}\n",
+		"cbc-then-gcm": "package main\nimport (\n\"crypto/aes\"\n\"crypto/cipher\"\n)\n" +
+			"func main(){\nblock, _ := aes.NewCipher(make([]byte, 32))\niv := make([]byte, 16)\n" +
+			"_ = cipher.NewCBCEncrypter(block, iv)\n_, _ = cipher.NewGCM(block)\n}\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			dir := writeModule(t, map[string]string{"main.go": src})
+			fs, err := Analyze(dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var aesF []Finding
+			for _, f := range fs {
+				if f.Algorithm == "AES" {
+					aesF = append(aesF, f)
+				}
+			}
+			if len(aesF) != 1 {
+				t.Fatalf("want exactly 1 AES finding (no double-count), got %d: %+v", len(aesF), fs)
+			}
+			if aesF[0].Mode != "" {
+				t.Fatalf("mode = %q, want empty: two distinct modes on one block is ambiguous", aesF[0].Mode)
+			}
+			if aesF[0].Confidence != ambiguousModeConfidence {
+				t.Fatalf("confidence = %v, want %v (ambiguous mode)", aesF[0].Confidence, ambiguousModeConfidence)
+			}
+		})
+	}
+}
+
+// The same mode used twice on one block (NewCBCEncrypter + NewCBCDecrypter both
+// resolve to "CBC") is NOT ambiguous: the mode is unambiguously CBC. Only two
+// *distinct* modes trigger the ambiguity path, so this stays cleanly linked.
+func TestAnalyzeBlockWithRepeatedSameModeStaysLinked(t *testing.T) {
+	src := "package main\nimport (\n\"crypto/aes\"\n\"crypto/cipher\"\n)\n" +
+		"func main(){\nblock, _ := aes.NewCipher(make([]byte, 32))\niv := make([]byte, 16)\n" +
+		"_ = cipher.NewCBCEncrypter(block, iv)\n_ = cipher.NewCBCDecrypter(block, iv)\n}\n"
+	dir := writeModule(t, map[string]string{"main.go": src})
+	fs, err := Analyze(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	aes := findingsByAlgo(fs)["AES"]
+	if aes.Mode != "CBC" {
+		t.Fatalf("mode = %q, want CBC (one distinct mode, repeated)", aes.Mode)
+	}
+	if aes.Confidence != 1.0 {
+		t.Fatalf("confidence = %v, want 1.0 (unambiguous mode)", aes.Confidence)
+	}
+}
+
+// A pathological evidence line (a crypto call after a huge trailing comment) must
+// be truncated at the source: the binary writes evidence to stdout, and a multi-
+// megabyte line would otherwise flow there unbounded.
+func TestAnalyzeBoundsEvidenceLength(t *testing.T) {
+	src := "package main\nimport \"crypto/md5\"\nfunc main(){ md5.New() } //" + strings.Repeat("x", 10_000) + "\n"
+	dir := writeModule(t, map[string]string{"main.go": src})
+	fs, err := Analyze(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	md5 := findingsByAlgo(fs)["MD5"]
+	if md5.Algorithm != "MD5" {
+		t.Fatalf("expected MD5, got %+v", fs)
+	}
+	if len(md5.Evidence) > maxEvidenceBytes {
+		t.Fatalf("evidence length = %d, want <= %d (bounded)", len(md5.Evidence), maxEvidenceBytes)
+	}
+}
+
+// The evidence read is capped at maxSourceBytes: a crypto call within the cap
+// still gets its line, one past the cap gets none, proving the file is not
+// re-read in full.
+func TestAnalyzeCapsSourceFileRead(t *testing.T) {
+	old := maxSourceBytes
+	maxSourceBytes = 80
+	defer func() { maxSourceBytes = old }()
+	pad := strings.Repeat("// padding line pushing the second call past the byte cap\n", 50)
+	src := "package main\nimport \"crypto/md5\"\nfunc near(){ md5.New() }\n" + pad + "func far(){ md5.New() }\n"
+	dir := writeModule(t, map[string]string{"main.go": src})
+	fs, err := Analyze(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var withEvidence, withoutEvidence int
+	for _, f := range fs {
+		if f.Algorithm != "MD5" {
+			continue
+		}
+		if f.Evidence == "" {
+			withoutEvidence++
+		} else {
+			withEvidence++
+		}
+	}
+	if withEvidence != 1 || withoutEvidence != 1 {
+		t.Fatalf("want 1 MD5 with evidence (within cap) and 1 without (past cap), got %+v", fs)
 	}
 }
 

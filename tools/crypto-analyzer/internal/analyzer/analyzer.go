@@ -10,6 +10,7 @@ import (
 	"go/ast"
 	"go/constant"
 	"go/types"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime/debug"
@@ -31,6 +32,17 @@ var analyzeTimeout = 5 * time.Minute
 // beyond this is not a real key, and bounding it stops an attacker-supplied
 // huge constant from flowing downstream.
 const maxKeySize = 1 << 20
+
+// maxSourceBytes caps the second read of a source file — go/packages has already
+// parsed it into an AST, and this read only serves the evidence line, so an
+// attacker cannot amplify memory by re-reading a huge file in full. A var so
+// tests can shrink it; mirrors the Python deps reader's MAX_FILE_BYTES.
+var maxSourceBytes = 5 << 20
+
+// maxEvidenceBytes caps a single evidence line. A crypto call's source line is
+// short; a multi-megabyte "line" is minified or hostile and would otherwise flow
+// into stdout unbounded. A var so tests can shrink it.
+var maxEvidenceBytes = 4 << 10
 
 // goMemLimit is the soft memory target handed to the `go list`/compiler
 // grandchildren that run over attacker-controlled code. The clean-slate env
@@ -164,6 +176,7 @@ func analyze(dir string) ([]Finding, error) {
 		}
 		v.resolve(&findings)
 	}
+	findings = withinModule(findings, dir)
 	sort.Slice(findings, func(i, j int) bool {
 		a, b := findings[i], findings[j]
 		if a.Path != b.Path {
@@ -353,6 +366,7 @@ func (v *visitor) resolve(out *[]Finding) {
 		}
 	}
 	ambiguous := map[*types.Var]bool{}
+	modesFor := map[*types.Var]map[string]bool{}
 	for _, m := range v.modes {
 		if len(m.call.Args) < 1 {
 			continue
@@ -369,14 +383,34 @@ func (v *visitor) resolve(out *[]Finding) {
 			ambiguous[vobj] = true // reassigned or set across branches
 			continue
 		}
-		if idx, ok := varToIdx[vobj]; ok && (*out)[idx].Mode == "" {
-			(*out)[idx].Mode = m.mode
+		if modesFor[vobj] == nil {
+			modesFor[vobj] = map[string]bool{}
+		}
+		modesFor[vobj][m.mode] = true
+	}
+	// A single-assignment block links its mode only when exactly one distinct mode
+	// consumes it. Two or more distinct modes on the same block (e.g. GCM and CBC)
+	// leave the mode at any one call site unknowable from the call graph, so the
+	// block is treated like a branch-ambiguous one — reporting the first in source
+	// order would mask the weak mode the policy engine most wants to gate.
+	for vobj, modes := range modesFor {
+		if len(modes) > 1 {
+			ambiguous[vobj] = true
+			continue
+		}
+		idx, ok := varToIdx[vobj]
+		if !ok {
+			continue
+		}
+		for mode := range modes {
+			(*out)[idx].Mode = mode
 		}
 	}
 	// A mode constructor consumed a block we could not pin to one producer: the
-	// cipher resolves but its mode does not, so the finding is less certain.
+	// cipher resolves but its mode does not, so drop the mode and lower confidence.
 	for idx, vobj := range producer {
 		if ambiguous[vobj] {
+			(*out)[idx].Mode = ""
 			(*out)[idx].Confidence = ambiguousModeConfidence
 		}
 	}
@@ -488,6 +522,42 @@ func normalizeCurve(name string) string {
 	}
 }
 
+// withinModule drops findings whose source file's real path escapes the module
+// root. go/packages parses every .go in a package directory, including one that
+// is a symlink to a target outside the module; emitting that file's source line
+// as evidence would disclose attacker-chosen content from outside the scanned
+// tree. The Python bridge also enforces this, but the binary contains it itself
+// so a standalone run is equally safe.
+func withinModule(findings []Finding, dir string) []Finding {
+	root, err := filepath.Abs(dir)
+	if err != nil {
+		root = filepath.Clean(dir)
+	} else if r, err := filepath.EvalSymlinks(root); err == nil {
+		root = r
+	}
+	kept := findings[:0]
+	for _, f := range findings {
+		if pathWithin(root, f.Path) {
+			kept = append(kept, f)
+		}
+	}
+	return kept
+}
+
+// pathWithin reports whether path's real (symlink-resolved) location is inside
+// root. A path that cannot be resolved is treated as outside (fail closed).
+func pathWithin(root, path string) bool {
+	real, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		return false
+	}
+	rel, err := filepath.Rel(root, real)
+	if err != nil {
+		return false
+	}
+	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+}
+
 // sourceCache reads each file once and serves stripped source lines for evidence.
 type sourceCache struct {
 	lines map[string][]string
@@ -496,16 +566,35 @@ type sourceCache struct {
 func (s *sourceCache) line(filename string, line int) string {
 	ls, ok := s.lines[filename]
 	if !ok {
-		data, err := os.ReadFile(filename)
-		if err != nil {
-			s.lines[filename] = nil
-			return ""
-		}
-		ls = strings.Split(string(data), "\n")
+		ls = readCappedLines(filename)
 		s.lines[filename] = ls
 	}
 	if line < 1 || line > len(ls) {
 		return ""
 	}
-	return strings.TrimSpace(ls[line-1])
+	return boundEvidence(strings.TrimSpace(ls[line-1]))
+}
+
+// readCappedLines reads at most maxSourceBytes of filename and splits it into
+// lines. A read error yields nil, so evidence degrades to "" rather than failing.
+func readCappedLines(filename string) []string {
+	f, err := os.Open(filename)
+	if err != nil {
+		return nil
+	}
+	defer f.Close()
+	data, err := io.ReadAll(io.LimitReader(f, int64(maxSourceBytes)))
+	if err != nil {
+		return nil
+	}
+	return strings.Split(string(data), "\n")
+}
+
+// boundEvidence truncates an evidence line to maxEvidenceBytes on a valid UTF-8
+// boundary, so a pathological line cannot inflate the JSON output.
+func boundEvidence(s string) string {
+	if len(s) <= maxEvidenceBytes {
+		return s
+	}
+	return strings.ToValidUTF8(s[:maxEvidenceBytes], "")
 }
