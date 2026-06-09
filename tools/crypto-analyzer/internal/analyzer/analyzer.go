@@ -529,9 +529,11 @@ func normalizeCurve(name string) string {
 // tree. The Python bridge also enforces this, but the binary contains it itself
 // so a standalone run is equally safe.
 func withinModule(findings []Finding, dir string) []Finding {
-	root, err := filepath.EvalSymlinks(dir)
+	root, err := filepath.Abs(dir)
 	if err != nil {
 		root = filepath.Clean(dir)
+	} else if r, err := filepath.EvalSymlinks(root); err == nil {
+		root = r
 	}
 	kept := findings[:0]
 	for _, f := range findings {
