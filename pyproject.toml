@@ -128,9 +128,12 @@ skip = "*-musllinux_*"
 # commit hash and a vcs.modified=true stamp, so its bytes (and the SHA-256 pin
 # derived from them) would change on every commit and leak dirty-tree state.
 # -ldflags=-buildid= zeroes the linker build ID, the last toolchain-derived byte
-# in the binary, so the same source yields identical bytes even when a runner's
-# Go build differs slightly from the pinned one.
-before-build = "cd {project}/tools/crypto-analyzer && go generate ./... && CGO_ENABLED=0 go build -mod=readonly -trimpath -buildvcs=false -ldflags=-buildid= -o {project}/src/pqcheck/bin/$GOOS-$GOARCH/crypto-analyzer ./cmd/crypto-analyzer"
+# in the binary, so the same source and the same toolchain version yield identical
+# bytes. Reproducibility holds only for a fixed Go version (different minors emit
+# different code), so GOTOOLCHAIN=local pins it: a runner whose Go drifts from the
+# go.mod floor then fails loudly instead of silently downloading a different
+# toolchain and changing the published bytes (and the SHA-256 pin derived from them).
+before-build = "cd {project}/tools/crypto-analyzer && GOTOOLCHAIN=local go generate ./... && CGO_ENABLED=0 GOTOOLCHAIN=local go build -mod=readonly -trimpath -buildvcs=false -ldflags=-buildid= -o {project}/src/pqcheck/bin/$GOOS-$GOARCH/crypto-analyzer ./cmd/crypto-analyzer"
 
 [tool.cibuildwheel.linux]
 archs = ["x86_64"]
@@ -150,7 +153,7 @@ archs = ["AMD64"]
 # `cd /d` switches drive too; Go honours an explicit -o name and does not append
 # .exe, so the .exe and windows-amd64 dir are spelled out to match what the
 # runtime bridge looks for (go_module_detector._binary_name/_platform_dir).
-before-build = "cd /d {project}\\tools\\crypto-analyzer && copy /Y {project}\\src\\pqcheck\\data\\crypto-catalog.json internal\\catalog\\crypto-catalog.json && set CGO_ENABLED=0 && go build -mod=readonly -trimpath -buildvcs=false -ldflags=-buildid= -o {project}\\src\\pqcheck\\bin\\windows-amd64\\crypto-analyzer.exe ./cmd/crypto-analyzer"
+before-build = "cd /d {project}\\tools\\crypto-analyzer && copy /Y {project}\\src\\pqcheck\\data\\crypto-catalog.json internal\\catalog\\crypto-catalog.json && set CGO_ENABLED=0 && set GOTOOLCHAIN=local && go build -mod=readonly -trimpath -buildvcs=false -ldflags=-buildid= -o {project}\\src\\pqcheck\\bin\\windows-amd64\\crypto-analyzer.exe ./cmd/crypto-analyzer"
 
 [tool.ruff]
 target-version = "py312"
