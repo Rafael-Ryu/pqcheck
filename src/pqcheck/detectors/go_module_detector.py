@@ -254,6 +254,9 @@ def _hardened_env(scratch: str) -> dict[str, str]:
     """
     env = {key: os.environ[key] for key in ("PATH", "HOME") if key in os.environ}
     env["TMPDIR"] = scratch
+    if sys.platform == "win32":
+        env["TEMP"] = scratch
+        env["TMP"] = scratch
     env.update(
         GOTOOLCHAIN="local",
         CGO_ENABLED="0",
