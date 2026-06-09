@@ -1,7 +1,9 @@
+import contextlib
 import hashlib
 import json
 import os
 import signal
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -290,6 +292,56 @@ def test_run_analyzer_grants_exit_grace_after_read_deadline(
     assert gmd._run_analyzer(tmp_path, binary) == "[]"
 
 
+def _spy_mkdtemp(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    """Record every scratch dir the bridge creates so a test can assert it is
+    plumbed to the child and cleaned up afterwards."""
+    created: list[str] = []
+    real = gmd.tempfile.mkdtemp
+
+    def spy(*args: object, **kwargs: object) -> str:
+        path = real(*args, **kwargs)
+        created.append(path)
+        return path
+
+    monkeypatch.setattr(gmd.tempfile, "mkdtemp", spy)
+    return created
+
+
+@requires_posix
+def test_run_analyzer_runs_child_under_owned_scratch_and_cleans_it(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    # The bridge owns a scratch dir, hands it to the child as TMPDIR (so the
+    # binary's GOCACHE/GOMODCACHE and its own os.MkdirTemp land inside it), and
+    # removes it after a clean run. The child records the TMPDIR it saw.
+    created = _spy_mkdtemp(monkeypatch)
+    binary = _script(tmp_path / "probe.sh", 'printf "%s" "$TMPDIR" > "$1/seen"\nprintf "[]"\n')
+
+    assert gmd._run_analyzer(tmp_path, binary) == "[]"
+
+    assert created, "bridge did not create a scratch dir"
+    seen_tmpdir = (tmp_path / "seen").read_text()
+    assert seen_tmpdir == created[0], "child did not run under the bridge-owned scratch"
+    assert not Path(created[0]).exists(), "scratch dir survived a clean run"
+
+
+@requires_posix
+def test_run_analyzer_removes_scratch_after_sigkill(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    # The child's in-process cleanup runs via a defer that SIGKILL skips, so the
+    # bridge must remove the scratch itself after reaping — regardless of how the
+    # child died. Here the child writes into TMPDIR then hangs into a timeout kill.
+    created = _spy_mkdtemp(monkeypatch)
+    monkeypatch.setattr(gmd, "_TIMEOUT_SECONDS", 1)
+    binary = _script(tmp_path / "hang.sh", 'touch "$TMPDIR/leftover"\nsleep 30\n')
+
+    assert gmd._run_analyzer(tmp_path, binary) is None
+
+    assert created, "bridge did not create a scratch dir"
+    assert not Path(created[0]).exists(), "scratch leaked after a SIGKILL teardown"
+
+
 def test_kill_group_swallows_lookup_error(monkeypatch: pytest.MonkeyPatch) -> None:
     # Group already gone between timeout and kill: tear-down must not raise.
     class _Dead:
@@ -353,6 +405,34 @@ def test_read_rss_bytes_returns_none_for_dead_pid() -> None:
     assert gmd._read_rss_bytes(2**31 - 1) is None
 
 
+@pytest.mark.skipif(sys.platform != "linux", reason="/proc is Linux-only")
+def test_read_group_rss_includes_grandchild() -> None:
+    # The dominant allocator is often the `go list` grandchild, invisible to a
+    # parent-only RSS read. The group sum must include it: a small shell leader
+    # spawns a python child holding ~100 MiB in the same process group.
+    child = "python3 -c 'b=bytearray(100*1024*1024); import time; time.sleep(3)'"
+    leader = subprocess.Popen(
+        ["sh", "-c", f"{child} & sleep 3"],
+        start_new_session=True,
+    )
+    try:
+        time.sleep(0.8)
+        group_rss = gmd._read_group_rss_bytes(leader.pid)
+        parent_rss = gmd._read_rss_bytes(leader.pid)
+        assert group_rss is not None and parent_rss is not None
+        # The group total carries the child's ~100 MiB the parent-only read misses.
+        assert group_rss >= parent_rss + 80 * 1024 * 1024
+    finally:
+        with contextlib.suppress(ProcessLookupError, OSError):
+            os.killpg(os.getpgid(leader.pid), signal.SIGKILL)
+        leader.wait()
+
+
+def test_read_group_rss_returns_none_for_dead_group() -> None:
+    # No process in the group could be sampled -> best-effort None.
+    assert gmd._read_group_rss_bytes(2**31 - 1) is None
+
+
 @requires_posix
 def test_run_analyzer_rss_over_ceiling_is_killed(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
@@ -362,7 +442,7 @@ def test_run_analyzer_rss_over_ceiling_is_killed(
     # rather than waiting on the wall-clock timeout. A child that sleeps far
     # longer than the timeout proves the RSS kill is what ended it: if the poll
     # were a no-op the call would block for the full _TIMEOUT_SECONDS.
-    monkeypatch.setattr(gmd, "_read_rss_bytes", lambda pid: gmd._RSS_LIMIT_BYTES + 1)
+    monkeypatch.setattr(gmd, "_read_group_rss_bytes", lambda pgid: gmd._RSS_LIMIT_BYTES + 1)
     monkeypatch.setattr(gmd, "_TIMEOUT_SECONDS", 30)
     binary = _script(tmp_path / "hog.sh", "sleep 300\n")
     started = time.monotonic()
@@ -377,7 +457,7 @@ def test_run_analyzer_rss_under_ceiling_succeeds(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     # RSS comfortably under the ceiling must not perturb a clean run.
-    monkeypatch.setattr(gmd, "_read_rss_bytes", lambda pid: 1024)
+    monkeypatch.setattr(gmd, "_read_group_rss_bytes", lambda pgid: 1024)
     binary = _script(tmp_path / "ok.sh", "printf '[]'\n")
     assert gmd._run_analyzer(tmp_path, binary) == "[]"
 
@@ -400,6 +480,51 @@ def test_run_analyzer_missing_stdout_pipe_returns_none(
             return b"", b""
 
     assert gmd._collect_output(_NoPipe()) is None  # type: ignore[arg-type]
+
+
+@requires_posix
+def test_collect_output_reap_timeout_after_eof_returns_none(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    # The child emits a valid payload, closes stdout (EOF), then refuses to exit.
+    # Draining returns the payload, but the reap wait times out, so the group is
+    # killed and the result is None — never a payload from a child that hung.
+    monkeypatch.setattr(gmd, "_REAP_TIMEOUT_SECONDS", 1)
+    binary = _script(tmp_path / "eof_then_hang.sh", "printf '[]'\nexec 1>&-\nsleep 30\n")
+    assert gmd._run_analyzer(tmp_path, binary) is None
+
+
+@requires_posix
+def test_drain_stdout_oserror_during_read_returns_none(tmp_path: Path) -> None:
+    # An OS error mid-read must tear down the group and surface None, not raise.
+    binary = _script(tmp_path / "emit.sh", "printf 'x'\nsleep 30\n")
+    proc = subprocess.Popen(
+        [str(binary), str(tmp_path)],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        env=gmd._hardened_env(str(tmp_path)),
+        start_new_session=True,
+    )
+
+    class _BoomPipe:
+        def __init__(self, real: object) -> None:
+            self._real = real
+
+        def fileno(self) -> int:
+            return self._real.fileno()  # type: ignore[attr-defined]
+
+        def read1(self, _n: int) -> bytes:
+            raise OSError("read failed")
+
+    try:
+        result = gmd._drain_stdout(proc, _BoomPipe(proc.stdout), time.monotonic() + 5)  # type: ignore[arg-type]
+        assert result is None
+    finally:
+        if proc.stdout is not None:
+            proc.stdout.close()
+        with contextlib.suppress(ProcessLookupError, OSError):
+            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+        proc.wait()
 
 
 _GOLDEN = json.dumps(
@@ -648,8 +773,9 @@ def test_hardened_env_pins_levers_over_hostile_host(
     monkeypatch.setenv("GOPROXY", "https://evil.example")
     monkeypatch.setenv("GOFLAGS", "-mod=mod")
     monkeypatch.setenv("GOTOOLCHAIN", "auto")
+    monkeypatch.setenv("TMPDIR", "/host/tmp")
 
-    env = gmd._hardened_env()
+    env = gmd._hardened_env("/scratch/owned")
 
     assert env["GOTOOLCHAIN"] == "local"
     assert env["CGO_ENABLED"] == "0"
@@ -659,6 +785,8 @@ def test_hardened_env_pins_levers_over_hostile_host(
     assert env["GOSUMDB"] == "off"
     assert env["GOENV"] == "off"
     assert env["GOMEMLIMIT"] == gmd._GOMEMLIMIT
+    # TMPDIR is the bridge's owned scratch, never the host's.
+    assert env["TMPDIR"] == "/scratch/owned"
 
 
 def test_hardened_env_does_not_inherit_unlisted_host_vars(
@@ -669,7 +797,7 @@ def test_hardened_env_does_not_inherit_unlisted_host_vars(
     monkeypatch.setenv("GOINSECURE", "evil.example/*")
     monkeypatch.setenv("SECRET_TOKEN", "leak-me")
 
-    env = gmd._hardened_env()
+    env = gmd._hardened_env("/scratch/owned")
 
     for leaked in ("GODEBUG", "GOPRIVATE", "GOINSECURE", "SECRET_TOKEN"):
         assert leaked not in env
