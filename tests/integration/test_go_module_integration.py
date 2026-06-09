@@ -5,6 +5,7 @@ Python-only CI) and drives detect_go_module through the actual subprocess, so th
 semantic path — not just the mocked unit tests — is exercised locally.
 """
 
+import hashlib
 import shutil
 import subprocess
 import textwrap
@@ -12,6 +13,7 @@ from pathlib import Path
 
 import pytest
 
+from pqcheck.detectors import go_module_detector as gmd
 from pqcheck.detectors.go_module_detector import detect_go_module
 
 _REPO = Path(__file__).resolve().parents[2]
@@ -112,3 +114,28 @@ def test_detect_go_module_semantic_path(
     # ECDSA with curve extracted from elliptic.P256() call argument.
     ecdsa_findings = [f for f in findings if f.algorithm == "ECDSA"]
     assert any(f.curve == "P-256" for f in ecdsa_findings), "expected ECDSA with P-256 curve"
+
+
+@pytest.mark.integration
+def test_bundled_binary_passes_real_sha256_pin(
+    crypto_analyzer_binary: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The must-succeed direction of the pin: a real binary whose real SHA-256
+    # matches a real pin, driven through the bundled (untrusted) branch — proving
+    # the digest the bridge computes matches the one hatch_build writes, and the
+    # exec path works without the trusted env override. The unit tests only cover
+    # synthetic bytes and the mismatch (fail-closed) direction.
+    real_pin = hashlib.sha256(crypto_analyzer_binary.read_bytes()).hexdigest()
+    monkeypatch.delenv("PQCHECK_CRYPTO_ANALYZER", raising=False)
+    monkeypatch.setattr(gmd, "_CRYPTO_ANALYZER_SHA256", real_pin)
+    monkeypatch.setattr(gmd, "_locate_binary", lambda: (crypto_analyzer_binary, False))
+
+    (tmp_path / "go.mod").write_text("module example.com/m\n\ngo 1.24\n", encoding="utf-8")
+    (tmp_path / "main.go").write_text(
+        'package main\nimport "crypto/md5"\nfunc main() { md5.New() }\n', encoding="utf-8"
+    )
+
+    findings = detect_go_module(tmp_path)
+
+    assert {f.algorithm for f in findings} == {"MD5"}
+    assert all(f.detector_id == "go-types" for f in findings)
