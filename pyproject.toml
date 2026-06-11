@@ -134,7 +134,12 @@ skip = "*-musllinux_*"
 # different code), so GOTOOLCHAIN=local pins it: a runner whose Go drifts from the
 # go.mod floor then fails loudly instead of silently downloading a different
 # toolchain and changing the published bytes (and the SHA-256 pin derived from them).
-before-build = "cd {project}/tools/crypto-analyzer && GOTOOLCHAIN=local go generate ./... && CGO_ENABLED=0 GOTOOLCHAIN=local go build -mod=readonly -trimpath -buildvcs=false -ldflags=-buildid= -o {project}/src/pqcheck/bin/$GOOS-$GOARCH/crypto-analyzer ./cmd/crypto-analyzer"
+# {project} is deliberately absent: cibuildwheel expands it to an absolute
+# path inside the manylinux container but to a RELATIVE "." on macOS/Windows
+# hosts, so any {project}-based path breaks after the cd (first caught by the
+# pqcheck-test-v0.0.1 dry run: pure wheel on macOS, failed copy on Windows).
+# before-build starts in the project root, so capture it ourselves.
+before-build = 'PQCHECK_ROOT="$(pwd)" && cd tools/crypto-analyzer && GOTOOLCHAIN=local go generate ./... && CGO_ENABLED=0 GOTOOLCHAIN=local go build -mod=readonly -trimpath -buildvcs=false -ldflags=-buildid= -o "$PQCHECK_ROOT/src/pqcheck/bin/$GOOS-$GOARCH/crypto-analyzer" ./cmd/crypto-analyzer'
 
 [tool.cibuildwheel.linux]
 archs = ["x86_64"]
@@ -154,7 +159,11 @@ archs = ["AMD64"]
 # `cd /d` switches drive too; Go honours an explicit -o name and does not append
 # .exe, so the .exe and windows-amd64 dir are spelled out to match what the
 # runtime bridge looks for (go_module_detector._binary_name/_platform_dir).
-before-build = "cd /d {project}\\tools\\crypto-analyzer && copy /Y {project}\\src\\pqcheck\\data\\crypto-catalog.json internal\\catalog\\crypto-catalog.json && set CGO_ENABLED=0 && set GOTOOLCHAIN=local && go build -mod=readonly -trimpath -buildvcs=false -ldflags=-buildid= -o {project}\\src\\pqcheck\\bin\\windows-amd64\\crypto-analyzer.exe ./cmd/crypto-analyzer"
+# No {project} here either (relative on Windows hosts — see the POSIX note).
+# The copy runs from the project root BEFORE the cd; the build output walks
+# back up with ..\.. instead. set "VAR=value" (quoted) because the bare form
+# `set VAR=0 && ...` embeds the trailing space into the value.
+before-build = 'copy /Y src\pqcheck\data\crypto-catalog.json tools\crypto-analyzer\internal\catalog\crypto-catalog.json && cd /d tools\crypto-analyzer && set "CGO_ENABLED=0" && set "GOTOOLCHAIN=local" && go build -mod=readonly -trimpath -buildvcs=false -ldflags=-buildid= -o ..\..\src\pqcheck\bin\windows-amd64\crypto-analyzer.exe ./cmd/crypto-analyzer'
 
 [tool.ruff]
 target-version = "py312"
