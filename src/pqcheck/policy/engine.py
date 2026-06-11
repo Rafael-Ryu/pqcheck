@@ -116,3 +116,35 @@ def _decide(finding: CryptoFinding, policy: CryptoPolicy,
 def evaluate(findings: Sequence[CryptoFinding], policy: CryptoPolicy) -> list[PolicyDecision]:
     band_action = _band_action(policy)
     return [_decide(f, policy, band_action) for f in findings]
+
+
+def gate(
+    decisions: Sequence[PolicyDecision], *, fail_on: str = "policy", strict: bool = False
+) -> Severity | None:
+    """Worst base severity that trips the gate, or None when the scan passes.
+
+    `fail_on="policy"` trips on FAIL decisions (and WARN when `strict`).
+    `fail_on=<severity>` trips on any non-ALLOW decision whose
+    `base_severity` tier is at or above the threshold. Gating always reads
+    `base_severity` — the demoted `severity` is UI-only.
+    """
+    if fail_on != "policy" and fail_on not in {s.value for s in Severity}:
+        raise ValueError(f"invalid fail_on: {fail_on!r}")
+    worst: Severity | None = None
+    for decision in decisions:
+        if fail_on == "policy":
+            tripped = decision.action == RuleAction.FAIL or (
+                strict and decision.action == RuleAction.WARN
+            )
+        else:
+            threshold = _SEVERITY_ORDER.index(Severity(fail_on))
+            tripped = (
+                decision.action != RuleAction.ALLOW
+                and _SEVERITY_ORDER.index(decision.base_severity) >= threshold
+            )
+        if tripped and (
+            worst is None
+            or _SEVERITY_ORDER.index(decision.base_severity) > _SEVERITY_ORDER.index(worst)
+        ):
+            worst = decision.base_severity
+    return worst
