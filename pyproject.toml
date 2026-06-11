@@ -73,6 +73,7 @@ dev = [
     "mypy>=1.13,<2",
     "types-lxml",
     "types-PyYAML",
+    "types-jsonschema",
 ]
 
 [project.urls]
