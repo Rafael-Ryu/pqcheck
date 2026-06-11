@@ -75,9 +75,13 @@ jobs:
   sarif:
     # Dogfood the SARIF writer against GitHub Code Scanning — an import
     # failure here means downstream consumers would reject our output.
+    # Tolerated while the repo is private: Code Scanning upload requires
+    # GitHub Advanced Security there ("Resource not accessible by
+    # integration"). Drop continue-on-error when the repo goes public.
     needs: lint-type
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    continue-on-error: true
     permissions:
       contents: read
       security-events: write
