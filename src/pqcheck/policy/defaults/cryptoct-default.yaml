@@ -35,6 +35,9 @@ spec:
     - { family: symmetric-cipher, algorithm: DES, action: fail, severity: critical }
     - { family: symmetric-cipher, algorithm: 3DES, action: fail, severity: critical }
     - { family: symmetric-cipher, algorithm: RC4, action: fail, severity: critical }
+    - { family: hash, algorithm: RIPEMD-160, action: fail, severity: high, reason: "Legacy 160-bit hash — banned by policy §3" }
+    - { family: symmetric-cipher, algorithm: Blowfish, action: fail, severity: critical, reason: "64-bit block (Sweet32-class)" }
+    - { family: symmetric-cipher, algorithm: IDEA, action: fail, severity: critical, reason: "64-bit block (Sweet32-class)" }
     - family: symmetric-cipher
       algorithm: AES
       parameter-sets: ["128"]
