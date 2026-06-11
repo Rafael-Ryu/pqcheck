@@ -902,3 +902,29 @@ def test_set_memory_limit_swallows_rlimit_errors(
     monkeypatch.setattr(gmd.resource, "getrlimit", boom)
 
     gmd._set_memory_limit()  # tolerated: the spawn must proceed, not abort
+
+
+def test_detect_go_module_resolves_root_before_both_passes(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    # A symlinked module root (macOS /var -> /private/var, mkdtemp under a
+    # link) must be resolved ONCE at entry: the analyzer echoes whatever root
+    # it is handed while the fallback resolves internally, so two spellings
+    # of the same call site would defeat the union dedup (release smoke,
+    # round 4).
+    real = tmp_path / "real"
+    real.mkdir()
+    (real / "go.mod").write_text("module m\n", encoding="utf-8")
+    link = tmp_path / "link"
+    link.symlink_to(real, target_is_directory=True)
+
+    received: list[Path] = []
+
+    def record_fallback(root: Path) -> list[CryptoFinding]:
+        received.append(root)
+        return []
+
+    monkeypatch.setattr(gmd, "_fallback", record_fallback)
+    monkeypatch.setattr(gmd, "_locate_binary", lambda: None)
+    detect_go_module(link)
+    assert received == [real.resolve()]
