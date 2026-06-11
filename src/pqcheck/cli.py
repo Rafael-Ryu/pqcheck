@@ -185,6 +185,42 @@ def scan(
             raise typer.Exit(code=1)
 
 
+@app.command("self-audit")
+def self_audit(
+    target: Annotated[
+        Path,
+        typer.Argument(
+            help="Project root to audit.", exists=True, file_okay=False, resolve_path=True
+        ),
+    ] = Path(),
+    output: Annotated[
+        Path, typer.Option("--output", "-o", help="Where to write the CBOM.")
+    ] = Path("self-cbom.json"),
+) -> None:
+    """Audit a project against pqcheck's own binding policy (cryptoct-default).
+
+    The release-gate form of `scan`: fixed policy, CBOM always written (and
+    self-validated), exit 1 on any FAIL decision. pqcheck runs this against
+    its own repository in CI — a release cannot ship crypto its own policy
+    bans.
+    """
+    policy = load_default_policy("cryptoct-default")
+    result = run_scan(target, policy)
+    doc = build_cbom(result)
+    violations = validate_cyclonedx_16(doc)
+    if violations:
+        for violation in violations:
+            typer.echo(f"cbom self-validation: {violation}", err=True)
+        raise typer.Exit(code=70)
+    _emit_json(doc, output)
+    _terminal_report(result)
+    worst = gate(result.policy_decisions, fail_on="policy")
+    if worst is not None:
+        typer.echo(f"self-audit: policy gate tripped at {worst.value}", err=True)
+        raise typer.Exit(code=1)
+    typer.echo(f"self-audit clean — CBOM at {output}")
+
+
 @policy_app.command("show")
 def policy_show(
     name: Annotated[str, typer.Argument(help="Bundled policy name or path to a policy YAML.")],
