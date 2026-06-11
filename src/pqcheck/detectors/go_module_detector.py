@@ -102,21 +102,49 @@ _MEMORY_LIMIT_BYTES = 3 * 1024**3
 def detect_go_module(module_root: Path) -> list[CryptoFinding]:
     """Detect crypto in the Go module rooted at `module_root`. Never raises.
 
-    Prefers the semantic crypto-analyzer; falls back to the per-file tree-sitter
-    detector when the binary is absent, fails SHA-256 verification, or cannot run
-    (e.g. `go` missing / module unresolved). A clean analyzer run is trusted even
-    when it finds nothing, so an empty semantic result does not trigger fallback.
+    Union of both detectors (corpus decision 2026-06-11, ADR 0005): go/types
+    resolves semantics tree-sitter cannot (aliased imports, var-declared
+    blocks) but is structurally blind to GOOS-gated and cgo-gated files —
+    crypto that still ships. The syntactic pass always runs; when the
+    analyzer also runs cleanly, the two are merged per call site
+    (path, line, algorithm), the semantic finding winning the duplicate
+    because it carries key size / curve. Analyzer absent, unverified, or
+    failed → the syntactic result stands alone (the detection floor).
     """
     if not _argv_encodable(module_root):
         return _fallback(module_root)
+    syntactic = _fallback(module_root)
     located = _locate_binary()
     if located is not None:
         binary, trusted = located
         if _verify_sha256(binary, trusted=trusted):
             stdout = _run_analyzer(module_root, binary)
             if stdout is not None:
-                return _map_findings(stdout, module_root)
-    return _fallback(module_root)
+                return _merge_findings(_map_findings(stdout, module_root), syntactic)
+    return syntactic
+
+
+def _merge_findings(
+    semantic: list[CryptoFinding], syntactic: list[CryptoFinding]
+) -> list[CryptoFinding]:
+    def call_site(finding: CryptoFinding) -> tuple[str, int, str]:
+        return (
+            str(finding.location.path),
+            finding.location.line,
+            finding.algorithm.upper(),
+        )
+
+    # The semantic list itself can carry duplicates: go/packages with
+    # Tests:true type-checks a production file once per package variant.
+    # Dedupe both sides on the call site, semantic entries winning.
+    merged: list[CryptoFinding] = []
+    seen: set[tuple[str, int, str]] = set()
+    for finding in (*semantic, *syntactic):
+        key = call_site(finding)
+        if key not in seen:
+            seen.add(key)
+            merged.append(finding)
+    return merged
 
 
 def _argv_encodable(module_root: Path) -> bool:
