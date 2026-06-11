@@ -37,14 +37,20 @@ def main() -> int:
         'package main\nimport "crypto/md5"\nfunc main() { md5.New() }\n', encoding="utf-8"
     )
     findings = detect_go_module(module)
+    # Union semantics (ADR 0005): tree-sitter findings may legitimately
+    # coexist; what this smoke must prove is that the BUNDLED analyzer ran
+    # through its pin and resolved the call semantically.
+    if not any(f.detector_id == "go-types" and f.algorithm == "MD5" for f in findings):
+        got = sorted((f.detector_id, f.algorithm) for f in findings)
+        print(f"FAIL: no go-types MD5 finding from the bundled analyzer (got {got})",
+              file=sys.stderr)
+        return 1
+    sites = {(str(f.location.path), f.location.line, f.algorithm) for f in findings}
+    if len(sites) != len(findings):
+        got = sorted((f.detector_id, str(f.location.path), f.location.line) for f in findings)
+        print(f"FAIL: union dedup missed — duplicate call sites in {got}", file=sys.stderr)
+        return 1
     algos = {f.algorithm for f in findings}
-    detectors = {f.detector_id for f in findings}
-    if "MD5" not in algos:
-        print(f"FAIL: no MD5 from the bundled analyzer (got {sorted(algos)})", file=sys.stderr)
-        return 1
-    if detectors != {"go-types"}:
-        print(f"FAIL: expected go-types findings, got {sorted(detectors)}", file=sys.stderr)
-        return 1
     print(f"OK: bundled analyzer verified its pin and resolved {sorted(algos)} via go-types")
     return 0
 
