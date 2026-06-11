@@ -111,6 +111,12 @@ def detect_go_module(module_root: Path) -> list[CryptoFinding]:
     because it carries key size / curve. Analyzer absent, unverified, or
     failed → the syntactic result stands alone (the detection floor).
     """
+    # Resolve once so BOTH passes derive paths from the same spelling — the
+    # analyzer echoes whatever root it is handed, while the fallback resolves
+    # internally; a symlinked root (macOS /var→/private/var, mkdtemp under a
+    # link) otherwise yields two spellings of the same call site and the
+    # union dedup misses (caught by the release smoke on macOS/Windows).
+    module_root = module_root.resolve()
     if not _argv_encodable(module_root):
         return _fallback(module_root)
     syntactic = _fallback(module_root)
