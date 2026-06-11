@@ -2,7 +2,9 @@ name: CLI Release
 
 on:
   push:
-    tags: ["pqcheck-v*"]
+    # pqcheck-v*      -> PyPI (production release)
+    # pqcheck-test-v* -> TestPyPI (dry-run channel; no GitHub release)
+    tags: ["pqcheck-v*", "pqcheck-test-v*"]
 
 permissions:
   contents: read
@@ -135,7 +137,16 @@ jobs:
           uv run --no-project --with "$linux_whl" pqcheck --help
       # Publish first, while dist/ holds only wheels; signing adds .sigstore
       # bundles that PyPI must not receive.
-      - uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # v1.14.0
+      - name: Publish to TestPyPI (dry-run channel)
+        if: startsWith(github.ref_name, 'pqcheck-test-v')
+        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # v1.14.0
+        with:
+          packages-dir: dist/
+          attestations: true
+          repository-url: https://test.pypi.org/legacy/
+      - name: Publish to PyPI
+        if: ${{ !startsWith(github.ref_name, 'pqcheck-test-v') }}
+        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # v1.14.0
         with:
           packages-dir: dist/
           attestations: true
@@ -144,5 +155,6 @@ jobs:
         with:
           inputs: ./dist/*.whl
       - uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
+        if: ${{ !startsWith(github.ref_name, 'pqcheck-test-v') }}
         with:
           files: dist/*
