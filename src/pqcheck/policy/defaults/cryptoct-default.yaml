@@ -12,7 +12,7 @@ spec:
   approved:
     - { family: kem, algorithm: ML-KEM, parameter-sets: ["768", "1024"], action: allow }
     - { family: signature, algorithm: ML-DSA, parameter-sets: ["65", "87"], action: allow }
-    - { family: signature, algorithm: SLH-DSA, parameter-sets: ["SHA2-128s"], action: allow, context: archive }
+    - { family: signature, algorithm: SLH-DSA, parameter-sets: ["SHA2-128s"], action: allow }
     - { family: symmetric-cipher, algorithm: AES, parameter-sets: ["256"], modes: ["GCM"], action: allow }
     - { family: hash, algorithm: SHA-256, action: allow }
     - { family: hash, algorithm: SHA-384, action: allow, preferred: true }
@@ -22,14 +22,12 @@ spec:
       algorithm: Argon2id
       params: { memory-kib-min: 131072, iterations-min: 4, parallelism-min: 1 }
       action: allow
-  hybrid-required:
-    - { context: tls-external, classical: ["X25519", "X448"], pqc: ["ML-KEM-768", "ML-KEM-1024"], action: allow }
   banned:
     - { family: asymmetric-encryption, algorithm: RSA, action: fail, severity: critical, reason: "Shor — migrate to ML-KEM-768" }
     - { family: signature, algorithm: ECDSA, action: fail, severity: critical, reason: "Shor — migrate to ML-DSA-65" }
-    - { family: signature, algorithm: EdDSA, curves: ["Ed25519", "Ed448"], context: standalone, action: fail, severity: critical }
+    - { family: signature, algorithm: EdDSA, curves: ["Ed25519", "Ed448"], action: fail, severity: critical }
     - { family: key-agreement, algorithm: DH, action: fail, severity: critical }
-    - { family: key-agreement, algorithm: ECDH, context: standalone, action: fail, severity: critical }
+    - { family: key-agreement, algorithm: ECDH, action: fail, severity: critical }
     - { family: hash, algorithm: MD5, action: fail, severity: critical, reason: "Collision-broken" }
     - { family: hash, algorithm: SHA-1, action: fail, severity: critical, reason: "Collision-broken" }
     - { family: symmetric-cipher, algorithm: DES, action: fail, severity: critical }
@@ -41,14 +39,12 @@ spec:
     - family: symmetric-cipher
       algorithm: AES
       parameter-sets: ["128"]
-      context: new-code
       action: fail
       severity: high
       reason: "AES-128 has only 64-bit post-Grover security margin. Use AES-256 in new code."
     - family: symmetric-cipher
       algorithm: AES
       modes: ["ECB", "CBC", "CFB", "OFB"]
-      context: without-aead
       action: warn
       severity: medium
   exceptions:
@@ -75,12 +71,3 @@ spec:
     - { confidence-band: high, action: as-declared }
     - { confidence-band: medium, action: demote-one-tier }
     - { confidence-band: low, action: demote-two-tiers }
-  fail-on:
-    - { severity: critical }
-    - { severity: high, confidence-band: ["high"] }
-  warn-on:
-    - { severity: medium }
-    - { severity: high, confidence-band: ["medium", "low"] }
-  info-only:
-    - { severity: low }
-    - { severity: info }

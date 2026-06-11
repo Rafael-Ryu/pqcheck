@@ -1,12 +1,18 @@
 apiVersion: pqcheck.cryptoct.com/v1
 kind: CryptoPolicy
 metadata:
-  name: cryptoct-advisory
-  version: 1.0.0
+  name: br-vendor-dd
+  version: 0.1.0
   publisher: CryptoCT
-  applies-to: "Advisory inventory scan — reports findings, gates nothing"
-  effective-from: "2026-05-22"
-  review-date: "2026-11-22"
+  applies-to: >-
+    Advisory profile for vendor due-diligence annexes: produces a
+    severity-ranked cryptographic inventory a supplier can attach to
+    onboarding questionnaires (acquirers, correspondent banking, card
+    schemes). Findings inform the annex; nothing gates. Aligned with the
+    vendor-assessment practice around Res. CMN 4.893/2021 — not required by
+    any current regulation.
+  effective-from: "2026-06-11"
+  review-date: "2026-12-11"
 spec:
   default-action: warn
   approved:
@@ -23,8 +29,8 @@ spec:
       params: { memory-kib-min: 131072, iterations-min: 4, parallelism-min: 1 }
       action: allow
   banned:
-    - { family: asymmetric-encryption, algorithm: RSA, action: warn, severity: critical, reason: "Shor — migrate to ML-KEM-768" }
-    - { family: signature, algorithm: ECDSA, action: warn, severity: critical, reason: "Shor — migrate to ML-DSA-65" }
+    - { family: asymmetric-encryption, algorithm: RSA, action: warn, severity: critical, reason: "Shor-vulnerable — flag in annex with migration plan" }
+    - { family: signature, algorithm: ECDSA, action: warn, severity: critical, reason: "Shor-vulnerable — flag in annex with migration plan" }
     - { family: signature, algorithm: EdDSA, curves: ["Ed25519", "Ed448"], action: warn, severity: critical }
     - { family: key-agreement, algorithm: DH, action: warn, severity: critical }
     - { family: key-agreement, algorithm: ECDH, action: warn, severity: critical }
@@ -33,7 +39,7 @@ spec:
     - { family: symmetric-cipher, algorithm: DES, action: warn, severity: critical }
     - { family: symmetric-cipher, algorithm: 3DES, action: warn, severity: critical }
     - { family: symmetric-cipher, algorithm: RC4, action: warn, severity: critical }
-    - { family: hash, algorithm: RIPEMD-160, action: warn, severity: high, reason: "Legacy 160-bit hash — banned by policy §3" }
+    - { family: hash, algorithm: RIPEMD-160, action: warn, severity: high, reason: "Legacy 160-bit hash" }
     - { family: symmetric-cipher, algorithm: Blowfish, action: warn, severity: critical, reason: "64-bit block (Sweet32-class)" }
     - { family: symmetric-cipher, algorithm: IDEA, action: warn, severity: critical, reason: "64-bit block (Sweet32-class)" }
     - family: symmetric-cipher
@@ -41,32 +47,13 @@ spec:
       parameter-sets: ["128"]
       action: warn
       severity: high
-      reason: "AES-128 has only 64-bit post-Grover security margin. Use AES-256 in new code."
+      reason: "AES-128 has only 64-bit post-Grover security margin."
     - family: symmetric-cipher
       algorithm: AES
       modes: ["ECB", "CBC", "CFB", "OFB"]
       action: warn
       severity: medium
-  exceptions:
-    - id: EXC-001
-      description: "GitHub App JWT requires RS256 per GitHub upstream limitation"
-      banned-algorithm: RSA
-      context: github-app-jwt
-      adr: docs/adr/004-github-app-jwt.md
-      review-date: "2026-09-30"
-      compensating-controls:
-        - "TLS PQC outer"
-        - "ML-DSA-65 signature on PR comment payload (Phase 3)"
-        - "Webhook nonce + timestamp window 5min for anti-replay"
-    - id: EXC-002
-      description: "Verify-only Stripe webhook signatures (HMAC-SHA-256 upstream)"
-      banned-algorithm: null
-      context: stripe-webhook-verify
-      adr: docs/adr/007-stripe-webhook.md
-      review-date: "2027-01-15"
-      compensating-controls:
-        - "Idempotency: (provider, provider_event_id) UNIQUE"
-        - "Nonce + timestamp window"
+      reason: "Non-AEAD mode"
   severity-rules:
     - { confidence-band: high, action: as-declared }
     - { confidence-band: medium, action: demote-one-tier }
