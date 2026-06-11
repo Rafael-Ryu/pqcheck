@@ -108,3 +108,21 @@ def test_platform_dir_and_binary_name_match_runtime_bridge(
 
     assert hatch_build._platform_dir() == gmd._platform_dir()
     assert hatch_build._binary_name() == gmd._binary_name()
+
+
+def test_platform_tag_honours_macos_deployment_target(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # With the delocate repair disabled, the runner's OS version would become
+    # the macOS tag floor; MACOSX_DEPLOYMENT_TARGET must override it.
+    monkeypatch.setattr(hatch_build.sys, "platform", "darwin")
+    monkeypatch.setattr(hatch_build.platform, "machine", lambda: "arm64")
+    monkeypatch.setenv("MACOSX_DEPLOYMENT_TARGET", "11.0")
+    assert hatch_build._platform_tag() == "macosx_11_0_arm64"
+
+
+def test_platform_tag_without_target_uses_sys_tags(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("MACOSX_DEPLOYMENT_TARGET", raising=False)
+    assert hatch_build._platform_tag() == next(sys_tags()).platform
