@@ -69,3 +69,4 @@ src/pqcheck/bin/
 autoresearch/
 docs/superpowers/
 CLAUDE.md
+tests/corpus/.cache/
