@@ -53,6 +53,9 @@ def _fingerprint(repo: str, result: ScanResult, index: int) -> str:
     rel = finding.location.path
     with contextlib.suppress(ValueError):
         rel = rel.relative_to(result.target)
+    # detector_id is deliberately NOT part of the fingerprint: a verdict
+    # adjudicates a call site, and must survive the same site being
+    # re-attributed to a different detector (e.g. tree-sitter -> go/types).
     material = "|".join(
         [
             repo,
@@ -60,7 +63,6 @@ def _fingerprint(repo: str, result: ScanResult, index: int) -> str:
             finding.family.value,
             rel.as_posix(),
             str(finding.location.line),
-            finding.detector_id,
         ]
     )
     return hashlib.sha256(material.encode("utf-8")).hexdigest()[:16]

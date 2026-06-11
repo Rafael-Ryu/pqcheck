@@ -156,6 +156,11 @@ func analyze(dir string) ([]Finding, error) {
 		Dir:     dir,
 		Env:     hardenedEnv(scratch, modFlagFor(dir)),
 		Context: ctx,
+		// Test files ship crypto too: a CBOM that skips *_test.go
+		// under-reports the inventory (corpus 2026-06-11: 177 of 197 Go
+		// findings lived in test files). Unresolvable third-party test
+		// deps degrade per-package under the -e load mode, never abort.
+		Tests: true,
 	}
 	pkgs, err := packages.Load(cfg, "./...")
 	if err != nil {
