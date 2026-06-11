@@ -151,3 +151,19 @@ def test_safe_read_bytes_caps_growth_during_read(
 
     monkeypatch.setattr("pqcheck.deps.base.os.read", fake_read)
     assert safe_read_bytes(f) is None
+
+
+def test_safe_read_works_without_posix_open_flags(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Windows has no O_NOFOLLOW/O_NONBLOCK (first hit by the wheel smoke
+    # test). The reader must still work, and the lstat pre-check must keep
+    # rejecting symlinks when the race-free flag is unavailable.
+    monkeypatch.delattr(os, "O_NOFOLLOW")
+    monkeypatch.delattr(os, "O_NONBLOCK")
+    f = tmp_path / "m.toml"
+    f.write_bytes(b"data")
+    assert safe_read_bytes(f) == b"data"
+    link = tmp_path / "lnk.toml"
+    link.symlink_to(f)
+    assert safe_read_bytes(link) is None
