@@ -54,7 +54,7 @@ confidence never lets RSA through.
 | Surface | Coverage |
 |---|---|
 | Python source | stdlib `hashlib`, `cryptography` (current + legacy + decrepit paths), `pycryptodome` — via AST, no execution |
-| Go source | stdlib `crypto/*` and `golang.org/x/crypto` — union of a bundled `go/types` analyzer (semantic: key sizes, curves, modes) and a tree-sitter pass that also covers GOOS/cgo-gated files. See `docs/adr/0005-go-detector-union.md` |
+| Go source | stdlib `crypto/*` and `golang.org/x/crypto` — union of a bundled `go/types` analyzer (semantic: key sizes, curves, modes) and a tree-sitter pass that also covers GOOS/cgo-gated files, which type resolution cannot see by construction |
 | Lockfiles | `pyproject.toml`, `uv.lock`, `requirements.txt`, `pom.xml`, `go.mod`+`go.sum`, `package-lock.json` |
 
 Java is next on the roadmap; it is not in v0.1.
