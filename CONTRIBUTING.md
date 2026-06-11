@@ -30,7 +30,8 @@ go vet ./... && go test ./...`.
 - Policy changes: bundled policies must only encode semantics the engine
   evaluates (a test enforces this), and regulatory claims are framed as
   alignment, never obligation.
-- Architecture decisions get an ADR in `docs/adr/`.
+- Significant architecture changes: open an issue first and state the
+  alternatives you rejected — decisions get recorded with their data.
 
 ## Precision corpus
 
