@@ -159,6 +159,14 @@
     "canonical": "BLAKE2S",
     "family": "hash"
   },
+  "golang.org/x/crypto/blowfish.NewCipher": {
+    "canonical": "Blowfish",
+    "family": "symmetric-cipher"
+  },
+  "golang.org/x/crypto/blowfish.NewSaltedCipher": {
+    "canonical": "Blowfish",
+    "family": "symmetric-cipher"
+  },
   "golang.org/x/crypto/chacha20.NewUnauthenticatedCipher": {
     "canonical": "CHACHA20",
     "family": "symmetric-cipher"
@@ -170,6 +178,10 @@
   "golang.org/x/crypto/chacha20poly1305.NewX": {
     "canonical": "CHACHA20",
     "family": "authenticated-encryption"
+  },
+  "golang.org/x/crypto/ripemd160.New": {
+    "canonical": "RIPEMD-160",
+    "family": "hash"
   },
   "golang.org/x/crypto/sha3.New256": {
     "canonical": "SHA3-256",

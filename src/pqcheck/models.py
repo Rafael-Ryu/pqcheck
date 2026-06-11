@@ -93,6 +93,12 @@ _QUANTUM_MAP: dict[str, QuantumRisk] = {
     "DES": QuantumRisk.BROKEN,
     "3DES": QuantumRisk.BROKEN,
     "RC4": QuantumRisk.BROKEN,
+    # §3 reconciliation (M2): 64-bit-block ciphers are Sweet32-class broken
+    # like 3DES; RIPEMD-160 has no practical collision but its 160-bit margin
+    # is policy-banned — vulnerable, not broken.
+    "BLOWFISH": QuantumRisk.BROKEN,
+    "IDEA": QuantumRisk.BROKEN,
+    "RIPEMD-160": QuantumRisk.VULNERABLE,
 }
 
 

@@ -49,6 +49,9 @@ _PYTHON_SYMBOLS: dict[str, AlgorithmHit] = {
     "hashlib.sha3_512": AlgorithmHit("SHA3-512", _HASH),
     "hashlib.blake2b": AlgorithmHit("BLAKE2B", _HASH),
     "hashlib.blake2s": AlgorithmHit("BLAKE2S", _HASH),
+    # Not a hashlib module attribute, but hashlib_new_table() derives the
+    # hashlib.new("ripemd160") string-dispatch from this entry (OpenSSL name).
+    "hashlib.ripemd160": AlgorithmHit("RIPEMD-160", _HASH),
     # ---- cryptography.hazmat.primitives.hashes ----
     "cryptography.hazmat.primitives.hashes.MD5": AlgorithmHit("MD5", _HASH),
     "cryptography.hazmat.primitives.hashes.SHA1": AlgorithmHit("SHA-1", _HASH),
@@ -94,6 +97,14 @@ _PYTHON_SYMBOLS: dict[str, AlgorithmHit] = {
     "cryptography.hazmat.primitives.ciphers.algorithms.TripleDES": AlgorithmHit("3DES", _SYM),
     "cryptography.hazmat.primitives.ciphers.algorithms.ARC4": AlgorithmHit("RC4", _SYM),
     "cryptography.hazmat.primitives.ciphers.algorithms.ChaCha20": AlgorithmHit("CHACHA20", _SYM),
+    "cryptography.hazmat.primitives.ciphers.algorithms.Blowfish": AlgorithmHit("Blowfish", _SYM),
+    "cryptography.hazmat.primitives.ciphers.algorithms.IDEA": AlgorithmHit("IDEA", _SYM),
+    # cryptography 43 moved the legacy ciphers to hazmat.decrepit; both import
+    # paths appear in the wild, so both must hit (§3 reconciliation, M2).
+    "cryptography.hazmat.decrepit.ciphers.algorithms.Blowfish": AlgorithmHit("Blowfish", _SYM),
+    "cryptography.hazmat.decrepit.ciphers.algorithms.IDEA": AlgorithmHit("IDEA", _SYM),
+    "cryptography.hazmat.decrepit.ciphers.algorithms.TripleDES": AlgorithmHit("3DES", _SYM),
+    "cryptography.hazmat.decrepit.ciphers.algorithms.ARC4": AlgorithmHit("RC4", _SYM),
     # ---- pycryptodome ----
     "Crypto.Hash.MD5.new": AlgorithmHit("MD5", _HASH),
     "Crypto.Hash.SHA1.new": AlgorithmHit("SHA-1", _HASH),
@@ -105,11 +116,13 @@ _PYTHON_SYMBOLS: dict[str, AlgorithmHit] = {
     "Crypto.Hash.SHA3_512.new": AlgorithmHit("SHA3-512", _HASH),
     "Crypto.Hash.BLAKE2b.new": AlgorithmHit("BLAKE2B", _HASH),
     "Crypto.Hash.BLAKE2s.new": AlgorithmHit("BLAKE2S", _HASH),
+    "Crypto.Hash.RIPEMD160.new": AlgorithmHit("RIPEMD-160", _HASH),
     "Crypto.Cipher.AES.new": AlgorithmHit("AES", _SYM),
     "Crypto.Cipher.DES.new": AlgorithmHit("DES", _SYM),
     "Crypto.Cipher.DES3.new": AlgorithmHit("3DES", _SYM),
     "Crypto.Cipher.ARC4.new": AlgorithmHit("RC4", _SYM),
     "Crypto.Cipher.ChaCha20.new": AlgorithmHit("CHACHA20", _SYM),
+    "Crypto.Cipher.Blowfish.new": AlgorithmHit("Blowfish", _SYM),
     "Crypto.PublicKey.RSA.generate": AlgorithmHit("RSA", _ASYM),
     "Crypto.PublicKey.DSA.generate": AlgorithmHit("DSA", _SIG),
     "Crypto.PublicKey.ECC.generate": AlgorithmHit("ECDSA", _SIG),
