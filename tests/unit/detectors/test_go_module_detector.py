@@ -16,7 +16,7 @@ from pqcheck.detectors.go_module_detector import (
     detect_go_module,
     group_go_files_by_module,
 )
-from pqcheck.models import AlgorithmFamily, CryptoFinding, QuantumRisk
+from pqcheck.models import AlgorithmFamily, CryptoFinding, QuantumRisk, SourceLocation
 
 _MD5_SRC = 'package main\nimport "crypto/md5"\nfunc main() { md5.New() }\n'
 
@@ -710,9 +710,12 @@ def test_detect_go_module_uses_analyzer_output_when_available(
     assert all(f.detector_id == "go-types" for f in findings)
 
 
-def test_detect_go_module_trusts_empty_analyzer_result(
+def test_detect_go_module_unions_tree_sitter_with_clean_analyzer(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
+    # Union semantics (corpus decision 2026-06-11, ADR 0005): go/types cannot
+    # see GOOS-gated or cgo-gated files, so a clean analyzer run no longer
+    # suppresses the syntactic pass — the result is the union of both.
     binary = tmp_path / "crypto-analyzer"
     binary.write_bytes(b"x")
     monkeypatch.setattr(gmd, "_locate_binary", lambda: (binary, True))
@@ -720,7 +723,53 @@ def test_detect_go_module_trusts_empty_analyzer_result(
     _write_module(tmp_path)
     (tmp_path / "m.go").write_text(_MD5_SRC, encoding="utf-8")
 
-    assert detect_go_module(tmp_path) == []  # exit-0 + empty trumps fallback
+    findings = detect_go_module(tmp_path)
+    assert [f.algorithm for f in findings] == ["MD5"]
+    assert findings[0].detector_id != "go-types"  # came from the syntactic pass
+
+
+def test_detect_go_module_dedupes_same_call_site_preferring_semantic(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    binary = tmp_path / "crypto-analyzer"
+    binary.write_bytes(b"x")
+    golden = _GOLDEN.replace("/m/", str(tmp_path) + "/")
+    monkeypatch.setattr(gmd, "_locate_binary", lambda: (binary, True))
+    monkeypatch.setattr(gmd, "_run_analyzer", lambda root, b: golden)
+
+    semantic = gmd._map_findings(golden, tmp_path)
+    duplicate = semantic[0].model_copy(
+        update={"detector_id": "go-treesitter", "key_size": None}
+    )
+    extra_loc = duplicate.location.model_copy(update={"line": duplicate.location.line + 90})
+    extra = duplicate.model_copy(update={"algorithm": "MD5", "location": extra_loc})
+    monkeypatch.setattr(gmd, "_fallback", lambda root: [duplicate, extra])
+
+    findings = detect_go_module(tmp_path)
+    # The shared call site keeps the semantic finding (richer key size); the
+    # tree-sitter-only site survives the merge.
+    algos = [(f.algorithm, f.detector_id) for f in findings]
+    assert ("MD5", "go-treesitter") in algos
+    assert sum(1 for a, _ in algos if a == semantic[0].algorithm) == len(
+        [f for f in semantic if f.algorithm == semantic[0].algorithm]
+    )
+    shared = [f for f in findings if f.algorithm == semantic[0].algorithm]
+    assert all(f.detector_id == "go-types" for f in shared)
+
+
+def test_merge_dedupes_semantic_internal_duplicates() -> None:
+    # go/packages with Tests:true type-checks a production file twice (the
+    # package and its under-test variant), duplicating findings for the same
+    # call site. Corpus 2026-06-11: 25 such duplicates over 197 real sites.
+    def f(line: int, column: int) -> CryptoFinding:
+        return CryptoFinding(
+            algorithm="RSA", family=AlgorithmFamily.ASYMMETRIC_ENCRYPTION,
+            location=SourceLocation(path=Path("/m/a.go"), line=line, column=column),
+            evidence="rsa.GenerateKey", detector_id="go-types",
+        )
+
+    merged = gmd._merge_findings([f(5, 2), f(5, 2), f(9, 0)], [])
+    assert [(x.location.line) for x in merged] == [5, 9]
 
 
 def test_locate_binary_type_error_from_resources_files_returns_none(

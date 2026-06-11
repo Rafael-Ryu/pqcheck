@@ -1,0 +1,47 @@
+# Precision corpus — public crypto-heavy repos, pinned by commit SHA.
+# Protocol in README.md. v0.1 ship-blocker: precision >= 0.85 on the
+# HIGH/CRITICAL buckets over adjudicated findings (03 Task 16).
+# SHAs pinned 2026-06-11.
+repos:
+  # ---- Python (5) ----
+  - name: pyjwt
+    url: https://github.com/jpadilla/pyjwt
+    sha: 7144e4534c34810f4525dc4578a32addd8212cff
+    language: python
+  - name: python-jose
+    url: https://github.com/mpdavis/python-jose
+    sha: 018b310ddb8b50dcfd09a0c152117835a21dd656
+    language: python
+  - name: paramiko
+    url: https://github.com/paramiko/paramiko
+    sha: d60d5c17d78f344b51ed651e796d2931133a9b22
+    language: python
+  - name: sigstore-python
+    url: https://github.com/sigstore/sigstore-python
+    sha: 54ca18368c665a27b022cf4faaa76abfacbafd6f
+    language: python
+  - name: oauthlib
+    url: https://github.com/oauthlib/oauthlib
+    sha: b3f9edffed6b370e3eb92721cea0da22ec7e18b9
+    language: python
+  # ---- Go (5) ----
+  - name: golang-jwt
+    url: https://github.com/golang-jwt/jwt
+    sha: e8e5b83ca9a5c5a3f287eda52c7bca78f9a6d176
+    language: go
+  - name: age
+    url: https://github.com/FiloSottile/age
+    sha: 706dfc1e799a03443ae46023502bd88d4e9e324f
+    language: go
+  - name: go-jose
+    url: https://github.com/go-jose/go-jose
+    sha: a08c440cc55964431a14010db9e0921f5f5530ec
+    language: go
+  - name: sio
+    url: https://github.com/minio/sio
+    sha: e1fddaac73108d378e89df17f4c3e2b53e5122c8
+    language: go
+  - name: smallstep-crypto
+    url: https://github.com/smallstep/crypto
+    sha: 444dcf9a7d709c42402b98252de1836b69244a71
+    language: go

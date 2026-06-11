@@ -11,7 +11,14 @@ from collections.abc import Callable
 from pathlib import Path
 
 from pqcheck import __version__
-from pqcheck.deps import go_mod, package_lock_json, pom_xml, pyproject_toml, uv_lock
+from pqcheck.deps import (
+    go_mod,
+    package_lock_json,
+    pom_xml,
+    pyproject_toml,
+    requirements_txt,
+    uv_lock,
+)
 from pqcheck.detectors.go_detector import detect_go_file
 from pqcheck.detectors.go_module_detector import (
     claimed_go_files,
@@ -27,6 +34,7 @@ from pqcheck.policy.schema import CryptoPolicy
 _MANIFEST_PARSERS: dict[str, Callable[[Path], list[CryptoDependency]]] = {
     "pyproject.toml": pyproject_toml.parse,
     "uv.lock": uv_lock.parse,
+    "requirements.txt": requirements_txt.parse,
     "pom.xml": pom_xml.parse,
     "go.mod": go_mod.parse,
     "package-lock.json": package_lock_json.parse,

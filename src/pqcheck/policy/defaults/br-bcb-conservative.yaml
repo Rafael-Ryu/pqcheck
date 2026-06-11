@@ -1,14 +1,20 @@
 apiVersion: pqcheck.cryptoct.com/v1
 kind: CryptoPolicy
 metadata:
-  name: cryptoct-strict
-  version: 1.0.0
+  name: br-bcb-conservative
+  version: 0.1.0
   publisher: CryptoCT
-  applies-to: "Maximum-gate enforcement for CryptoCT-controlled repositories"
-  effective-from: "2026-05-22"
-  review-date: "2026-11-22"
+  applies-to: >-
+    Brazilian financial institutions aligning their cryptographic inventory
+    with the cybersecurity controls of Res. CMN 4.893/2021 and Res. BCB
+    85/2021. Advisory baseline: no Brazilian regulation currently mandates a
+    cryptographic inventory or PQC migration. This profile anticipates the
+    NIST IR 8547 timeline (RSA/ECC deprecated 2030, disallowed 2035) so the
+    inventory exists before any local guidance lands.
+  effective-from: "2026-06-11"
+  review-date: "2026-12-11"
 spec:
-  default-action: fail
+  default-action: warn
   approved:
     - { family: kem, algorithm: ML-KEM, parameter-sets: ["768", "1024"], action: allow }
     - { family: signature, algorithm: ML-DSA, parameter-sets: ["65", "87"], action: allow }
@@ -23,8 +29,8 @@ spec:
       params: { memory-kib-min: 131072, iterations-min: 4, parallelism-min: 1 }
       action: allow
   banned:
-    - { family: asymmetric-encryption, algorithm: RSA, action: fail, severity: critical, reason: "Shor — migrate to ML-KEM-768" }
-    - { family: signature, algorithm: ECDSA, action: fail, severity: critical, reason: "Shor — migrate to ML-DSA-65" }
+    - { family: asymmetric-encryption, algorithm: RSA, action: fail, severity: critical, reason: "Shor-vulnerable; NIST IR 8547 deprecates by 2030 — migrate to ML-KEM-768" }
+    - { family: signature, algorithm: ECDSA, action: fail, severity: critical, reason: "Shor-vulnerable; NIST IR 8547 deprecates by 2030 — migrate to ML-DSA-65" }
     - { family: signature, algorithm: EdDSA, curves: ["Ed25519", "Ed448"], action: fail, severity: critical }
     - { family: key-agreement, algorithm: DH, action: fail, severity: critical }
     - { family: key-agreement, algorithm: ECDH, action: fail, severity: critical }
@@ -33,7 +39,7 @@ spec:
     - { family: symmetric-cipher, algorithm: DES, action: fail, severity: critical }
     - { family: symmetric-cipher, algorithm: 3DES, action: fail, severity: critical }
     - { family: symmetric-cipher, algorithm: RC4, action: fail, severity: critical }
-    - { family: hash, algorithm: RIPEMD-160, action: fail, severity: high, reason: "Legacy 160-bit hash — banned by policy §3" }
+    - { family: hash, algorithm: RIPEMD-160, action: fail, severity: high, reason: "Legacy 160-bit hash" }
     - { family: symmetric-cipher, algorithm: Blowfish, action: fail, severity: critical, reason: "64-bit block (Sweet32-class)" }
     - { family: symmetric-cipher, algorithm: IDEA, action: fail, severity: critical, reason: "64-bit block (Sweet32-class)" }
     - family: symmetric-cipher
@@ -41,32 +47,13 @@ spec:
       parameter-sets: ["128"]
       action: fail
       severity: high
-      reason: "AES-128 has only 64-bit post-Grover security margin. Use AES-256 in new code."
+      reason: "AES-128 has only 64-bit post-Grover security margin. Use AES-256."
     - family: symmetric-cipher
       algorithm: AES
       modes: ["ECB", "CBC", "CFB", "OFB"]
-      action: fail
+      action: warn
       severity: medium
-  exceptions:
-    - id: EXC-001
-      description: "GitHub App JWT requires RS256 per GitHub upstream limitation"
-      banned-algorithm: RSA
-      context: github-app-jwt
-      adr: docs/adr/004-github-app-jwt.md
-      review-date: "2026-09-30"
-      compensating-controls:
-        - "TLS PQC outer"
-        - "ML-DSA-65 signature on PR comment payload (Phase 3)"
-        - "Webhook nonce + timestamp window 5min for anti-replay"
-    - id: EXC-002
-      description: "Verify-only Stripe webhook signatures (HMAC-SHA-256 upstream)"
-      banned-algorithm: null
-      context: stripe-webhook-verify
-      adr: docs/adr/007-stripe-webhook.md
-      review-date: "2027-01-15"
-      compensating-controls:
-        - "Idempotency: (provider, provider_event_id) UNIQUE"
-        - "Nonce + timestamp window"
+      reason: "Non-AEAD mode — prefer AES-256-GCM"
   severity-rules:
     - { confidence-band: high, action: as-declared }
     - { confidence-band: medium, action: demote-one-tier }

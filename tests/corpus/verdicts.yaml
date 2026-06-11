@@ -1,0 +1,232 @@
+# Human-adjudicated verdicts for corpus findings (protocol: README.md).
+# Adjudicated 2026-06-11 via per-line source review of the cached clones;
+# re-keyed same day after detector_id was dropped from the fingerprint.
+668eba7d0081bd4c: {verdict: tp, note: "test file"}
+7910c52f451fea7d: {verdict: tp, note: "test file"}
+008d8480c20fbea3: {verdict: tp, note: "test file"}
+c5a7140eeba1f169: {verdict: tp, note: "test file"}
+f87732b699f81630: {verdict: tp, note: "real SHA1 in OAEP padding"}
+9848be99d7cdfb8e: {verdict: tp, note: "test file"}
+5b8a93a11dec4e2b: {verdict: tp, note: "test file"}
+9295026b1673930c: {verdict: tp, note: "sha1 hexdigest for %C token"}
+2771fbd5771e66f6: {verdict: tp, note: "ec key generation"}
+316cfe4f8ca514d7: {verdict: tp, note: "sha1 digest_size for salt"}
+bbb101e84e96056d: {verdict: tp, note: "sha1 digest_size assertion"}
+341673eafa409b58: {verdict: tp, note: "ec key generation in kex"}
+8ba5114f1bf49d8f: {verdict: tp, note: "ECDH exchange invoked"}
+a9d917b876f4fb01: {verdict: tp, note: "ECDH exchange invoked"}
+9a9318d8fa457f56: {verdict: tp, note: "md5 fingerprint digest"}
+e249267bfde1d7a1: {verdict: tp, note: "rsa key generation"}
+90f8c68064f31bab: {verdict: tp, note: "ec key generation"}
+fe9e59692e7b9e49: {verdict: tp, note: "ec key generation"}
+749fd491e819c724: {verdict: tp, note: "test file"}
+7ca45b7ffad30ea0: {verdict: tp, note: "test file"}
+6cb2c35752b13d1b: {verdict: tp, note: "test file"}
+c2f6e1fd00365f34: {verdict: tp, note: "test file"}
+e4665beb54194b0c: {verdict: tp, note: "test file"}
+262781f69456b1ce: {verdict: tp, note: "test file"}
+cd5f87aba884730c: {verdict: tp, note: "test file, Ed25519 generate"}
+4c5cc7d787604e4a: {verdict: tp, note: "test file, dummy curve"}
+9acd81ebef4e25b4: {verdict: tp, note: "test file"}
+13d57ac9f4e766be: {verdict: tp, note: "test file"}
+ec334d45a92c8326: {verdict: tp, note: "test file"}
+51a4218ad2f6521d: {verdict: tp, note: "test file"}
+916e45298e20783b: {verdict: tp, note: "test file"}
+cd4919ff5fade7b2: {verdict: tp, note: "real hashlib.sha1 call"}
+dca5a92b1e2ea421: {verdict: tp, note: "test file"}
+88055e30bb26b3d5: {verdict: tp, note: "test file"}
+25cf1adfb6d247bd: {verdict: tp, note: "test file"}
+ae13694f7d99d1e4: {verdict: tp, note: "test helper, real ECDH"}
+b4a04a87be1764aa: {verdict: tp, note: "real ecdh.P256 use"}
+2eac65189d5145ee: {verdict: tp, note: "sha1.New in OAEP"}
+17ab711801422a9c: {verdict: tp, note: "sha1.New in OAEP"}
+2e52563773798b59: {verdict: tp, note: "ephemeral ECDSA keygen"}
+7857ddff25b9e0c9: {verdict: tp, note: "test"}
+47260ac1e1904ddf: {verdict: tp, note: "test"}
+33b317afef249333: {verdict: tp, note: "test"}
+b2b6f14216cf9e88: {verdict: tp, note: "test"}
+bcb781e9ff9e6c4e: {verdict: tp, note: "test"}
+35fabad59d26033d: {verdict: tp, note: "test"}
+1035863c67888a64: {verdict: tp, note: "test"}
+ff33c08a7c2e1e06: {verdict: tp, note: "test"}
+1d22ae9130fb30fa: {verdict: tp, note: "test"}
+be40aadd0287977c: {verdict: tp, note: "test"}
+d29d1231212037f9: {verdict: tp, note: "test"}
+35ed6fb5cfdfc70b: {verdict: tp, note: "test"}
+e16f662062f77d15: {verdict: tp, note: "test"}
+516c1c9158f61e26: {verdict: tp, note: "test"}
+40f468abef3a9be3: {verdict: tp, note: "test"}
+3aaf2a643607e7ec: {verdict: tp, note: "test"}
+c2da74d737ae449b: {verdict: tp, note: "test"}
+acb1f9dcfb6f998c: {verdict: tp, note: "test"}
+c26496d980400767: {verdict: tp, note: "test"}
+e8e65dac62af70bd: {verdict: tp, note: "test"}
+6775a94250754798: {verdict: tp, note: "doc example test"}
+1d5a7e9ce3bccf2f: {verdict: tp, note: "doc example test"}
+fef26436b750af11: {verdict: tp, note: "keygen utility"}
+815f287b514a4a73: {verdict: tp, note: "keygen utility"}
+a47efd09cc4a8dd3: {verdict: tp, note: "keygen utility"}
+280daab2995db988: {verdict: tp, note: "keygen utility"}
+582af7786263b28d: {verdict: tp, note: "keygen utility"}
+11c4133b82e2d848: {verdict: tp, note: "keygen utility"}
+e22e12861ecd86e2: {verdict: tp, note: "keygen utility"}
+99d1dce5fdfca285: {verdict: tp, note: "sha1.Sum x5t thumbprint"}
+e25b9323e69b5932: {verdict: tp, note: "sha1.Sum x5t thumbprint"}
+171a1f973bd8a204: {verdict: tp, note: "test"}
+7d6090444d0f7136: {verdict: tp, note: "test"}
+da85decc12e9ca8f: {verdict: tp, note: "test"}
+536ce4f2d2fbc963: {verdict: tp, note: "test"}
+e271a6ddc23a964b: {verdict: tp, note: "test"}
+5854e01040404a22: {verdict: tp, note: "test"}
+8671a7262038c8e2: {verdict: tp, note: "test"}
+8b540754a0f0f62e: {verdict: tp, note: "test"}
+937045ad72792a09: {verdict: tp, note: "test"}
+edba37042441f136: {verdict: tp, note: "test"}
+35f1d0a40d7a4e54: {verdict: tp, note: "test"}
+8e1c7e07c42dc7d9: {verdict: tp, note: "test"}
+5fb434a08205abab: {verdict: tp, note: "blowfish.NewSaltedCipher call"}
+cfc12429313bb15b: {verdict: tp, note: "test file"}
+0aaee978ab20228e: {verdict: tp, note: "test file"}
+f8b38055d0a19f5c: {verdict: tp, note: "test file"}
+3dcbb72b630c4e63: {verdict: tp, note: "test file"}
+a62b90b7063afd37: {verdict: tp, note: "test file"}
+877aff7fbf04e9f7: {verdict: tp, note: "test file"}
+a49ee78143a2a627: {verdict: tp, note: "test file"}
+77dba84862baf439: {verdict: tp, note: "test file"}
+498b7975a4b98730: {verdict: tp, note: "test file"}
+6ed16481fbfacfee: {verdict: tp, note: "test file"}
+7ed34ef505866fb3: {verdict: tp, note: "test file"}
+fca0edf4d7151dca: {verdict: tp, note: "test file"}
+7ffdfe5d167759f5: {verdict: tp, note: "test file"}
+975b1ff1416ee0c6: {verdict: tp, note: "test file"}
+e7c774601bdc11b5: {verdict: tp, note: "test file"}
+7e2588026a1cbba8: {verdict: tp, note: "test file"}
+585c7adf21fdb8ab: {verdict: tp, note: "test file"}
+b4087ed9f3ad3bbb: {verdict: tp, note: "test file"}
+3a3a4689ad36bb03: {verdict: tp, note: "sha1.Sum cert thumbprint"}
+7df1e4e05b8b4425: {verdict: tp, note: "test file"}
+a92b5c048ce71c26: {verdict: tp, note: "test file"}
+9e75959b01037bf7: {verdict: tp, note: "test file"}
+236ed234b5bb4c3a: {verdict: tp, note: "test file"}
+c9f79841caf791ee: {verdict: tp, note: "ecdsa.GenerateKey call"}
+cba8977c923b6f5d: {verdict: tp, note: "rsa.GenerateKey call"}
+75bf748e3b5fc9ce: {verdict: tp, note: "ed25519.GenerateKey call"}
+5dac4295516dda36: {verdict: tp, note: "test file, sha1.New OAEP"}
+4bec188fc6fb507a: {verdict: tp, note: "test file"}
+0f4e72658badb6d1: {verdict: tp, note: "test file, sha1.New"}
+fe177bc1bc7c136e: {verdict: tp, note: "ecdh.P256 call"}
+84a0fc333f304eba: {verdict: tp, note: "ecdh.P384 call"}
+e4f7fa957c114656: {verdict: tp, note: "ecdh.P521 call"}
+43a3115ca7c4df5a: {verdict: tp, note: "test file"}
+3fb10b78499e6d3b: {verdict: tp, note: "test file"}
+4b44f702707ca0ec: {verdict: tp, note: "test file"}
+93dbe47ca1351186: {verdict: tp, note: "test file"}
+a7989c890df6f6b0: {verdict: tp, note: "sha1.Sum digest"}
+6e42a56cac610d19: {verdict: tp, note: "test file"}
+42d67301c902e3b8: {verdict: tp, note: "test file"}
+f5aefb3382f55e47: {verdict: tp, note: "test file"}
+dd6b9c2229145076: {verdict: tp, note: "ecdh.P256 NewPublicKey"}
+6a4944027959bc89: {verdict: tp, note: "ecdh.P384 NewPublicKey"}
+b5f8261ddebb7f07: {verdict: tp, note: "ecdh.P521 NewPublicKey"}
+b39e4f8a7a31cd8a: {verdict: tp, note: "ecdh.P256 NewPrivateKey"}
+af9323080783a92a: {verdict: tp, note: "ecdh.P384 NewPrivateKey"}
+c84848845880d429: {verdict: tp, note: "ecdh.P521 NewPrivateKey"}
+86fecb8ec641d9fa: {verdict: tp, note: "ecdh curve case expression"}
+d62918fbc0ccb20d: {verdict: tp, note: "ecdh curve case expression"}
+7a2ec42d96008495: {verdict: tp, note: "ecdh curve case expression"}
+364c991b4c327a2d: {verdict: tp, note: "sha1.New call"}
+ebea8ee1bfc7818e: {verdict: tp, note: "test file"}
+1186dc012794a3fc: {verdict: tp, note: "test file"}
+a6888b3c03e1c991: {verdict: tp, note: "test file"}
+e4dd8059bef2da21: {verdict: tp, note: "test file"}
+77a1828846c0eb0c: {verdict: tp, note: "test file"}
+2367ee085ac5056e: {verdict: tp, note: "test file"}
+3ac70dec8e296736: {verdict: tp, note: "test file"}
+c58a644a7d6855b8: {verdict: tp, note: "test file"}
+6db224f3e0c307ab: {verdict: tp, note: "test file"}
+9caa163ba099f379: {verdict: tp, note: "test file"}
+32e3795571f23a92: {verdict: tp, note: "test file"}
+c31da16ea02366f8: {verdict: tp, note: "test file"}
+0e2ec10d82799747: {verdict: tp, note: "test file"}
+d8857c7625cf2348: {verdict: tp, note: "test file"}
+46846061b3af8703: {verdict: tp, note: "test file"}
+7fc5cb5e5893789d: {verdict: tp, note: "test file"}
+efcf8eef605c1048: {verdict: tp, note: "test file"}
+e3e1c4b07f385d28: {verdict: tp, note: "test file"}
+46f3a9b3b8739890: {verdict: tp, note: "test file"}
+9b0e87f46dd44f2b: {verdict: tp, note: "test file"}
+b8f79e22299b1ff0: {verdict: tp, note: "test file"}
+7fc75310ee640660: {verdict: tp, note: "test file"}
+e641aa2ed28176ac: {verdict: tp, note: "returns ecdh.P256 curve"}
+19ed70585d98ccc5: {verdict: tp, note: "returns ecdh.P384 curve"}
+d4b1aaaea60367db: {verdict: tp, note: "returns ecdh.P521 curve"}
+23345b7232f398c0: {verdict: tp, note: "test file"}
+e2f6ab095118c14e: {verdict: tp, note: "test file"}
+088e7398744a4ad6: {verdict: tp, note: "test file"}
+cbcefaa113f036f8: {verdict: tp, note: "test file"}
+40b54df69145f0d6: {verdict: tp, note: "test file"}
+394f2f9ccb61badc: {verdict: tp, note: "test file"}
+79b35fa9a5a26b66: {verdict: tp, note: "test file"}
+f2b9efec69f08975: {verdict: tp, note: "test file"}
+a0f7fc6017fa4f69: {verdict: tp, note: "test file"}
+1c3e2b51529312cc: {verdict: tp, note: "test file"}
+2f5b35987821ddfd: {verdict: tp, note: "test file"}
+9a4de7841848c314: {verdict: tp, note: "test file"}
+599eb44b56c08215: {verdict: tp, note: "test file"}
+5e15e167d61a9eef: {verdict: tp, note: "test file"}
+40facea4f5d56baa: {verdict: tp, note: "test file"}
+5c80c447e911411f: {verdict: tp, note: "test file"}
+aa4f39b58ac255c1: {verdict: tp, note: "test file"}
+d495bc498431bad3: {verdict: tp, note: "test file"}
+6233c3e1c565664f: {verdict: tp, note: "test file"}
+aa5a8e69ab4a1165: {verdict: tp, note: "test file"}
+f5e89d37edde09ae: {verdict: tp, note: "test file"}
+cdf5b36479d14c64: {verdict: tp, note: "test file"}
+a0e7ffc5e04b1ef5: {verdict: tp, note: "sha1.Sum key ID"}
+5a52369618921712: {verdict: tp, note: "test file"}
+256a0e4fc19ba7bb: {verdict: tp, note: "test file"}
+f234cf4c72994818: {verdict: tp, note: "test file"}
+201454927622e1af: {verdict: tp, note: "test file"}
+4082fb103c8661c6: {verdict: tp, note: "test file"}
+454918e9620a1172: {verdict: tp, note: "test file"}
+6d5a448c0a024b39: {verdict: tp, note: "test file"}
+d362a958c0fcfd95: {verdict: tp, note: "test file"}
+90d613e7e905bfb9: {verdict: tp, note: "test file"}
+da57513bee49402d: {verdict: tp, note: "test file"}
+664096d371f17a57: {verdict: tp, note: "test file"}
+e0344b64d5886c81: {verdict: tp, note: "test file"}
+18133b1b14f49edc: {verdict: tp, note: "test file"}
+fdb3f1039f3baec3: {verdict: tp, note: "test file"}
+1fe4093971ba12e3: {verdict: tp, note: "test file"}
+59e7c7f47f996c27: {verdict: tp, note: "test file"}
+8483c933b2223698: {verdict: tp, note: "test file"}
+97041feae33d6d94: {verdict: tp, note: "ecdh.P256 NewPublicKey"}
+a6d54c5e303fc9b1: {verdict: tp, note: "sha1.New KDF"}
+6531dad88f4d6d01: {verdict: tp, note: "ecdh.P256 assignment"}
+bee0a08ccc74905a: {verdict: tp, note: "ecdh.P384 assignment"}
+18ce3df97115fa57: {verdict: tp, note: "ecdh.P521 assignment"}
+57c8b6bfb21fa5e5: {verdict: tp, note: "ecdh curve case expression"}
+947733e14e73a3f9: {verdict: tp, note: "ecdh curve case expression"}
+7a83774a39bb55e0: {verdict: tp, note: "ecdh curve case expression"}
+8b8b30dbd42ed9fb: {verdict: tp, note: "des.NewCipher legacy keys"}
+6ce15bad2849deed: {verdict: tp, note: "des.NewTripleDESCipher legacy keys"}
+9f973af2a25dc285: {verdict: tp, note: "test file"}
+c101f42fb51cfe01: {verdict: tp, note: "test file"}
+21460b64d6deec59: {verdict: tp, note: "test file"}
+88497ff65b08cd23: {verdict: tp, note: "ecdh.P256 NewPublicKey"}
+1e1077236357b117: {verdict: tp, note: "test file"}
+c2734f9d0105c2f0: {verdict: tp, note: "test file"}
+4e35d2dc50fb1825: {verdict: tp, note: "test file"}
+9c7b25173cdbd38d: {verdict: tp, note: "test file"}
+fe991f87dec002d8: {verdict: tp, note: "test file"}
+8cfa2616e9246624: {verdict: tp, note: "test file"}
+8fec786bc7da120e: {verdict: tp, note: "test file"}
+143fe1c617a396dc: {verdict: tp, note: "test file"}
+fcb3983b336b7e97: {verdict: tp, note: "test file"}
+f325c80312ab63a6: {verdict: tp, note: "test file"}
+576671aa77a06926: {verdict: tp, note: "test file"}
+88d67276dff5bec8: {verdict: tp, note: "test file"}
+7151c6bb1cbc22c0: {verdict: tp, note: "test file"}
+25c429ab8199e2f8: {verdict: tp, note: "test file"}
+0c497f63e9766a0b: {verdict: tp, note: "test file"}
+92ea868167425735: {verdict: tp, note: "sha1.Sum subject key ID"}

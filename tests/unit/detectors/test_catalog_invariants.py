@@ -40,6 +40,7 @@ def test_hashlib_new_table_derives_from_catalog() -> None:
     assert set(table) == {
         "md5", "sha1", "sha224", "sha256", "sha384", "sha512",
         "sha3_256", "sha3_384", "sha3_512", "blake2b", "blake2s",
+        "ripemd160",  # §3 reconciliation — reaches hashlib only via new()
     }
 
 

@@ -39,6 +39,7 @@ _ALWAYS_IGNORE_DIRS = frozenset({
 MANIFEST_NAMES = frozenset({
     "pyproject.toml",
     "uv.lock",
+    "requirements.txt",
     "pom.xml",
     "go.mod",
     "package-lock.json",
