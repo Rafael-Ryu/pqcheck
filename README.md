@@ -1,35 +1,114 @@
 # pqcheck
 
-Post-quantum cryptography risk scanner for source code and dependency graphs.
+Generate a Cryptography Bill of Materials (CBOM) for your codebase in
+seconds, and gate CI on a crypto policy you can read.
 
-**Status:** pre-alpha, private development. Working name; may change before public release.
+`pqcheck` scans source code and dependency lockfiles for cryptographic
+algorithm usage — RSA, ECDSA, AES modes, legacy hashes, post-quantum
+primitives — and emits a CycloneDX 1.6 CBOM plus SARIF 2.1.0, evaluated
+against a versionable YAML policy. It runs on a laptop and in CI with no
+server, no account, and no network access during the scan.
 
-## Development setup
+Why now: NIST IR 8547 deprecates RSA and ECC by 2030 and disallows them
+by 2035. Every migration framework (OMB M-23-02, the EU coordinated
+roadmap, FS-ISAC guidance) makes inventory the first step. The existing
+open tooling for that step needs a SonarQube server; the commercial
+options start at enterprise pricing. This is the `pip install` version.
 
-Requires Python 3.12+ and [`uv`](https://github.com/astral-sh/uv).
+**Status: pre-release.** v0.1.0 lands on PyPI with Sigstore-signed
+wheels. Until then: `uv sync --all-extras && uv run pqcheck --help`.
+[Leia em português](README.pt-br.md).
 
-```bash
-uv sync --all-extras
-uv run pytest
-uv run ruff check .
-uv run mypy
+## Quickstart
+
+```console
+$ pqcheck scan ./your-repo --policy cryptoct-default
+✗ src/auth.py:42 — RSA [banned/critical, confidence high] — Shor — migrate to ML-KEM-768
+⚠ src/hash.py:7  — BLAKE2B [default/medium, confidence high]
+✓ src/aead.py:12 — AES [approved/info, confidence high]
+dependencies: 47 parsed
+policy cryptoct-default-1.0.0: 1 fail, 1 warn, 1 allow
 ```
 
-Try the CLI skeleton:
+Machine-readable outputs:
 
-```bash
-uv run pqcheck version
+```console
+$ pqcheck scan . --policy cryptoct-default --format cbom -o cbom.cdx.json
+$ pqcheck scan . --format sarif -o pqcheck.sarif   # imports into GitHub Code Scanning
 ```
 
-## Layout
+Gate CI (`exit 1` when the policy trips):
 
+```console
+$ pqcheck scan . --policy br-bcb-conservative --fail-on policy
+$ pqcheck self-audit          # fixed policy, CBOM always written
 ```
-src/pqcheck/        # package source
-tests/              # pytest suite (unit + integration + corpus)
-tools/              # auxiliary build tools (Go modfile-parser, etc.)
-scripts/            # build / release helpers
-```
+
+`--fail-on high` gates on base severity instead; `--strict` treats WARN
+decisions as failures. A finding's displayed severity is demoted by
+detection confidence, but gating always reads the base severity — low
+confidence never lets RSA through.
+
+## What it detects
+
+| Surface | Coverage |
+|---|---|
+| Python source | stdlib `hashlib`, `cryptography` (current + legacy + decrepit paths), `pycryptodome` — via AST, no execution |
+| Go source | stdlib `crypto/*` and `golang.org/x/crypto` — union of a bundled `go/types` analyzer (semantic: key sizes, curves, modes) and a tree-sitter pass that also covers GOOS/cgo-gated files, which type resolution cannot see by construction |
+| Lockfiles | `pyproject.toml`, `uv.lock`, `requirements.txt`, `pom.xml`, `go.mod`+`go.sum`, `package-lock.json` |
+
+Java is next on the roadmap; it is not in v0.1.
+
+## Policies
+
+Six bundled policies, all plain YAML you can fork:
+
+- `cryptoct-default` / `cryptoct-strict` / `cryptoct-advisory` — the
+  general tiers (fail / fail-hard / report-only).
+- `br-bcb-conservative` — for Brazilian financial institutions aligning
+  their inventory with the cybersecurity controls of Res. CMN 4.893/2021.
+- `br-drex-piloto` — the strictest profile, for teams that want new code
+  quantum-safe by construction.
+- `br-vendor-dd` — advisory profile for vendor due-diligence annexes.
+
+To be clear about the regulatory framing: **no Brazilian regulation
+currently mandates a cryptographic inventory or PQC migration.** The BR
+profiles anticipate that direction; they do not claim an obligation that
+does not exist.
+
+`pqcheck policy show <name>` prints any of them resolved;
+`pqcheck policy validate <file>` checks your own against the schema.
+
+## Measured precision
+
+Every HIGH/CRITICAL finding across a 10-repo public corpus (pyjwt,
+paramiko, sigstore-python, age, go-jose, smallstep/crypto, …) was
+human-adjudicated by reading the flagged line: **230 findings, 0 false
+positives**. Protocol, pinned SHAs, and verdicts are in `tests/corpus/`.
+The honest caveat: explicit-call detection is precise by construction;
+recall (what the scanner misses) is not yet measured — that is the next
+corpus iteration.
+
+## Known limitations
+
+- Findings carry no usage context yet: the policy cannot distinguish
+  "RSA verifying a third-party webhook" from "RSA encrypting data at
+  rest". Context-scoped rules are parsed but deliberately not shipped in
+  the bundled policies until detectors emit context.
+- No hybrid-scheme detection (X25519MLKEM768 reads as X25519).
+- Insecure RNG usage (`math/rand` for keys) is not detected yet.
+- Only the repo root's `.gitignore`/`.pqcheckignore` are honored.
+- Dependency findings are inventory (`introduces` metadata in the CBOM);
+  they do not trip the policy gate in v0.1 — call sites do.
+
+## Development
+
+Requires Python 3.12+ and [`uv`](https://github.com/astral-sh/uv):
+`uv sync --all-extras`, then `uv run pytest`, `uv run ruff check .`,
+`uv run mypy`. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
-Apache License 2.0 — see [LICENSE](LICENSE).
+Apache-2.0. See [SECURITY.md](SECURITY.md) for the vulnerability
+disclosure process and the honest list of classical crypto this project
+itself transitively depends on.

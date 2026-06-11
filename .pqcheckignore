@@ -1,0 +1,5 @@
+# Paths excluded from pqcheck's own self-audit (gitwildmatch syntax).
+# Fixtures and the corpus cache contain banned crypto ON PURPOSE — they are
+# detector test inputs, not shipped code.
+tests/fixtures/
+tests/corpus/.cache/
