@@ -45,10 +45,21 @@ def _platform_tag() -> str:
 
     cibuildwheel runs each build in the target's own environment (the manylinux
     container, the macOS arch, the Windows runner), so the host's most-specific
-    platform tag is the target's; auditwheel/delocate later normalise the
-    linux/macOS form. The binary is ABI-agnostic, so only the platform portion
-    matters.
+    platform tag is the target's; auditwheel later normalises the linux form.
+    The binary is ABI-agnostic, so only the platform portion matters.
+
+    macOS is special since the delocate repair step was disabled (the bundled
+    Go binary is static — nothing to vendor, and delocate rejects it): without
+    repair, the running OS version would become the tag floor, so a wheel
+    built on a macOS 15 runner would install nowhere older. Honour
+    MACOSX_DEPLOYMENT_TARGET (the release matrix sets 11.0, Go's own floor)
+    to tag the wheel for every macOS the binary actually supports.
     """
+    target = os.environ.get("MACOSX_DEPLOYMENT_TARGET")
+    if sys.platform == "darwin" and target:
+        major, _, minor = target.partition(".")
+        arch = "arm64" if platform.machine().lower() == "arm64" else "x86_64"
+        return f"macosx_{major}_{minor or 0}_{arch}"
     return next(packaging.tags.sys_tags()).platform
 
 

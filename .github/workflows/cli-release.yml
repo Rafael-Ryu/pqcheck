@@ -53,12 +53,14 @@ jobs:
           # macos-13 (the classic Intel image) was retired in Dec 2025 and its
           # label queues forever; macos-15-intel is GitHub's last x86_64 image,
           # available until Aug 2027 — revisit Intel macOS support then.
+          # MACOSX_DEPLOYMENT_TARGET=11.0 (Go's macOS floor) sets the wheel
+          # tag via hatch_build.py now that the delocate repair is disabled.
           - os: macos-15-intel
             cibw_archs: x86_64
-            cibw_environment: "GOOS=darwin GOARCH=amd64"
+            cibw_environment: "GOOS=darwin GOARCH=amd64 MACOSX_DEPLOYMENT_TARGET=11.0"
           - os: macos-14
             cibw_archs: arm64
-            cibw_environment: "GOOS=darwin GOARCH=arm64"
+            cibw_environment: "GOOS=darwin GOARCH=arm64 MACOSX_DEPLOYMENT_TARGET=11.0"
           - os: windows-latest
             cibw_archs: AMD64
             cibw_environment: "GOOS=windows GOARCH=amd64"
