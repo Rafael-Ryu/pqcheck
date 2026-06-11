@@ -64,6 +64,11 @@ jobs:
           enable-cache: true
       - run: uv sync --all-extras --frozen
       - run: uv run pytest
+      - name: Validate emitted CBOM against the official CycloneDX 1.6 schema
+        run: |
+          uv run pqcheck scan tests/fixtures/python --policy cryptoct-default \
+            --format cbom -o /tmp/ci-cbom.cdx.json || test $? -eq 1
+          uv run python -m pqcheck.cbom.validator /tmp/ci-cbom.cdx.json
 
   build:
     needs: [test, go]
