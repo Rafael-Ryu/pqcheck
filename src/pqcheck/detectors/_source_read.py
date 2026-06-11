@@ -26,16 +26,27 @@ def read_source_bytes(path: Path) -> bytes | None:
     Open uses O_NOFOLLOW (reject symlinks) and O_NONBLOCK (a FIFO opens
     immediately, then the S_ISREG guard rejects it). fstat and read run on the
     same fd, closing the TOCTOU between the size check and the read.
+
+    Windows has neither flag (first hit by the wheel smoke test): there the
+    lstat pre-check below is the symlink gate — best-effort rather than
+    race-free, acceptable since Windows symlink creation needs elevated
+    rights. O_BINARY keeps the CRT's text-mode translation off.
     """
+    flags = (
+        os.O_RDONLY
+        | getattr(os, "O_NOFOLLOW", 0)
+        | getattr(os, "O_NONBLOCK", 0)
+        | getattr(os, "O_BINARY", 0)
+    )
     try:
-        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        if path.is_symlink():
+            return None
+        fd = os.open(path, flags)
     except (OSError, ValueError):  # ValueError: embedded NUL in path
         return None
     try:
         info = os.fstat(fd)
-        if not stat.S_ISREG(info.st_mode):
-            return None
-        if info.st_size > MAX_SOURCE_BYTES:
+        if not stat.S_ISREG(info.st_mode) or info.st_size > MAX_SOURCE_BYTES:
             return None
         chunks: list[bytes] = []
         budget = MAX_SOURCE_BYTES + 1

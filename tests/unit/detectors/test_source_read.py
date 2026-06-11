@@ -1,4 +1,7 @@
+import os
 from pathlib import Path
+
+import pytest
 
 from pqcheck.detectors._source_read import MAX_SOURCE_BYTES, read_source_bytes
 
@@ -41,3 +44,18 @@ def test_nul_in_path_returns_none() -> None:
     # os.open raises ValueError (not OSError) on an embedded NUL; the reader
     # must still honor its never-raise contract.
     assert read_source_bytes(Path("a\x00b.go")) is None
+
+
+def test_read_source_works_without_posix_open_flags(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Windows has no O_NOFOLLOW/O_NONBLOCK; the lstat pre-check is the
+    # symlink gate there.
+    monkeypatch.delattr(os, "O_NOFOLLOW")
+    monkeypatch.delattr(os, "O_NONBLOCK")
+    f = tmp_path / "a.go"
+    f.write_bytes(b"package main\n")
+    assert read_source_bytes(f) == b"package main\n"
+    link = tmp_path / "lnk.go"
+    link.symlink_to(f)
+    assert read_source_bytes(link) is None

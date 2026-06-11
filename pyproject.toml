@@ -149,6 +149,12 @@ before-all = "curl -sSLo /tmp/go.tgz https://go.dev/dl/go1.25.0.linux-amd64.tar.
 
 [tool.cibuildwheel.macos]
 archs = ["x86_64", "arm64"]
+# delocate exists to vendor external dylibs into the wheel; the bundled Go
+# binary is fully static (CGO_ENABLED=0) and delocate rejects it outright
+# (first hit by the pqcheck-test-v0.0.3 dry run). With repair disabled, the
+# platform tag floor comes from MACOSX_DEPLOYMENT_TARGET via hatch_build.py
+# instead of the runner's OS version.
+repair-wheel-command = ""
 
 [tool.cibuildwheel.windows]
 archs = ["AMD64"]
