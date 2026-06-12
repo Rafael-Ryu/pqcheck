@@ -151,5 +151,6 @@ def test_output_streams_degrade_on_legacy_codepages(monkeypatch: pytest.MonkeyPa
     _configure_output_streams()
     print("✓ RSA — Shor", file=sys.stdout)  # would raise UnicodeEncodeError unconfigured
     sys.stdout.flush()
-    # the mark degrades to "?"; the em dash exists in cp1252 (0x97) and survives
-    assert legacy.buffer.getvalue() == b"? RSA \x97 Shor\n"
+    # the mark degrades to "?"; the em dash exists in cp1252 (0x97) and
+    # survives. Normalize newlines: Windows text streams emit \r\n.
+    assert legacy.buffer.getvalue().replace(b"\r\n", b"\n") == b"? RSA \x97 Shor\n"
