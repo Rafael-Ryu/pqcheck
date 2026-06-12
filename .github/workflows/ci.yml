@@ -102,12 +102,7 @@ jobs:
         run: |
           uv run pqcheck scan . --policy cryptoct-default \
             --format sarif -o /tmp/pqcheck.sarif || test $? -eq 1
-      # Tolerated while the repo is private: Code Scanning upload requires
-      # GitHub Advanced Security there ("Resource not accessible by
-      # integration"). Drop continue-on-error when the repo goes public —
-      # the SARIF generation above still gates either way.
       - uses: github/codeql-action/upload-sarif@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4
-        continue-on-error: true
         with:
           sarif_file: /tmp/pqcheck.sarif
           category: pqcheck-self-scan
