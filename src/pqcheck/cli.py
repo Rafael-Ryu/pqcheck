@@ -8,7 +8,9 @@ Exit codes: 0 clean, 1 policy gate tripped, 2 usage/policy error,
 
 from __future__ import annotations
 
+import contextlib
 import json
+import sys
 from enum import StrEnum
 from pathlib import Path
 from typing import Annotated
@@ -51,6 +53,24 @@ class FailOn(StrEnum):
 
 
 _ACTION_MARKS = {"fail": "✗", "warn": "⚠", "allow": "✓"}
+
+
+def _configure_output_streams() -> None:
+    """Degrade unencodable report characters instead of crashing the scan.
+
+    Windows consoles default to legacy codepages (cp1252) that cannot
+    encode the report marks (✗ ⚠ ✓) or em dashes — first hit by the
+    Windows CI cell's self-audit step. errors="replace" keeps UTF-8
+    terminals pristine and turns the marks into "?" on legacy ones.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            with contextlib.suppress(Exception):
+                reconfigure(errors="replace")
+
+
+_configure_output_streams()
 
 
 @app.command()
