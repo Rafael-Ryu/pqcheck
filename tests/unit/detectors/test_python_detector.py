@@ -818,6 +818,7 @@ def test_detect_python_file_rejects_symlink_to_dev_zero(tmp_path: Path) -> None:
     assert detect_python_file(link) == []
 
 
+@pytest.mark.skipif(os.name == "nt", reason="Windows has no FIFOs")
 def test_detect_python_file_rejects_fifo(tmp_path: Path) -> None:
     fifo = tmp_path / "pipe.py"
     os.mkfifo(fifo)

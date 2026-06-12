@@ -131,6 +131,7 @@ def test_safe_read_bytes_rejects_symlink_to_dev_zero(tmp_path: Path) -> None:
     assert safe_read_bytes(link) is None
 
 
+@pytest.mark.skipif(os.name == "nt", reason="Windows has no FIFOs")
 def test_safe_read_bytes_rejects_fifo(tmp_path: Path) -> None:
     fifo = tmp_path / "pipe.toml"
     os.mkfifo(fifo)
