@@ -56,6 +56,14 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
         python-version: ["3.12", "3.13"]
+        include:
+          # One Windows cell: we ship a win_amd64 wheel, and the O_NOFOLLOW
+          # crash only surfaced at release smoke because nothing tested this
+          # platform earlier. Coverage is informational here — POSIX-only
+          # branches (subprocess envelope, resource limits) cannot execute.
+          - os: windows-latest
+            python-version: "3.12"
+            pytest-extra-args: "--cov-fail-under=0"
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
@@ -63,14 +71,16 @@ jobs:
           python-version: ${{ matrix.python-version }}
           enable-cache: true
       - run: uv sync --all-extras --frozen
-      - run: uv run pytest
+      - run: uv run pytest ${{ matrix.pytest-extra-args }}
       - name: Validate emitted CBOM against the official CycloneDX 1.6 schema
+        shell: bash
         run: |
           uv run pqcheck scan tests/fixtures/python --policy cryptoct-default \
-            --format cbom -o /tmp/ci-cbom.cdx.json || test $? -eq 1
-          uv run python -m pqcheck.cbom.validator /tmp/ci-cbom.cdx.json
+            --format cbom -o ci-cbom.cdx.json || test $? -eq 1
+          uv run python -m pqcheck.cbom.validator ci-cbom.cdx.json
       - name: Self-audit (release gate — pqcheck must pass its own policy)
-        run: uv run pqcheck self-audit . -o /tmp/self-cbom.json
+        shell: bash
+        run: uv run pqcheck self-audit . -o self-cbom.json
 
   sarif:
     # Dogfood the SARIF writer against GitHub Code Scanning — an import
