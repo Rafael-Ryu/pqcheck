@@ -51,11 +51,16 @@ def test_read_source_works_without_posix_open_flags(
 ) -> None:
     # Windows has no O_NOFOLLOW/O_NONBLOCK; the lstat pre-check is the
     # symlink gate there.
-    monkeypatch.delattr(os, "O_NOFOLLOW")
-    monkeypatch.delattr(os, "O_NONBLOCK")
+    # raising=False: on Windows the flags are already absent — the test then
+    # exercises the real platform path instead of erroring on the delattr.
+    monkeypatch.delattr(os, "O_NOFOLLOW", raising=False)
+    monkeypatch.delattr(os, "O_NONBLOCK", raising=False)
     f = tmp_path / "a.go"
     f.write_bytes(b"package main\n")
     assert read_source_bytes(f) == b"package main\n"
     link = tmp_path / "lnk.go"
-    link.symlink_to(f)
+    try:
+        link.symlink_to(f)
+    except OSError:
+        pytest.skip("symlink creation unavailable (Windows without privilege)")
     assert read_source_bytes(link) is None
