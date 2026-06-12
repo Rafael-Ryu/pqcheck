@@ -701,7 +701,10 @@ def test_detect_go_module_uses_analyzer_output_when_available(
     binary.write_bytes(b"x")
     # The real binary emits absolute source paths under the scanned module; the
     # bridge drops anything outside it, so the golden must live under tmp_path.
-    golden = _GOLDEN.replace("/m/", str(tmp_path.resolve()) + "/")
+    # as_posix(): backslashes are escape characters inside the JSON golden —
+    # str() on Windows would make json.loads fail and _map_findings return [].
+    golden_root = tmp_path.resolve().as_posix()
+    golden = _GOLDEN.replace("/m/", golden_root + "/")
     monkeypatch.setattr(gmd, "_locate_binary", lambda: (binary, True))
     monkeypatch.setattr(gmd, "_run_analyzer", lambda root, b: golden)
 
@@ -734,7 +737,10 @@ def test_detect_go_module_dedupes_same_call_site_preferring_semantic(
 ) -> None:
     binary = tmp_path / "crypto-analyzer"
     binary.write_bytes(b"x")
-    golden = _GOLDEN.replace("/m/", str(tmp_path.resolve()) + "/")
+    # as_posix(): backslashes are escape characters inside the JSON golden —
+    # str() on Windows would make json.loads fail and _map_findings return [].
+    golden_root = tmp_path.resolve().as_posix()
+    golden = _GOLDEN.replace("/m/", golden_root + "/")
     monkeypatch.setattr(gmd, "_locate_binary", lambda: (binary, True))
     monkeypatch.setattr(gmd, "_run_analyzer", lambda root, b: golden)
 
