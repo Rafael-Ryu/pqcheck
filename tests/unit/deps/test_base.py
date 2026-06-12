@@ -131,6 +131,7 @@ def test_safe_read_bytes_rejects_symlink_to_dev_zero(tmp_path: Path) -> None:
     assert safe_read_bytes(link) is None
 
 
+@pytest.mark.skipif(os.name == "nt", reason="Windows has no FIFOs")
 def test_safe_read_bytes_rejects_fifo(tmp_path: Path) -> None:
     fifo = tmp_path / "pipe.toml"
     os.mkfifo(fifo)
@@ -159,11 +160,16 @@ def test_safe_read_works_without_posix_open_flags(
     # Windows has no O_NOFOLLOW/O_NONBLOCK (first hit by the wheel smoke
     # test). The reader must still work, and the lstat pre-check must keep
     # rejecting symlinks when the race-free flag is unavailable.
-    monkeypatch.delattr(os, "O_NOFOLLOW")
-    monkeypatch.delattr(os, "O_NONBLOCK")
+    # raising=False: on Windows the flags are already absent — the test then
+    # exercises the real platform path instead of erroring on the delattr.
+    monkeypatch.delattr(os, "O_NOFOLLOW", raising=False)
+    monkeypatch.delattr(os, "O_NONBLOCK", raising=False)
     f = tmp_path / "m.toml"
     f.write_bytes(b"data")
     assert safe_read_bytes(f) == b"data"
     link = tmp_path / "lnk.toml"
-    link.symlink_to(f)
+    try:
+        link.symlink_to(f)
+    except OSError:
+        pytest.skip("symlink creation unavailable (Windows without privilege)")
     assert safe_read_bytes(link) is None
