@@ -1,11 +1,14 @@
+import io
 import json
+import sys
 from importlib.resources import files
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 import pqcheck.__main__ as main_module
-from pqcheck.cli import app
+from pqcheck.cli import _configure_output_streams, app
 
 runner = CliRunner()
 
@@ -137,3 +140,16 @@ def test_policy_validate_accepts_valid_and_rejects_invalid(tmp_path: Path) -> No
     nok = runner.invoke(app, ["policy", "validate", str(bad)])
     assert ok.exit_code == 0 and "valid:" in ok.stdout
     assert nok.exit_code == 1
+
+
+def test_output_streams_degrade_on_legacy_codepages(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Windows consoles default to cp1252, which cannot encode the report
+    # marks; the configured stream must replace instead of raising (the
+    # Windows CI cell crashed on the first ✓ before this).
+    legacy = io.TextIOWrapper(io.BytesIO(), encoding="cp1252")
+    monkeypatch.setattr(sys, "stdout", legacy)
+    _configure_output_streams()
+    print("✓ RSA — Shor", file=sys.stdout)  # would raise UnicodeEncodeError unconfigured
+    sys.stdout.flush()
+    # the mark degrades to "?"; the em dash exists in cp1252 (0x97) and survives
+    assert legacy.buffer.getvalue() == b"? RSA \x97 Shor\n"
