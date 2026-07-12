@@ -130,3 +130,21 @@ and borgbackup's in-repo Cython OpenSSL binding (3, outside the
 import-resolution model by construction). Held-out precision over all 77
 HIGH/CRITICAL findings on the same repos: 0.99 (76 tp / 1 fp — `pub.ECDH()`
 called for key-format conversion, not key agreement).
+
+**Note (2026-07-12, second pass):** the 12 in-scope misses above were fixed
+directly from this held-out miss list — the `/vN` versioned-import bug (both
+the tree-sitter package-identifier binding and, once a `*rand.Rand` method
+catalog closed a related gap, the go/types receiver-method resolution) and
+the `v1.SHA256` / `blake2s.Sum256` / `blake2b.Sum*` / `math/rand.Uint32`
+catalog gaps. That makes this set no longer strictly untouched — the same
+caveat corpus v2 carries now applies here too. Recall after the fix:
+**0.989** (273/276); only borgbackup's Cython/OpenSSL binding (3, outside
+the import-resolution model by construction) remains. Re-running with
+`--candidates` surfaced no new oracle candidates, so no ground-truth
+adjudication changed. Future generalization claims need a fresh, disjoint
+repo set. The go/types engine only participates in this measurement when
+the bundled binary is built (`cd tools/crypto-analyzer && go build -o
+../../src/pqcheck/bin/<goos>-<goarch>/crypto-analyzer ./cmd/crypto-analyzer`)
+and pointed at via `PQCHECK_CRYPTO_ANALYZER` — without it these scripts
+silently fall back to tree-sitter only, undercounting recall by the
+`*rand.Rand` method sites.

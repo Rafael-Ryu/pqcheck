@@ -15,6 +15,7 @@ honours the Python detector's never-raise contract.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -26,6 +27,28 @@ from pqcheck.detectors.tree_sitter_loader import go_language
 from pqcheck.models import AlgorithmFamily, CryptoFinding, SourceLocation
 
 _DETECTOR_ID = "go-tree-sitter"
+
+# Go's semantic import versioning (SIV) only applies to major version >= 2
+# (https://go.dev/ref/mod#major-version-suffixes) -- v0/v1 are never version
+# suffixes, so a trailing "/v1" segment is a real, literal package name (e.g.
+# go-containerregistry's pkg/v1, whose package clause is `package v1`). For
+# v2+, the package's declared short name conventionally matches the segment
+# *before* the suffix (stdlib's math/rand/v2 declares `package rand`), and an
+# unaliased import binds that short name at call sites -- not the literal
+# "v2" trailing path segment. This mirrors the oracle's own /vN handling in
+# tests/corpus/run_recall_v2.py.
+_SIV_SUFFIX_RE = re.compile(r"v(\d+)")
+_MIN_SIV_MAJOR_VERSION = 2
+
+
+def _unaliased_import_identifier(path: str) -> str:
+    """Package identifier an unaliased `import "path"` binds at call sites."""
+    segments = path.rsplit("/", 2)
+    if len(segments) >= _MIN_SIV_MAJOR_VERSION:
+        match = _SIV_SUFFIX_RE.fullmatch(segments[-1])
+        if match is not None and int(match.group(1)) >= _MIN_SIV_MAJOR_VERSION:
+            return segments[-2]
+    return segments[-1]
 
 # Method calls on a typed receiver (`pub.ECDH()`, `k.yk.GenerateKey(...)`) have
 # no package-qualified callee for lookup_go_symbol, and tree-sitter carries no
@@ -132,7 +155,7 @@ class GoImportResolver:
             return
         name_node = spec.child_by_field_name("name")
         if name_node is None:
-            self._names[path.rsplit("/", 1)[-1]] = path
+            self._names[_unaliased_import_identifier(path)] = path
         elif name_node.type == "dot":
             self._dot_imports.add(path)
         elif name_node.type == "package_identifier":
