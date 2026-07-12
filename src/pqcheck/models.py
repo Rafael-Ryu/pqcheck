@@ -105,6 +105,12 @@ _QUANTUM_MAP: dict[str, QuantumRisk] = {
     "ML-KEM": QuantumRisk.SAFE,
     "ML-DSA": QuantumRisk.SAFE,
     "SLH-DSA": QuantumRisk.SAFE,
+    # FALCON (future FN-DSA; FIPS 206 is still draft, so the deployed name
+    # stays canonical) and HQC (NIST backup KEM, selected 2025-03). SAFE
+    # encodes the quantum-risk verdict only — neither is among the 8
+    # policy-approved algorithms, same split as XSALSA20-POLY1305 above.
+    "FALCON": QuantumRisk.SAFE,
+    "HQC": QuantumRisk.SAFE,
     "MD5": QuantumRisk.BROKEN,
     "SHA-1": QuantumRisk.BROKEN,
     "DES": QuantumRisk.BROKEN,
