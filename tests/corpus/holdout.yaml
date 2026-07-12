@@ -1,0 +1,35 @@
+# Held-out recall corpus — public crypto-heavy repos, pinned by commit SHA,
+# disjoint from corpus.yaml (different authors/domains, never used to tune
+# detectors or catalogs). Protocol in README.md "Recall (held-out)".
+# SHAs pinned 2026-07-12.
+repos:
+  # ---- Python (3) ----
+  - name: authlib
+    url: https://github.com/lepture/authlib
+    sha: 5cb26721a39f74a196304e90fa5ae8d31925fd4a
+    language: python
+  - name: borgbackup
+    url: https://github.com/borgbackup/borg
+    sha: 7a986e2fc19698de680389c410a1b7445b503bfc
+    language: python
+  - name: certbot
+    url: https://github.com/certbot/certbot
+    sha: 0265abfa62a4c1a8a1eeaf98dfc525a690bc287e
+    language: python
+    # Restricted to acme/ (ACME/crypto core) — the full tree (366 py files
+    # across 20+ DNS-plugin packages) is far larger than the rest of the
+    # corpus and mostly non-crypto plugin glue.
+    path: acme
+  # ---- Go (3) ----
+  - name: cosign
+    url: https://github.com/sigstore/cosign
+    sha: aebdc3a232083841b9c957fbba6b80b41df8caad
+    language: go
+  - name: wireguard-go
+    url: https://github.com/WireGuard/wireguard-go
+    sha: ecfc5a8d54462e18e13c72173e2623d16d8e25a0
+    language: go
+  - name: certmagic
+    url: https://github.com/caddyserver/certmagic
+    sha: cf6f57dc2126cf91f2b582c63a8668c6bf3b785d
+    language: go
