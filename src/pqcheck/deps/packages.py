@@ -47,12 +47,14 @@ _CATALOG: dict[tuple[str, str], tuple[str, ...]] = {
     ("pypi", "pyjwt"): ("RSA", "ECDSA", "SHA-256", "SHA-384", "SHA-512"),
     ("pypi", "python-jose"): ("RSA", "ECDSA", "AES", "SHA-256"),
     # ---- PyPI: PQC (mirrors the PQC source-detector catalog, PR #216) ----
-    ("pypi", "liboqs-python"): ("ML-KEM", "ML-DSA", "SLH-DSA"),
+    ("pypi", "liboqs-python"): ("ML-KEM", "ML-DSA", "SLH-DSA", "FALCON", "HQC"),
     ("pypi", "kyber-py"): ("ML-KEM",),
     ("pypi", "dilithium-py"): ("ML-DSA",),
     ("pypi", "pyspx"): ("SLH-DSA",),
     # ---- Go modules: PQC ----
-    ("golang", "github.com/open-quantum-safe/liboqs-go"): ("ML-KEM", "ML-DSA", "SLH-DSA"),
+    ("golang", "github.com/open-quantum-safe/liboqs-go"): (
+        "ML-KEM", "ML-DSA", "SLH-DSA", "FALCON", "HQC",
+    ),
     ("golang", "github.com/cloudflare/circl"): (
         "ML-KEM", "ML-DSA", "SLH-DSA", "ED25519", "ED448", "X25519", "X448",
     ),
@@ -67,6 +69,7 @@ _CATALOG: dict[tuple[str, str], tuple[str, ...]] = {
         "MD5", "SHA-1", "SHA-256", "SHA-384", "SHA-512",
         "BLAKE2B", "BLAKE2S",
         "ML-KEM", "ML-DSA", "SLH-DSA",  # BC 1.78+
+        "FALCON",  # BC 1.72+; HQC left out until a BC release verifiably ships it
     ),
     ("maven", "bcpkix-jdk18on"): ("RSA", "ECDSA", "AES", "SHA-256"),
     ("maven", "bctls-jdk18on"): ("RSA", "ECDSA", "AES", "CHACHA20", "SHA-256"),

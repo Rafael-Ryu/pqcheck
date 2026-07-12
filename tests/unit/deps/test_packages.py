@@ -90,6 +90,18 @@ def test_lookup_pypi_liboqs_python_surfaces_pqc() -> None:
     assert "ML-KEM" in result
     assert "ML-DSA" in result
     assert "SLH-DSA" in result
+    assert "FALCON" in result
+    assert "HQC" in result
+
+
+def test_lookup_golang_liboqs_go_surfaces_falcon_and_hqc() -> None:
+    result = lookup_introduces("golang", "github.com/open-quantum-safe/liboqs-go")
+    assert "FALCON" in result
+    assert "HQC" in result
+
+
+def test_lookup_maven_bouncycastle_includes_falcon() -> None:
+    assert "FALCON" in lookup_introduces("maven", "bcprov-jdk18on")
 
 
 def test_lookup_pypi_cryptography_includes_pqc() -> None:
