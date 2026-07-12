@@ -112,8 +112,7 @@ def _sweep(root: Path, rx: re.Pattern[str]) -> list[tuple[str, int, str]]:
     return hits
 
 
-def _load_ground_truth() -> dict[str, dict[str, object]]:
-    path = CORPUS_DIR / "ground_truth.yaml"
+def _load_ground_truth(path: Path) -> dict[str, dict[str, object]]:
     if not path.is_file():
         return {}
     loaded = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
@@ -121,21 +120,45 @@ def _load_ground_truth() -> dict[str, dict[str, object]]:
     return {str(k): v for k, v in loaded.items()}
 
 
+def _clone_root(entry: dict[str, object]) -> Path:
+    """Clone root, narrowed to entry['path'] when a corpus entry restricts scope."""
+    root = _clone_pinned(str(entry["name"]), str(entry["url"]), str(entry["sha"]))
+    subdir = entry.get("path")
+    return root / str(subdir) if subdir else root
+
+
+def _output_paths(corpus_path: Path) -> tuple[Path, Path]:
+    """(candidates file, recall file) — byte-compatible names for the default corpus."""
+    stem = corpus_path.stem
+    if stem == "corpus":
+        return CORPUS_DIR / "last_candidates.json", CORPUS_DIR / "last_recall_v2.json"
+    return CORPUS_DIR / f"last_candidates_{stem}.json", CORPUS_DIR / f"last_recall_{stem}.json"
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--candidates", action="store_true", help="list unadjudicated oracle hits")
     parser.add_argument("--repo", help="restrict to a single corpus repo by name")
+    parser.add_argument(
+        "--corpus", type=Path, default=CORPUS_DIR / "corpus.yaml",
+        help="corpus manifest (repo list) to sweep/scan",
+    )
+    parser.add_argument(
+        "--ground-truth", type=Path, default=CORPUS_DIR / "ground_truth.yaml",
+        help="adjudication file matching --corpus",
+    )
     args = parser.parse_args(argv)
 
-    corpus = yaml.safe_load((CORPUS_DIR / "corpus.yaml").read_text(encoding="utf-8"))
+    corpus = yaml.safe_load(args.corpus.read_text(encoding="utf-8"))
     repos = [e for e in corpus["repos"] if not args.repo or e["name"] == args.repo]
-    ground_truth = _load_ground_truth()
+    ground_truth = _load_ground_truth(args.ground_truth)
     rx = _oracle_pattern()
+    candidates_path, recall_path = _output_paths(args.corpus)
 
     if args.candidates:
         pending: list[dict[str, object]] = []
         for entry in repos:
-            root = _clone_pinned(entry["name"], entry["url"], entry["sha"])
+            root = _clone_root(entry)
             for rel, lineno, token in _sweep(root, rx):
                 fp = _fingerprint(entry["name"], rel, lineno)
                 if fp not in ground_truth:
@@ -143,7 +166,7 @@ def main(argv: list[str] | None = None) -> int:
                         {"fingerprint": fp, "repo": entry["name"], "path": rel,
                          "line": lineno, "token": token}
                     )
-        (CORPUS_DIR / "last_candidates.json").write_text(
+        candidates_path.write_text(
             json.dumps(pending, indent=2) + "\n", encoding="utf-8"
         )
         for c in pending:
@@ -159,7 +182,7 @@ def main(argv: list[str] | None = None) -> int:
     # Refuse to compute recall while the oracle still has unadjudicated hits.
     stale = 0
     for entry in repos:
-        root = _clone_pinned(entry["name"], entry["url"], entry["sha"])
+        root = _clone_root(entry)
         for rel, lineno, _ in _sweep(root, rx):
             if _fingerprint(entry["name"], rel, lineno) not in ground_truth:
                 stale += 1
@@ -172,7 +195,7 @@ def main(argv: list[str] | None = None) -> int:
     per_repo: dict[str, dict[str, int]] = {}
     for entry in repos:
         name = entry["name"]
-        root = _clone_pinned(name, entry["url"], entry["sha"])
+        root = _clone_root(entry)
         detected = {
             (name, f.location.path.relative_to(root).as_posix(), f.location.line)
             for f in scan(root).findings
@@ -194,7 +217,7 @@ def main(argv: list[str] | None = None) -> int:
         for line in misses:
             print(f"  {line}")
 
-    (CORPUS_DIR / "last_recall_v2.json").write_text(
+    recall_path.write_text(
         json.dumps(
             {"sites": total, "detected": hit_count, "recall": round(recall, 4),
              "per_repo": per_repo, "misses": misses},

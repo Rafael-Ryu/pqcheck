@@ -92,3 +92,41 @@ age is a known, accepted example) and bare from-imports of generic names.
 The oracle being strictly broader than the detectors everywhere else
 (commented-out code, build-gated files, unparseable sources) is what lets
 real misses surface.
+
+## Recall (held-out)
+
+Corpus-v2 recall reached 1.00 after catalog/detector work driven by its own
+miss list — so it can no longer say whether the detectors generalize. The
+held-out set (`holdout.yaml`: authlib, borgbackup, certbot restricted to
+`acme/`, cosign, wireguard-go, certmagic — different authors, domains and
+idioms from `corpus.yaml`) is measured with the same oracle and protocol,
+but its misses are **reported, never patched**. Fixing a gap found here
+would turn the held-out set into another tuning set; expansion backlog
+still comes from corpus v2 only.
+
+Same tooling, parametrized:
+
+    uv run python tests/corpus/run_recall_v2.py --candidates \
+        --corpus tests/corpus/holdout.yaml \
+        --ground-truth tests/corpus/holdout_ground_truth.yaml   # sweep
+    uv run python tests/corpus/run_recall_v2.py \
+        --corpus tests/corpus/holdout.yaml \
+        --ground-truth tests/corpus/holdout_ground_truth.yaml   # measure
+
+Results land in `last_recall_holdout.json` / `last_candidates_holdout.json`;
+the default invocation (no flags) is byte-identical to corpus v2. A corpus
+entry may carry `path:` to restrict the sweep and scan to a subdirectory
+(certbot's full tree is 20+ plugin packages of non-crypto glue; `acme/`
+keeps candidate volume comparable to the other repos).
+
+First measurement (2026-07-12, 383 candidates adjudicated, 276 sites):
+recall **0.95** (261/276). The 15 misses: go-containerregistry `v1.SHA256`
+(8, catalog scope — third-party digest helper), `blake2s.Sum256` and
+`math/rand.Uint32` (catalog scope — near-miss variants of shipped symbols),
+`math/rand/v2` qualified calls (1, mechanism — versioned import path not
+resolved by either Go engine even though the catalog has the symbol),
+`rng.Uint32()` on a `*rand.Rand` (1, mechanism — local-variable receiver),
+and borgbackup's in-repo Cython OpenSSL binding (3, outside the
+import-resolution model by construction). Held-out precision over all 77
+HIGH/CRITICAL findings on the same repos: 0.99 (76 tp / 1 fp — `pub.ECDH()`
+called for key-format conversion, not key agreement).

@@ -1,0 +1,48 @@
+{
+  "sites": 276,
+  "detected": 261,
+  "recall": 0.9457,
+  "per_repo": {
+    "authlib": {
+      "sites": 20,
+      "detected": 20
+    },
+    "borgbackup": {
+      "sites": 52,
+      "detected": 49
+    },
+    "certbot": {
+      "sites": 10,
+      "detected": 10
+    },
+    "cosign": {
+      "sites": 128,
+      "detected": 120
+    },
+    "wireguard-go": {
+      "sites": 52,
+      "detected": 49
+    },
+    "certmagic": {
+      "sites": 14,
+      "detected": 13
+    }
+  },
+  "misses": [
+    "borgbackup:src/borg/legacy/crypto/key.py:41",
+    "borgbackup:src/borg/legacy/crypto/key.py:51",
+    "borgbackup:src/borg/testsuite/crypto/crypto_test.py:233",
+    "cosign:pkg/oci/internal/signature/layer_test.go:281",
+    "cosign:pkg/oci/internal/signature/layer_test.go:459",
+    "cosign:pkg/oci/remote/write.go:470",
+    "cosign:pkg/oci/static/file_test.go:73",
+    "cosign:pkg/oci/static/signature.go:189",
+    "cosign:pkg/oci/static/signature.go:195",
+    "cosign:pkg/oci/static/signature_test.go:61",
+    "cosign:pkg/oci/static/signature_test.go:215",
+    "wireguard-go:conn/bindtest/bindtest.go:74",
+    "wireguard-go:device/allowedips_test.go:58",
+    "wireguard-go:device/noise-protocol.go:266",
+    "certmagic:certificates.go:131"
+  ]
+}
