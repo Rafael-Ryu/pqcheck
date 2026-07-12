@@ -360,6 +360,42 @@ def test_cipher_wrapper_unwraps_to_single_finding() -> None:
     assert all(f.algorithm != "CIPHER-WRAPPER" for f in findings)
 
 
+def test_multiline_cipher_emits_finding_at_algorithm_line_too() -> None:
+    # paramiko's transport.py/pkey.py/ed25519key.py construct Cipher() with
+    # the algorithm on its own line (corpus v2 recall gap): the wrapper
+    # finding still lands on the Cipher( line, but the algorithm construction
+    # gets its own finding at its own line too, since a line-level consumer
+    # expects the algorithm token itself to carry a finding.
+    src = (
+        "from cryptography.hazmat.primitives.ciphers import "
+        "Cipher, algorithms, modes\n"
+        "decryptor = Cipher(\n"
+        "    algorithms.AES(key),\n"
+        "    modes.CBC(iv),\n"
+        "    backend=default_backend(),\n"
+        ").decryptor()\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 2
+    wrapper, algo = findings
+    assert wrapper.algorithm == "AES" and wrapper.location.line == 2
+    assert wrapper.mode == "CBC"
+    assert algo.algorithm == "AES" and algo.location.line == 3
+    assert algo.mode is None
+
+
+def test_singleline_cipher_still_emits_one_finding() -> None:
+    # Same-line construction (the common case) must not double-emit now that
+    # multi-line Cipher() calls get a second finding.
+    src = (
+        "from cryptography.hazmat.primitives.ciphers import "
+        "Cipher, algorithms, modes\n"
+        "Cipher(algorithms.AES(b'k' * 32), modes.GCM(b'i' * 12))\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+
+
 def test_detector_finds_aes_gcm_cipher() -> None:
     src = (
         "from cryptography.hazmat.primitives.ciphers import "
@@ -410,13 +446,34 @@ def test_cipher_with_keyword_args() -> None:
     assert findings[0].mode == "GCM"
 
 
-def test_cipher_without_resolvable_algorithm_skipped() -> None:
+def test_cipher_without_resolvable_algorithm_emits_generic_finding() -> None:
+    # The algorithm is dataflow-opaque (not a literal algorithms.X() call) —
+    # e.g. a variable picked from a lookup table, as paramiko does. Still a
+    # real Cipher() construction, so it surfaces at low confidence rather
+    # than vanishing.
     src = (
         "from cryptography.hazmat.primitives.ciphers import Cipher\n"
         "Cipher(some_unknown_thing(), other_thing())\n"
     )
     findings = _scan(src)
-    assert findings == []
+    assert len(findings) == 1
+    assert findings[0].algorithm == "CIPHER"
+    assert findings[0].family is AlgorithmFamily.SYMMETRIC_CIPHER
+    assert findings[0].confidence == 0.5
+
+
+def test_cipher_with_variable_algorithm_emits_generic_finding() -> None:
+    # Same dataflow-opacity, but the algorithm arg is a bare Name/Subscript
+    # rather than a Call — paramiko's pkey.py picks `cipher` from a table
+    # then calls `Cipher(cipher(key), mode(salt))`.
+    src = (
+        "from cryptography.hazmat.primitives.ciphers import Cipher\n"
+        "cipher = lookup_table[name]\n"
+        "Cipher(cipher, mode, backend=default_backend())\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "CIPHER"
 
 
 def test_cipher_with_no_args_skipped() -> None:
@@ -1110,3 +1167,22 @@ def test_nacl_pwhash_default_str_emits_argon2() -> None:
     findings = _scan(src)
     assert len(findings) == 1
     assert findings[0].algorithm == "ARGON2"
+
+
+def test_bcrypt_kdf_emits_bcrypt() -> None:
+    # bcrypt_pbkdf, as paramiko uses to decrypt bcrypt-encrypted private keys
+    # (corpus v2 recall gap) — distinct from bcrypt.hashpw()'s password use.
+    src = (
+        "import bcrypt\n"
+        "key = bcrypt.kdf(\n"
+        "    password=password,\n"
+        "    salt=salt,\n"
+        "    desired_key_bytes=48,\n"
+        "    rounds=rounds,\n"
+        ")\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "BCRYPT"
+    assert findings[0].family is AlgorithmFamily.KDF
+    assert findings[0].quantum_risk is QuantumRisk.SAFE

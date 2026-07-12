@@ -190,6 +190,16 @@ class PythonDetector(ast.NodeVisitor):
         mode_arg = self._cipher_arg(node, position=1, keyword="mode")
         algo_hit = self._resolve_call_target(algorithm_arg)
         if algo_hit is None:
+            # The algorithm is dataflow-opaque (a variable/subscript, not a
+            # literal `algorithms.AES(...)` call) — e.g. paramiko picks the
+            # cipher class from a lookup table before constructing it. We
+            # cannot name the concrete algorithm, but a Cipher() is still
+            # being built, so surface that fact at low confidence rather than
+            # silently dropping a real construction site. `algorithm_arg is
+            # None` means Cipher() was called with no algorithm at all
+            # (a runtime TypeError), which is not worth flagging.
+            if algorithm_arg is not None:
+                self._emit(node, "CIPHER", AlgorithmFamily.SYMMETRIC_CIPHER, confidence=0.5)
             return
         if algo_hit.canonical == "CIPHER-WRAPPER":  # pragma: no cover - catalog has no nested
             return
@@ -212,6 +222,19 @@ class PythonDetector(ast.NodeVisitor):
             key_size=key_size,
             mode=mode_name,
         )
+        # When the algorithm construction sits on its own line (a Cipher(
+        # call spanning multiple lines), also emit a finding at that line —
+        # a line-level scanner/SARIF consumer expects the algorithm token
+        # itself to carry a finding, not just the wrapper's opening line.
+        # Same-line constructions already get exactly one finding above.
+        if isinstance(algorithm_arg, ast.Call) and algorithm_arg.lineno != node.lineno:
+            self._emit(
+                algorithm_arg,
+                algo_hit.canonical,
+                algo_hit.family,
+                confidence=1.0,
+                key_size=key_size,
+            )
 
     def _emit_oaep(self, node: ast.Call) -> None:
         """padding.OAEP(mgf=..., algorithm=hashes.X(), label=...) — resolve the

@@ -275,6 +275,12 @@ _PYTHON_SYMBOLS: dict[str, AlgorithmHit] = {
     # wheel). There is no top-level nacl.pwhash.kdf — pynacl only exposes
     # kdf_scryptsalsa208sha256 at that scope — so no matching entry exists.
     "nacl.pwhash.str": AlgorithmHit("ARGON2", _KDF),
+    # ---- python-bcrypt ----
+    # bcrypt.kdf() is the bcrypt_pbkdf KDF (OpenSSH's PROTOCOL.key), distinct
+    # from bcrypt.hashpw()'s password-hashing use — both share the bcrypt
+    # primitive but this catalog only covers the KDF entry point paramiko
+    # calls when decrypting bcrypt-encrypted private keys.
+    "bcrypt.kdf": AlgorithmHit("BCRYPT", _KDF),
 }
 
 

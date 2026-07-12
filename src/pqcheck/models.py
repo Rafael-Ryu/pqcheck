@@ -102,6 +102,9 @@ _QUANTUM_MAP: dict[str, QuantumRisk] = {
     # resistance but is still memory-hard and not a quantum concern either
     # way.
     "ARGON2": QuantumRisk.SAFE,
+    # Same precedent as ARGON2 above: bcrypt_pbkdf is a memory/CPU-hard KDF,
+    # not a quantum concern either way.
+    "BCRYPT": QuantumRisk.SAFE,
     "SHA-224": QuantumRisk.SAFE,
     "SHA-256": QuantumRisk.SAFE,
     "SHA-384": QuantumRisk.SAFE,
