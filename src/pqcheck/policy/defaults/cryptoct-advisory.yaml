@@ -18,8 +18,12 @@ spec:
     - { family: hash, algorithm: SHA-384, action: allow, preferred: true }
     - { family: mac, algorithm: HMAC, hash: ["SHA-256", "SHA-384"], action: allow }
     - { family: kdf, algorithm: HKDF, hash: ["SHA-256"], action: allow }
+    # Detector canonical is "ARGON2" (nacl.pwhash argon2id/argon2i both
+    # collapse to it, matching AES not carrying its mode) — match on that,
+    # not the FIPS/RFC display name "Argon2id", or approved findings never
+    # match (02 SS2.5 approves Argon2 for password hashing).
     - family: kdf
-      algorithm: Argon2id
+      algorithm: ARGON2
       params: { memory-kib-min: 131072, iterations-min: 4, parallelism-min: 1 }
       action: allow
   banned:

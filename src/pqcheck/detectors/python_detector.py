@@ -144,7 +144,7 @@ class PythonDetector(ast.NodeVisitor):
                         hit.canonical,
                         hit.family,
                         confidence=1.0,
-                        key_size=self._extract_key_size(node, qualified),
+                        key_size=self._extract_key_size(node, qualified) or hit.key_size,
                         curve=hit.curve
                         or (self._extract_curve(node) if hit.canonical == "ECDSA" else None),
                         mode=self._extract_pycrypto_mode(node, qualified),
@@ -365,7 +365,7 @@ class PythonDetector(ast.NodeVisitor):
         family: AlgorithmFamily,
         *,
         confidence: float,
-        key_size: int | None = None,
+        key_size: int | str | None = None,
         curve: str | None = None,
         mode: str | None = None,
         padding: str | None = None,

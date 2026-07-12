@@ -942,3 +942,171 @@ def test_star_import_does_not_double_emit_with_direct_call() -> None:
     )
     assert len(findings) == 1
     assert findings[0].confidence == 1.0
+
+
+# ---- PQC catalog entries ----
+
+
+def test_oqs_key_encapsulation_emits_ml_kem() -> None:
+    findings = _scan("import oqs\noqs.KeyEncapsulation('ML-KEM-768')\n")
+    assert len(findings) == 1
+    assert findings[0].algorithm == "ML-KEM"
+    assert findings[0].family is AlgorithmFamily.KEM
+    assert findings[0].quantum_risk is QuantumRisk.SAFE
+    # The variant is a runtime string oqs takes as an argument, not a static
+    # class/module name — the detector has no dataflow to prove which
+    # parameter set "ML-KEM-768" (the literal) actually selects, so key_size
+    # stays None rather than trusting the string. Falls to the policy
+    # default-action; see test_policy_dispositions.py.
+    assert findings[0].key_size is None
+
+
+def test_oqs_signature_emits_ml_dsa() -> None:
+    findings = _scan("import oqs\noqs.Signature('ML-DSA-65')\n")
+    assert len(findings) == 1
+    assert findings[0].algorithm == "ML-DSA"
+    assert findings[0].family is AlgorithmFamily.SIGNATURE
+    assert findings[0].quantum_risk is QuantumRisk.SAFE
+    assert findings[0].key_size is None
+
+
+def test_kyber_py_keygen_encaps_decaps_emit_ml_kem() -> None:
+    src = (
+        "from kyber_py.ml_kem import ML_KEM_768\n"
+        "pk, sk = ML_KEM_768.keygen()\n"
+        "ct, ss = ML_KEM_768.encaps(pk)\n"
+        "ss2 = ML_KEM_768.decaps(sk, ct)\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 3
+    assert all(f.algorithm == "ML-KEM" for f in findings)
+    # kyber-py's variant is baked into the imported class name (ML_KEM_768),
+    # so the catalog carries it statically — key_size must survive to the
+    # finding so the policy's parameter-sets rule can match it.
+    assert all(f.key_size == 768 for f in findings)
+
+
+def test_dilithium_py_keygen_sign_verify_emit_ml_dsa() -> None:
+    src = (
+        "from dilithium_py.ml_dsa import ML_DSA_65\n"
+        "pk, sk = ML_DSA_65.keygen()\n"
+        "sig = ML_DSA_65.sign(sk, b'msg')\n"
+        "ok = ML_DSA_65.verify(pk, b'msg', sig)\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 3
+    assert all(f.algorithm == "ML-DSA" for f in findings)
+    assert all(f.key_size == 65 for f in findings)
+
+
+def test_cryptography_mlkem_generate_emits_ml_kem() -> None:
+    src = (
+        "from cryptography.hazmat.primitives.asymmetric import mlkem\n"
+        "mlkem.MLKEM768PrivateKey.generate()\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "ML-KEM"
+    assert findings[0].family is AlgorithmFamily.KEM
+    assert findings[0].key_size == 768
+
+
+def test_cryptography_mldsa_generate_emits_ml_dsa() -> None:
+    src = (
+        "from cryptography.hazmat.primitives.asymmetric import mldsa\n"
+        "mldsa.MLDSA65PrivateKey.generate()\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "ML-DSA"
+    assert findings[0].family is AlgorithmFamily.SIGNATURE
+    assert findings[0].key_size == 65
+
+
+def test_pyspx_generate_keypair_sign_verify_emit_slh_dsa() -> None:
+    src = (
+        "import pyspx.shake_128f\n"
+        "pk, sk = pyspx.shake_128f.generate_keypair(b's' * 96)\n"
+        "sig = pyspx.shake_128f.sign(b'msg', sk)\n"
+        "ok = pyspx.shake_128f.verify(b'msg', sig, pk)\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 3
+    assert all(f.algorithm == "SLH-DSA" for f in findings)
+    assert all(f.family is AlgorithmFamily.SIGNATURE for f in findings)
+    # Submodule name (shake_128f) is baked into key_size as the policy's
+    # "SHAKE-128f"-style parameter-set token.
+    assert all(f.key_size == "SHAKE-128f" for f in findings)
+
+
+def test_pyspx_sha2_128s_emits_approved_parameter_set_token() -> None:
+    findings = _scan(
+        "import pyspx.sha2_128s\npk, sk = pyspx.sha2_128s.generate_keypair(b's' * 96)\n"
+    )
+    assert findings[0].key_size == "SHA2-128s"
+
+
+# ---- pynacl catalog entries ----
+
+
+def test_nacl_signing_key_generate_emits_eddsa_ed25519() -> None:
+    src = "import nacl.signing\nnacl.signing.SigningKey.generate()\n"
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "EdDSA"
+    assert findings[0].curve == "Ed25519"
+    assert findings[0].family is AlgorithmFamily.SIGNATURE
+    assert findings[0].quantum_risk is QuantumRisk.VULNERABLE
+
+
+def test_nacl_private_key_generate_emits_x25519() -> None:
+    src = "import nacl.public\nnacl.public.PrivateKey.generate()\n"
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "X25519"
+    assert findings[0].family is AlgorithmFamily.KEY_AGREEMENT
+    assert findings[0].quantum_risk is QuantumRisk.VULNERABLE
+
+
+def test_nacl_secret_box_emits_xsalsa20_poly1305() -> None:
+    src = "import nacl.secret\nnacl.secret.SecretBox(b'k' * 32)\n"
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "XSALSA20-POLY1305"
+    assert findings[0].family is AlgorithmFamily.AEAD
+    assert findings[0].quantum_risk is QuantumRisk.SAFE
+
+
+def test_nacl_hash_blake2b_emits_blake2b() -> None:
+    src = "import nacl.hash\nnacl.hash.blake2b(b'x')\n"
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "BLAKE2B"
+    assert findings[0].family is AlgorithmFamily.HASH
+
+
+def test_nacl_pwhash_argon2id_str_and_kdf_emit_argon2() -> None:
+    src = (
+        "import nacl.pwhash\n"
+        "nacl.pwhash.argon2id.str(b'password')\n"
+        "nacl.pwhash.argon2id.kdf(32, b'password', b's' * 16)\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 2
+    assert all(f.algorithm == "ARGON2" for f in findings)
+    assert all(f.family is AlgorithmFamily.KDF for f in findings)
+    assert all(f.quantum_risk is QuantumRisk.SAFE for f in findings)
+
+
+def test_nacl_pwhash_argon2i_emits_argon2() -> None:
+    src = "import nacl.pwhash\nnacl.pwhash.argon2i.str(b'password')\n"
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "ARGON2"
+
+
+def test_nacl_pwhash_default_str_emits_argon2() -> None:
+    src = "import nacl.pwhash\nnacl.pwhash.str(b'password')\n"
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "ARGON2"

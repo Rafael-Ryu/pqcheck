@@ -28,6 +28,13 @@ class AlgorithmHit:
     # RSA-OAEP-SHA1 is §3-banned). Direct schemes (PKCS1v15) set the final
     # value here.
     padding: str | None = None
+    # Implicit PQC parameter set for symbols that encode it in the module/class
+    # name rather than a runtime argument (ML-KEM-768, ML-DSA-65, SLH-DSA
+    # SHA2-128s). Same "baked into the hit" pattern as `curve` above — the
+    # detector falls back to this when it cannot extract a key_size from the
+    # call site. None means "no static variant" (e.g. oqs.KeyEncapsulation,
+    # whose variant is a runtime string argument the catalog does not resolve).
+    key_size: int | str | None = None
 
 
 _HASH = AlgorithmFamily.HASH
@@ -35,6 +42,9 @@ _ASYM = AlgorithmFamily.ASYMMETRIC_ENCRYPTION
 _SIG = AlgorithmFamily.SIGNATURE
 _KA = AlgorithmFamily.KEY_AGREEMENT
 _SYM = AlgorithmFamily.SYMMETRIC_CIPHER
+_KEM = AlgorithmFamily.KEM
+_AEAD = AlgorithmFamily.AEAD
+_KDF = AlgorithmFamily.KDF
 
 
 # Fully-qualified callee name → AlgorithmHit.
@@ -143,6 +153,130 @@ _PYTHON_SYMBOLS: dict[str, AlgorithmHit] = {
     "Crypto.PublicKey.RSA.generate": AlgorithmHit("RSA", _ASYM),
     "Crypto.PublicKey.DSA.generate": AlgorithmHit("DSA", _SIG),
     "Crypto.PublicKey.ECC.generate": AlgorithmHit("ECDSA", _SIG),
+    # ---- liboqs-python (oqs) ----
+    # oqs.KeyEncapsulation("ML-KEM-768") / oqs.Signature("ML-DSA-65") take the
+    # concrete variant as a runtime string argument that also accepts legacy
+    # liboqs names (e.g. "Kyber768", "Dilithium3") for the same underlying
+    # mechanism. Unlike the entries below, there is no static class/module
+    # name to bake a parameter set into — the variant only exists as a
+    # runtime string the detector does not evaluate — so key_size stays
+    # None and these findings fall through to the policy default-action
+    # rather than an approved rule that names specific parameter sets.
+    # That is the honest answer: static analysis cannot prove which
+    # variant a runtime string selects. Emitted without a variant, same
+    # tradeoff the Go mlkem.GenerateKey768/GenerateKey1024 entries already
+    # make in crypto-catalog.json (their key_size is also None today).
+    "oqs.KeyEncapsulation": AlgorithmHit("ML-KEM", _KEM),
+    "oqs.Signature": AlgorithmHit("ML-DSA", _SIG),
+    # ---- kyber-py (kyber_py.ml_kem) ----
+    # ML_KEM_512/768/1024 are pre-built instances (not classes to construct),
+    # so `ML_KEM_768.keygen()` resolves as a plain attribute chain. The
+    # parameter set is baked into the hit (key_size) so it survives to the
+    # finding without dataflow, the same way EdDSA/X25519 bake in `curve`.
+    "kyber_py.ml_kem.ML_KEM_512.keygen": AlgorithmHit("ML-KEM", _KEM, key_size=512),
+    "kyber_py.ml_kem.ML_KEM_512.encaps": AlgorithmHit("ML-KEM", _KEM, key_size=512),
+    "kyber_py.ml_kem.ML_KEM_512.decaps": AlgorithmHit("ML-KEM", _KEM, key_size=512),
+    "kyber_py.ml_kem.ML_KEM_768.keygen": AlgorithmHit("ML-KEM", _KEM, key_size=768),
+    "kyber_py.ml_kem.ML_KEM_768.encaps": AlgorithmHit("ML-KEM", _KEM, key_size=768),
+    "kyber_py.ml_kem.ML_KEM_768.decaps": AlgorithmHit("ML-KEM", _KEM, key_size=768),
+    "kyber_py.ml_kem.ML_KEM_1024.keygen": AlgorithmHit("ML-KEM", _KEM, key_size=1024),
+    "kyber_py.ml_kem.ML_KEM_1024.encaps": AlgorithmHit("ML-KEM", _KEM, key_size=1024),
+    "kyber_py.ml_kem.ML_KEM_1024.decaps": AlgorithmHit("ML-KEM", _KEM, key_size=1024),
+    # ---- dilithium-py (dilithium_py.ml_dsa) ----
+    "dilithium_py.ml_dsa.ML_DSA_44.keygen": AlgorithmHit("ML-DSA", _SIG, key_size=44),
+    "dilithium_py.ml_dsa.ML_DSA_44.sign": AlgorithmHit("ML-DSA", _SIG, key_size=44),
+    "dilithium_py.ml_dsa.ML_DSA_44.verify": AlgorithmHit("ML-DSA", _SIG, key_size=44),
+    "dilithium_py.ml_dsa.ML_DSA_65.keygen": AlgorithmHit("ML-DSA", _SIG, key_size=65),
+    "dilithium_py.ml_dsa.ML_DSA_65.sign": AlgorithmHit("ML-DSA", _SIG, key_size=65),
+    "dilithium_py.ml_dsa.ML_DSA_65.verify": AlgorithmHit("ML-DSA", _SIG, key_size=65),
+    "dilithium_py.ml_dsa.ML_DSA_87.keygen": AlgorithmHit("ML-DSA", _SIG, key_size=87),
+    "dilithium_py.ml_dsa.ML_DSA_87.sign": AlgorithmHit("ML-DSA", _SIG, key_size=87),
+    "dilithium_py.ml_dsa.ML_DSA_87.verify": AlgorithmHit("ML-DSA", _SIG, key_size=87),
+    # ---- cryptography (pyca) ML-KEM / ML-DSA (43.0+ / 47.0+) ----
+    # No MLKEM512PrivateKey exists — cryptography only ships the FIPS 203
+    # levels it has upstream OpenSSL/AWS-LC support for (768, 1024).
+    "cryptography.hazmat.primitives.asymmetric.mlkem.MLKEM768PrivateKey.generate":
+        AlgorithmHit("ML-KEM", _KEM, key_size=768),
+    "cryptography.hazmat.primitives.asymmetric.mlkem.MLKEM1024PrivateKey.generate":
+        AlgorithmHit("ML-KEM", _KEM, key_size=1024),
+    "cryptography.hazmat.primitives.asymmetric.mldsa.MLDSA44PrivateKey.generate":
+        AlgorithmHit("ML-DSA", _SIG, key_size=44),
+    "cryptography.hazmat.primitives.asymmetric.mldsa.MLDSA65PrivateKey.generate":
+        AlgorithmHit("ML-DSA", _SIG, key_size=65),
+    "cryptography.hazmat.primitives.asymmetric.mldsa.MLDSA87PrivateKey.generate":
+        AlgorithmHit("ML-DSA", _SIG, key_size=87),
+    # ---- pyspx (SLH-DSA / SPHINCS+) ----
+    # Submodule name comes from the compiled parameter set (verified against
+    # the installed 0.5.0 wheel: `pyspx.shake_128f`, not the stale
+    # `shake256_128f` shown in the project README). Only the FIPS 205 hash
+    # families (SHA2, SHAKE) are catalogued; `haraka_*` is a non-standardized
+    # SPHINCS+ parameter set pyspx also builds from source, left out because
+    # it never shipped in a PyPI wheel and isn't part of SLH-DSA.
+    # The parameter set is baked into key_size from the submodule name
+    # (sha2_128s -> "SHA2-128s") so it survives to the policy layer without
+    # dataflow. Only the string form matches: policy rules key on the
+    # exact "SHA2-128s"-style token (02 SS13 / cryptoct-default.yaml), so
+    # key_size is str here, unlike ML-KEM/ML-DSA's int parameter sets.
+    "pyspx.sha2_128f.generate_keypair": AlgorithmHit("SLH-DSA", _SIG, key_size="SHA2-128f"),
+    "pyspx.sha2_128f.sign": AlgorithmHit("SLH-DSA", _SIG, key_size="SHA2-128f"),
+    "pyspx.sha2_128f.verify": AlgorithmHit("SLH-DSA", _SIG, key_size="SHA2-128f"),
+    "pyspx.sha2_128s.generate_keypair": AlgorithmHit("SLH-DSA", _SIG, key_size="SHA2-128s"),
+    "pyspx.sha2_128s.sign": AlgorithmHit("SLH-DSA", _SIG, key_size="SHA2-128s"),
+    "pyspx.sha2_128s.verify": AlgorithmHit("SLH-DSA", _SIG, key_size="SHA2-128s"),
+    "pyspx.sha2_192f.generate_keypair": AlgorithmHit("SLH-DSA", _SIG, key_size="SHA2-192f"),
+    "pyspx.sha2_192f.sign": AlgorithmHit("SLH-DSA", _SIG, key_size="SHA2-192f"),
+    "pyspx.sha2_192f.verify": AlgorithmHit("SLH-DSA", _SIG, key_size="SHA2-192f"),
+    "pyspx.sha2_192s.generate_keypair": AlgorithmHit("SLH-DSA", _SIG, key_size="SHA2-192s"),
+    "pyspx.sha2_192s.sign": AlgorithmHit("SLH-DSA", _SIG, key_size="SHA2-192s"),
+    "pyspx.sha2_192s.verify": AlgorithmHit("SLH-DSA", _SIG, key_size="SHA2-192s"),
+    "pyspx.sha2_256f.generate_keypair": AlgorithmHit("SLH-DSA", _SIG, key_size="SHA2-256f"),
+    "pyspx.sha2_256f.sign": AlgorithmHit("SLH-DSA", _SIG, key_size="SHA2-256f"),
+    "pyspx.sha2_256f.verify": AlgorithmHit("SLH-DSA", _SIG, key_size="SHA2-256f"),
+    "pyspx.sha2_256s.generate_keypair": AlgorithmHit("SLH-DSA", _SIG, key_size="SHA2-256s"),
+    "pyspx.sha2_256s.sign": AlgorithmHit("SLH-DSA", _SIG, key_size="SHA2-256s"),
+    "pyspx.sha2_256s.verify": AlgorithmHit("SLH-DSA", _SIG, key_size="SHA2-256s"),
+    "pyspx.shake_128f.generate_keypair": AlgorithmHit("SLH-DSA", _SIG, key_size="SHAKE-128f"),
+    "pyspx.shake_128f.sign": AlgorithmHit("SLH-DSA", _SIG, key_size="SHAKE-128f"),
+    "pyspx.shake_128f.verify": AlgorithmHit("SLH-DSA", _SIG, key_size="SHAKE-128f"),
+    "pyspx.shake_128s.generate_keypair": AlgorithmHit("SLH-DSA", _SIG, key_size="SHAKE-128s"),
+    "pyspx.shake_128s.sign": AlgorithmHit("SLH-DSA", _SIG, key_size="SHAKE-128s"),
+    "pyspx.shake_128s.verify": AlgorithmHit("SLH-DSA", _SIG, key_size="SHAKE-128s"),
+    "pyspx.shake_192f.generate_keypair": AlgorithmHit("SLH-DSA", _SIG, key_size="SHAKE-192f"),
+    "pyspx.shake_192f.sign": AlgorithmHit("SLH-DSA", _SIG, key_size="SHAKE-192f"),
+    "pyspx.shake_192f.verify": AlgorithmHit("SLH-DSA", _SIG, key_size="SHAKE-192f"),
+    "pyspx.shake_192s.generate_keypair": AlgorithmHit("SLH-DSA", _SIG, key_size="SHAKE-192s"),
+    "pyspx.shake_192s.sign": AlgorithmHit("SLH-DSA", _SIG, key_size="SHAKE-192s"),
+    "pyspx.shake_192s.verify": AlgorithmHit("SLH-DSA", _SIG, key_size="SHAKE-192s"),
+    "pyspx.shake_256f.generate_keypair": AlgorithmHit("SLH-DSA", _SIG, key_size="SHAKE-256f"),
+    "pyspx.shake_256f.sign": AlgorithmHit("SLH-DSA", _SIG, key_size="SHAKE-256f"),
+    "pyspx.shake_256f.verify": AlgorithmHit("SLH-DSA", _SIG, key_size="SHAKE-256f"),
+    "pyspx.shake_256s.generate_keypair": AlgorithmHit("SLH-DSA", _SIG, key_size="SHAKE-256s"),
+    "pyspx.shake_256s.sign": AlgorithmHit("SLH-DSA", _SIG, key_size="SHAKE-256s"),
+    "pyspx.shake_256s.verify": AlgorithmHit("SLH-DSA", _SIG, key_size="SHAKE-256s"),
+    # ---- pynacl (libsodium bindings) ----
+    # SigningKey/PrivateKey.generate() follow the same shape as the
+    # cryptography ed25519/x25519 entries above; only the *.generate()
+    # call sites are catalogued (not VerifyKey/PublicKey, which load an
+    # already-existing key rather than mint one — same scope decision as
+    # the cryptography Ed25519/X25519 entries, which only cover .generate()).
+    "nacl.signing.SigningKey.generate": AlgorithmHit("EdDSA", _SIG, curve="Ed25519"),
+    "nacl.public.PrivateKey.generate": AlgorithmHit("X25519", _KA),
+    # SecretBox is XSalsa20-Poly1305 (libsodium's crypto_secretbox); Box/
+    # SealedBox are left out because a single call site would conflate two
+    # primitives (X25519 key agreement + XSalsa20-Poly1305 AEAD) under one
+    # canonical, which the one-hit-per-symbol catalog shape can't represent
+    # without a new multi-emit path.
+    "nacl.secret.SecretBox": AlgorithmHit("XSALSA20-POLY1305", _AEAD),
+    "nacl.hash.blake2b": AlgorithmHit("BLAKE2B", _HASH),
+    "nacl.pwhash.argon2id.str": AlgorithmHit("ARGON2", _KDF),
+    "nacl.pwhash.argon2id.kdf": AlgorithmHit("ARGON2", _KDF),
+    "nacl.pwhash.argon2i.str": AlgorithmHit("ARGON2", _KDF),
+    "nacl.pwhash.argon2i.kdf": AlgorithmHit("ARGON2", _KDF),
+    # nacl.pwhash.str is the un-suffixed convenience wrapper, aliased to
+    # argon2id.str in pynacl 1.6 (verified via inspect on the installed
+    # wheel). There is no top-level nacl.pwhash.kdf — pynacl only exposes
+    # kdf_scryptsalsa208sha256 at that scope — so no matching entry exists.
+    "nacl.pwhash.str": AlgorithmHit("ARGON2", _KDF),
 }
 
 

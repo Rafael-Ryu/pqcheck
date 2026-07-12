@@ -80,6 +80,19 @@ _QUANTUM_MAP: dict[str, QuantumRisk] = {
     "BLS12-381": QuantumRisk.VULNERABLE,
     "AES": QuantumRisk.SAFE,
     "CHACHA20": QuantumRisk.SAFE,
+    # Same threat model as AES-256/ChaCha20 above: a symmetric AEAD with no
+    # Shor-vulnerable structure, and a 256-bit key gives 128-bit post-Grover
+    # margin like the others. Not one of the 8 policy-approved algorithms
+    # (02 SS2.3 names AES-256-GCM specifically) but not banned either —
+    # SAFE reflects the quantum-risk verdict this field exists to encode,
+    # leaving the "not the house-approved AEAD" call to the policy layer.
+    "XSALSA20-POLY1305": QuantumRisk.SAFE,
+    # Policy 02 SS2.5 approves Argon2id by name for password hashing; the
+    # canonical does not carry the id/i variant (mirrors AES not carrying
+    # its mode), so ARGON2 covers both — argon2i lacks side-channel
+    # resistance but is still memory-hard and not a quantum concern either
+    # way.
+    "ARGON2": QuantumRisk.SAFE,
     "SHA-224": QuantumRisk.SAFE,
     "SHA-256": QuantumRisk.SAFE,
     "SHA-384": QuantumRisk.SAFE,
@@ -125,7 +138,11 @@ class CryptoFinding(BaseModel):
 
     algorithm: str
     family: AlgorithmFamily
-    key_size: int | None = None
+    # int for classical bit-lengths (AES-256, RSA-2048); str for PQC parameter-set
+    # identifiers that aren't numeric (SLH-DSA's "SHA2-128s"). Both stringify the
+    # same way for policy `parameter-sets` matching and the CBOM
+    # parameterSetIdentifier property — see policy/engine.py rule_matches.
+    key_size: int | str | None = None
     curve: str | None = None
     mode: str | None = None
     padding: str | None = None
