@@ -27,6 +27,10 @@ class AlgorithmFamily(StrEnum):
     KDF = "key-derivation"
     RNG = "random"
     AEAD = "authenticated-encryption"
+    # crypto/elliptic.P256/384/521 return a curve object usable for either
+    # ECDSA or ECDH — static analysis cannot tell which without following the
+    # value into its consumer, so this family is deliberately neither.
+    ELLIPTIC_CURVE = "elliptic-curve"
 
 
 class QuantumRisk(StrEnum):
@@ -78,6 +82,11 @@ _QUANTUM_MAP: dict[str, QuantumRisk] = {
     "GOST-R-34.10-2001": QuantumRisk.VULNERABLE,
     "SM2": QuantumRisk.VULNERABLE,
     "BLS12-381": QuantumRisk.VULNERABLE,
+    # crypto/elliptic curve constructors (family ELLIPTIC_CURVE, not
+    # signature/key-agreement — see the family's docstring): whatever the
+    # curve object ends up doing, an elliptic curve is Shor-breakable, so
+    # VULNERABLE is correct either way the ambiguity resolves.
+    "ECC": QuantumRisk.VULNERABLE,
     "AES": QuantumRisk.SAFE,
     "CHACHA20": QuantumRisk.SAFE,
     # Same threat model as AES-256/ChaCha20 above: a symmetric AEAD with no
@@ -126,6 +135,10 @@ _QUANTUM_MAP: dict[str, QuantumRisk] = {
     # where crypto/rand is required (policy §2.6). Treated as BROKEN like
     # MD5/SHA-1/RC4: a practical, non-quantum break available today.
     "MATH-RAND": QuantumRisk.BROKEN,
+    # crypto/rand.Read/Int/Prime: a cryptographically secure RNG, the
+    # opposite finding from MATH-RAND above. SAFE here is a positive
+    # attestation — pqcheck surfaces correct RNG choice, not just violations.
+    "CSPRNG": QuantumRisk.SAFE,
 }
 
 
