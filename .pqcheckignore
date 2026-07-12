@@ -3,3 +3,4 @@
 # detector test inputs, not shipped code.
 tests/fixtures/
 tests/corpus/.cache/
+tests/corpus/planted/

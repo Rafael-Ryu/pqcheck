@@ -156,6 +156,60 @@ def test_detector_finds_rsa_keygen() -> None:
     assert findings[0].quantum_risk is QuantumRisk.VULNERABLE
 
 
+def test_detector_finds_rsa_pkcs1v15_padding() -> None:
+    src = (
+        "from cryptography.hazmat.primitives.asymmetric import padding\n"
+        "public_key.encrypt(message, padding.PKCS1v15())\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "RSA"
+    assert findings[0].family is AlgorithmFamily.ASYMMETRIC_ENCRYPTION
+    assert findings[0].padding == "PKCS1v15"
+
+
+def test_detector_finds_rsa_oaep_sha1_padding() -> None:
+    src = (
+        "from cryptography.hazmat.primitives.asymmetric import padding\n"
+        "from cryptography.hazmat.primitives import hashes\n"
+        "public_key.encrypt(message, padding.OAEP(\n"
+        "    mgf=padding.MGF1(algorithm=hashes.SHA1()),\n"
+        "    algorithm=hashes.SHA1(),\n"
+        "    label=None,\n"
+        "))\n"
+    )
+    findings = _scan(src)
+    oaep = [f for f in findings if f.algorithm == "RSA"]
+    assert len(oaep) == 1
+    assert oaep[0].padding == "OAEP-SHA1"
+
+
+def test_detector_finds_rsa_oaep_sha256_padding_not_sha1() -> None:
+    src = (
+        "from cryptography.hazmat.primitives.asymmetric import padding\n"
+        "from cryptography.hazmat.primitives import hashes\n"
+        "public_key.encrypt(message, padding.OAEP(\n"
+        "    mgf=padding.MGF1(algorithm=hashes.SHA256()),\n"
+        "    algorithm=hashes.SHA256(),\n"
+        "    label=None,\n"
+        "))\n"
+    )
+    findings = _scan(src)
+    oaep = [f for f in findings if f.algorithm == "RSA"]
+    assert len(oaep) == 1
+    assert oaep[0].padding == "OAEP-SHA256"
+
+
+def test_detector_oaep_without_algorithm_kwarg_emits_bare_marker() -> None:
+    src = (
+        "from cryptography.hazmat.primitives.asymmetric import padding\n"
+        "public_key.encrypt(message, padding.OAEP())\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].padding == "OAEP"
+
+
 def test_detector_finds_pycryptodome_aes() -> None:
     src = (
         "from Crypto.Cipher import AES\n"

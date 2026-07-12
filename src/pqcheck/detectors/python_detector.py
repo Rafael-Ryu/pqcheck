@@ -135,6 +135,9 @@ class PythonDetector(ast.NodeVisitor):
                 if hit.canonical == "CIPHER-WRAPPER":
                     self._emit_cipher_wrapper(node)
                     emitted = True
+                elif hit.padding == "OAEP":
+                    self._emit_oaep(node)
+                    emitted = True
                 else:
                     self._emit(
                         node,
@@ -145,6 +148,7 @@ class PythonDetector(ast.NodeVisitor):
                         curve=hit.curve
                         or (self._extract_curve(node) if hit.canonical == "ECDSA" else None),
                         mode=self._extract_pycrypto_mode(node, qualified),
+                        padding=hit.padding,
                     )
                     emitted = True
         # hashlib.new("md5") — string-based dispatch. Only runs when the
@@ -208,6 +212,31 @@ class PythonDetector(ast.NodeVisitor):
             key_size=key_size,
             mode=mode_name,
         )
+
+    def _emit_oaep(self, node: ast.Call) -> None:
+        """padding.OAEP(mgf=..., algorithm=hashes.X(), label=...) — resolve the
+        top-level `algorithm=` hash literal so only RSA-OAEP-SHA1 (§3-banned)
+        gets that specific padding token; other hashes still emit as "OAEP-<hash>"
+        for the CBOM, just without matching the SHA1-scoped policy rule.
+        """
+        hash_name = self._oaep_hash(node)
+        padding = f"OAEP-{hash_name.replace('-', '')}" if hash_name else "OAEP"
+        self._emit(node, "RSA", AlgorithmFamily.ASYMMETRIC_ENCRYPTION, confidence=1.0,
+                    padding=padding)
+
+    def _oaep_hash(self, node: ast.Call) -> str | None:
+        for kw in node.keywords:
+            # Only the top-level `algorithm=` kwarg — not the `mgf=MGF1(algorithm=...)`
+            # one nested inside it, which describes the mask-generation hash, not
+            # the OAEP hash itself.
+            if kw.arg == "algorithm" and isinstance(kw.value, ast.Call):
+                qualified = self._imports.resolve_attribute(kw.value.func)
+                if qualified is None:
+                    return None
+                hit = lookup_python_symbol(qualified)
+                if hit is not None and hit.family == AlgorithmFamily.HASH:
+                    return hit.canonical
+        return None
 
     @staticmethod
     def _cipher_arg(node: ast.Call, *, position: int, keyword: str) -> ast.expr | None:

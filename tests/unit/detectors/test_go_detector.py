@@ -10,6 +10,7 @@ from pqcheck.detectors.go_detector import (
     detect_go_file,
 )
 from pqcheck.detectors.tree_sitter_loader import go_language
+from pqcheck.models import AlgorithmFamily, QuantumRisk
 
 
 def test_go_language_returns_a_language() -> None:
@@ -88,6 +89,30 @@ def test_detects_ecdsa_curve_from_elliptic_arg() -> None:
     ec = [f for f in fs if f.algorithm == "ECDSA"]
     assert len(ec) == 1
     assert ec[0].curve == "P-256"
+
+
+def test_detects_math_rand_as_rng() -> None:
+    fs = _findings(
+        'package m\nimport "math/rand"\nfunc f() { rand.Intn(10) }\n'
+    )
+    assert [f.algorithm for f in fs] == ["MATH-RAND"]
+    assert fs[0].family == AlgorithmFamily.RNG
+    assert fs[0].quantum_risk == QuantumRisk.BROKEN
+
+
+def test_detects_math_rand_v2_as_rng() -> None:
+    # The v2 import path's last segment ("v2") is the bound identifier.
+    fs = _findings(
+        'package m\nimport "math/rand/v2"\nfunc f() { v2.IntN(10) }\n'
+    )
+    assert [f.algorithm for f in fs] == ["MATH-RAND"]
+
+
+def test_crypto_rand_is_not_flagged_as_math_rand() -> None:
+    fs = _findings(
+        'package m\nimport "crypto/rand"\nfunc f() { rand.Read(nil) }\n'
+    )
+    assert fs == []
 
 
 def test_ecdh_curve_does_not_double_count() -> None:
