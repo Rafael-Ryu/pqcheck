@@ -175,7 +175,7 @@ before-build = 'copy /Y src\pqcheck\data\crypto-catalog.json tools\crypto-analyz
 target-version = "py312"
 line-length = 100
 src = ["src", "tests"]
-extend-exclude = ["tests/fixtures"]
+extend-exclude = ["tests/fixtures", "tests/corpus/planted", "tests/corpus/.cache"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF", "S", "PL", "PTH"]
