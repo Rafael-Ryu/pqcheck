@@ -11,6 +11,7 @@ import (
 	"crypto/rc4"
 	"crypto/rsa"
 	"crypto/sha1"
+	"golang.org/x/crypto/curve25519"
 )
 
 func main() {
@@ -22,4 +23,6 @@ func main() {
 	rc4.NewCipher(key)
 	ed25519.GenerateKey(rand.Reader)
 	ecdh.X25519()
+	elliptic.P384()
+	curve25519.X25519(scalar, point)
 }

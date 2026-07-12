@@ -47,6 +47,21 @@
     "curve": "Ed25519",
     "family": "signature"
   },
+  "crypto/elliptic.P256": {
+    "canonical": "ECC",
+    "curve": "P-256",
+    "family": "elliptic-curve"
+  },
+  "crypto/elliptic.P384": {
+    "canonical": "ECC",
+    "curve": "P-384",
+    "family": "elliptic-curve"
+  },
+  "crypto/elliptic.P521": {
+    "canonical": "ECC",
+    "curve": "P-521",
+    "family": "elliptic-curve"
+  },
   "crypto/md5.New": {
     "canonical": "MD5",
     "family": "hash"
@@ -64,6 +79,18 @@
     "canonical": "ML-KEM",
     "family": "key-encapsulation",
     "key_size": 768
+  },
+  "crypto/rand.Int": {
+    "canonical": "CSPRNG",
+    "family": "random"
+  },
+  "crypto/rand.Prime": {
+    "canonical": "CSPRNG",
+    "family": "random"
+  },
+  "crypto/rand.Read": {
+    "canonical": "CSPRNG",
+    "family": "random"
   },
   "crypto/rc4.NewCipher": {
     "canonical": "RC4",
@@ -180,6 +207,14 @@
   "golang.org/x/crypto/chacha20poly1305.NewX": {
     "canonical": "CHACHA20",
     "family": "authenticated-encryption"
+  },
+  "golang.org/x/crypto/curve25519.ScalarBaseMult": {
+    "canonical": "X25519",
+    "family": "key-agreement"
+  },
+  "golang.org/x/crypto/curve25519.X25519": {
+    "canonical": "X25519",
+    "family": "key-agreement"
   },
   "golang.org/x/crypto/ripemd160.New": {
     "canonical": "RIPEMD-160",

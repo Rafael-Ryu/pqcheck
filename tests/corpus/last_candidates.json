@@ -1,1 +1,16 @@
-[]
+[
+  {
+    "fingerprint": "ef6302a58de1ade5",
+    "repo": "smallstep-crypto",
+    "path": "x25519/x25519.go",
+    "line": 179,
+    "token": "ScalarBaseMult"
+  },
+  {
+    "fingerprint": "3fbe3b928ac25021",
+    "repo": "smallstep-crypto",
+    "path": "x25519/x25519.go",
+    "line": 283,
+    "token": "ScalarBaseMult"
+  }
+]

@@ -112,7 +112,8 @@ def test_crypto_rand_is_not_flagged_as_math_rand() -> None:
     fs = _findings(
         'package m\nimport "crypto/rand"\nfunc f() { rand.Read(nil) }\n'
     )
-    assert fs == []
+    assert [f.algorithm for f in fs] == ["CSPRNG"]
+    assert fs[0].quantum_risk == QuantumRisk.SAFE
 
 
 def test_ecdh_curve_does_not_double_count() -> None:
@@ -138,6 +139,69 @@ def test_mlkem_carries_parameter_set_from_catalog() -> None:
         ("ML-KEM", 768),
         ("ML-KEM", 1024),
     ]
+    assert all(f.quantum_risk == QuantumRisk.SAFE for f in fs)
+
+
+def test_elliptic_p256_emits_own_finding() -> None:
+    # elliptic.P256() called bare (not as an ecdsa.GenerateKey argument) is
+    # a call_expression in its own right and resolves independently — the
+    # curve object is usable for either ECDSA or ECDH, so the family is the
+    # deliberately-ambiguous ELLIPTIC_CURVE, not signature/key-agreement.
+    fs = _findings(
+        'package m\nimport "crypto/elliptic"\nfunc f() { elliptic.P256() }\n'
+    )
+    assert [f.algorithm for f in fs] == ["ECC"]
+    assert fs[0].family == AlgorithmFamily.ELLIPTIC_CURVE
+    assert fs[0].curve == "P-256"
+    assert fs[0].quantum_risk == QuantumRisk.VULNERABLE
+
+
+def test_elliptic_p256_as_ecdsa_arg_emits_both_findings() -> None:
+    # elliptic.P256() nested inside ecdsa.GenerateKey(...) is still its own
+    # call_expression node, so it is visited (and emits) independently of
+    # the outer ECDSA finding that also captures the curve via its first arg.
+    fs = _findings(
+        'package m\nimport (\n "crypto/ecdsa"\n "crypto/elliptic"\n "crypto/rand"\n)\n'
+        "func f() { ecdsa.GenerateKey(elliptic.P256(), rand.Reader) }\n"
+    )
+    assert sorted(f.algorithm for f in fs) == ["ECC", "ECDSA"]
+
+
+def test_elliptic_p384_and_p521_resolve() -> None:
+    fs = _findings(
+        'package m\nimport "crypto/elliptic"\n'
+        "func f() { elliptic.P384(); elliptic.P521() }\n"
+    )
+    assert [(f.algorithm, f.curve) for f in fs] == [
+        ("ECC", "P-384"),
+        ("ECC", "P-521"),
+    ]
+
+
+def test_curve25519_x25519_resolves() -> None:
+    fs = _findings(
+        'package m\nimport "golang.org/x/crypto/curve25519"\n'
+        "func f() { curve25519.X25519(scalar, point) }\n"
+    )
+    assert [f.algorithm for f in fs] == ["X25519"]
+    assert fs[0].family == AlgorithmFamily.KEY_AGREEMENT
+    assert fs[0].quantum_risk == QuantumRisk.VULNERABLE
+
+
+def test_curve25519_scalar_base_mult_resolves() -> None:
+    fs = _findings(
+        'package m\nimport "golang.org/x/crypto/curve25519"\n'
+        "func f() { curve25519.ScalarBaseMult(dst, scalar) }\n"
+    )
+    assert [f.algorithm for f in fs] == ["X25519"]
+
+
+def test_crypto_rand_int_and_prime_resolve_as_csprng() -> None:
+    fs = _findings(
+        'package m\nimport "crypto/rand"\n'
+        "func f() { rand.Int(rand.Reader, max); rand.Prime(rand.Reader, 2048) }\n"
+    )
+    assert [f.algorithm for f in fs] == ["CSPRNG", "CSPRNG"]
     assert all(f.quantum_risk == QuantumRisk.SAFE for f in fs)
 
 

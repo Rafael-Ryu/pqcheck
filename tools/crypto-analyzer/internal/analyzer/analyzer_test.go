@@ -462,6 +462,81 @@ func TestAnalyzeResolvesMLKEM(t *testing.T) {
 	}
 }
 
+func TestAnalyzeResolvesEllipticCurveFamily(t *testing.T) {
+	// elliptic.PXXX() called bare (not as an ecdsa.GenerateKey argument) is
+	// its own call site — the curve object is usable for either ECDSA or
+	// ECDH, so it gets the deliberately-ambiguous "elliptic-curve" family
+	// and canonical "ECC" rather than guessing which one.
+	dir := writeModule(t, map[string]string{
+		"main.go": "package main\nimport \"crypto/elliptic\"\n" +
+			"func main(){ elliptic.P256(); elliptic.P384(); elliptic.P521() }\n",
+	})
+	fs, err := Analyze(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	curves := map[string]int{}
+	for _, f := range fs {
+		if f.Algorithm != "ECC" {
+			continue
+		}
+		if f.Family != "elliptic-curve" {
+			t.Errorf("family = %q, want elliptic-curve", f.Family)
+		}
+		curves[f.Curve]++
+	}
+	if curves["P-256"] != 1 || curves["P-384"] != 1 || curves["P-521"] != 1 {
+		t.Fatalf("ECC curves = %v, want one each of P-256/P-384/P-521, got %+v", curves, fs)
+	}
+}
+
+func TestAnalyzeResolvesCryptoRandAsCSPRNG(t *testing.T) {
+	dir := writeModule(t, map[string]string{
+		"main.go": "package main\nimport \"crypto/rand\"\n" +
+			"func main(){ _, _ = rand.Int(rand.Reader, nil); _, _ = rand.Prime(rand.Reader, 2048) }\n",
+	})
+	fs, err := Analyze(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	n := 0
+	for _, f := range fs {
+		if f.Algorithm != "CSPRNG" {
+			continue
+		}
+		if f.Family != "random" {
+			t.Errorf("family = %q, want random", f.Family)
+		}
+		n++
+	}
+	if n != 2 {
+		t.Fatalf("CSPRNG findings = %d, want 2, got %+v", n, fs)
+	}
+}
+
+func TestAnalyzeResolvesCurve25519ThroughVendor(t *testing.T) {
+	// x/crypto is not in the module cache in this test environment, so vendor
+	// a minimal stub — same pattern as TestAnalyzeResolvesVendoredThirdParty.
+	dir := writeModule(t, map[string]string{
+		"go.mod": "module testmod\n\ngo 1.24\n\nrequire golang.org/x/crypto v0.0.0\n",
+		"vendor/modules.txt": "# golang.org/x/crypto v0.0.0\n" +
+			"## explicit; go 1.24\n" +
+			"golang.org/x/crypto/curve25519\n",
+		"vendor/golang.org/x/crypto/curve25519/curve25519.go": "package curve25519\n\n" +
+			"func X25519(scalar, point []byte) ([]byte, error) { return nil, nil }\n",
+		"main.go": "package main\n\n" +
+			"import \"golang.org/x/crypto/curve25519\"\n\n" +
+			"func main() { _, _ = curve25519.X25519(nil, nil) }\n",
+	})
+	fs, err := Analyze(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := findingsByAlgo(fs)["X25519"]; !ok {
+		t.Fatalf("expected X25519 from vendored curve25519, got %+v", fs)
+	}
+}
+
 func TestAnalyzeAmbiguousModeLowersConfidence(t *testing.T) {
 	// A cipher.Block assigned across branches cannot be pinned to a single
 	// producer, so the mode is left unlinked (TestAnalyzeBranchedBlockHasNoMode)

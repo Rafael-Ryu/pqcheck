@@ -54,6 +54,9 @@ func TestCatalogAnchors(t *testing.T) {
 		"crypto/ecdh.P256":                         {"ECDH", "key-agreement", "P-256"},
 		"crypto/mlkem.GenerateKey768":              {"ML-KEM", "key-encapsulation", ""},
 		"golang.org/x/crypto/chacha20poly1305.New": {"CHACHA20", "authenticated-encryption", ""},
+		"crypto/elliptic.P256":                     {"ECC", "elliptic-curve", "P-256"},
+		"crypto/rand.Read":                         {"CSPRNG", "random", ""},
+		"golang.org/x/crypto/curve25519.X25519":    {"X25519", "key-agreement", ""},
 	}
 	for sym, want := range anchors {
 		hit, ok := c[sym]
