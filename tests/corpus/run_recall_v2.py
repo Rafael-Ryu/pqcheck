@@ -64,7 +64,12 @@ def _oracle_pattern() -> re.Pattern[str]:
     """
     patterns: set[str] = set()
     for qualified in set(_PYTHON_SYMBOLS) | set(load_go_catalog()):
-        parts = qualified.rsplit("/", 1)[-1].split(".")
+        # Go call sites qualify by package name, which for versioned import
+        # paths ("math/rand/v2.Int") is the segment before the /vN suffix.
+        path_parts = qualified.split("/")
+        if len(path_parts) >= 2 and re.fullmatch(r"v\d+\.\w+", path_parts[-1]):
+            path_parts[-2:] = [path_parts[-2] + "." + path_parts[-1].split(".", 1)[1]]
+        parts = path_parts[-1].split(".")
         tail = parts[-1]
         if len(parts) >= 2:
             patterns.add(rf"\b{re.escape(parts[-2])}\.{re.escape(tail)}\s*\(")
