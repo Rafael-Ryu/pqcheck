@@ -23,6 +23,7 @@ _CATALOG: dict[tuple[str, str], tuple[str, ...]] = {
         "AES", "CHACHA20", "3DES", "RC4",
         "MD5", "SHA-1", "SHA-224", "SHA-256", "SHA-384", "SHA-512",
         "SHA3-256", "SHA3-384", "SHA3-512", "BLAKE2B", "BLAKE2S",
+        "ML-KEM", "ML-DSA",  # 43.0+ / 47.0+
     ),
     ("pypi", "pycryptodome"): (
         "RSA", "DSA", "ECDSA",
@@ -45,12 +46,27 @@ _CATALOG: dict[tuple[str, str], tuple[str, ...]] = {
     ("pypi", "paramiko"): ("RSA", "DSA", "ECDSA", "AES", "SHA-1", "SHA-256"),
     ("pypi", "pyjwt"): ("RSA", "ECDSA", "SHA-256", "SHA-384", "SHA-512"),
     ("pypi", "python-jose"): ("RSA", "ECDSA", "AES", "SHA-256"),
+    # ---- PyPI: PQC (mirrors the PQC source-detector catalog, PR #216) ----
+    ("pypi", "liboqs-python"): ("ML-KEM", "ML-DSA", "SLH-DSA"),
+    ("pypi", "kyber-py"): ("ML-KEM",),
+    ("pypi", "dilithium-py"): ("ML-DSA",),
+    ("pypi", "pyspx"): ("SLH-DSA",),
+    # ---- Go modules: PQC ----
+    ("golang", "github.com/open-quantum-safe/liboqs-go"): ("ML-KEM", "ML-DSA", "SLH-DSA"),
+    ("golang", "github.com/cloudflare/circl"): (
+        "ML-KEM", "ML-DSA", "SLH-DSA", "ED25519", "ED448", "X25519", "X448",
+    ),
+    ("golang", "filippo.io/mlkem768"): ("ML-KEM",),
+    # ---- npm: PQC ----
+    ("npm", "@noble/post-quantum"): ("ML-KEM", "ML-DSA", "SLH-DSA"),
+    ("npm", "mlkem"): ("ML-KEM",),
     # ---- Maven ----
     ("maven", "bcprov-jdk18on"): (
         "RSA", "DSA", "ECDSA", "DH", "ED25519", "ED448", "X25519", "X448",
         "AES", "DES", "3DES", "RC4", "CHACHA20",
         "MD5", "SHA-1", "SHA-256", "SHA-384", "SHA-512",
         "BLAKE2B", "BLAKE2S",
+        "ML-KEM", "ML-DSA", "SLH-DSA",  # BC 1.78+
     ),
     ("maven", "bcpkix-jdk18on"): ("RSA", "ECDSA", "AES", "SHA-256"),
     ("maven", "bctls-jdk18on"): ("RSA", "ECDSA", "AES", "CHACHA20", "SHA-256"),
