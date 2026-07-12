@@ -169,7 +169,12 @@ def scan(
         ),
     ] = FailOn.POLICY,
     strict: Annotated[
-        bool, typer.Option("--strict", help="Gate WARN decisions as failures.")
+        bool,
+        typer.Option(
+            "--strict",
+            help="Fail on WARN, treat unknown quantum risk as vulnerable, "
+            "refuse policies without severity-rules.",
+        ),
     ] = False,
 ) -> None:
     """Scan a repository for cryptographic primitives and policy violations."""
@@ -183,6 +188,10 @@ def scan(
         )
 
     loaded = _load_policy_arg(policy) if policy is not None else None
+    if strict and loaded is not None and not loaded.spec.severity_rules:
+        raise typer.BadParameter(
+            "--strict refuses policies without a severity-rules section", param_hint="--policy"
+        )
     result = run_scan(target, loaded)
 
     if output_format is OutputFormat.CBOM:

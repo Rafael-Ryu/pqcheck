@@ -13,6 +13,7 @@ from pqcheck.models import (
     ConfidenceBand,
     CryptoFinding,
     PolicyDecision,
+    QuantumRisk,
     RuleAction,
     Severity,
 )
@@ -33,7 +34,7 @@ _FAMILY_MAP: dict[AlgorithmFamily, PolicyFamily | None] = {
     AlgorithmFamily.KDF: PolicyFamily.KDF,
     AlgorithmFamily.KEY_AGREEMENT: PolicyFamily.KEY_AGREEMENT,
     AlgorithmFamily.ASYMMETRIC_ENCRYPTION: PolicyFamily.ASYMMETRIC_ENCRYPTION,
-    AlgorithmFamily.RNG: None,
+    AlgorithmFamily.RNG: PolicyFamily.RNG,
 }
 
 
@@ -64,6 +65,8 @@ def rule_matches(rule: AlgorithmRule, finding: CryptoFinding) -> bool:
         if token not in rule.parameter_sets:
             return False
     if rule.curves is not None and finding.curve not in rule.curves:
+        return False
+    if rule.paddings is not None and finding.padding not in rule.paddings:
         return False
     # `context` (standalone / new-code / without-aead) needs usage-context the
     # detector does not emit in v0.1; context-scoped rules are matched on
@@ -126,7 +129,8 @@ def gate(
     `fail_on="policy"` trips on FAIL decisions (and WARN when `strict`).
     `fail_on=<severity>` trips on any non-ALLOW decision whose
     `base_severity` tier is at or above the threshold. Gating always reads
-    `base_severity` — the demoted `severity` is UI-only.
+    `base_severity` — the demoted `severity` is UI-only. Under `strict`,
+    an UNKNOWN quantum_risk also trips the gate unless explicitly approved.
     """
     if fail_on != "policy" and fail_on not in {s.value for s in Severity}:
         raise ValueError(f"invalid fail_on: {fail_on!r}")
@@ -134,7 +138,12 @@ def gate(
     for decision in decisions:
         if fail_on == "policy":
             tripped = decision.action == RuleAction.FAIL or (
-                strict and decision.action == RuleAction.WARN
+                strict
+                and decision.rule_kind != "approved"
+                and (
+                    decision.action == RuleAction.WARN
+                    or decision.finding.quantum_risk is QuantumRisk.UNKNOWN
+                )
             )
         else:
             threshold = _SEVERITY_ORDER.index(Severity(fail_on))

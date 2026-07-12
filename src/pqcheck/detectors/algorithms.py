@@ -22,6 +22,12 @@ class AlgorithmHit:
     # Implicit curve for symbols that encode it in the class name rather than a
     # call argument (Ed25519/Ed448). None means "extract from the call, if any".
     curve: str | None = None
+    # Padding scheme the symbol encodes. "OAEP" is a marker: the detector
+    # resolves the actual hash from the call's `algorithm=` argument rather
+    # than trusting this placeholder (RSA-OAEP-SHA256 is fine; only
+    # RSA-OAEP-SHA1 is §3-banned). Direct schemes (PKCS1v15) set the final
+    # value here.
+    padding: str | None = None
 
 
 _HASH = AlgorithmFamily.HASH
@@ -87,6 +93,17 @@ _PYTHON_SYMBOLS: dict[str, AlgorithmHit] = {
         AlgorithmHit("X25519", _KA),
     "cryptography.hazmat.primitives.asymmetric.x448.X448PrivateKey.generate":
         AlgorithmHit("X448", _KA),
+    # ---- RSA padding schemes (§3: "Padding | RSA-PKCS1v1.5, RSA-OAEP-SHA1") ----
+    # padding.PKCS1v15() / padding.OAEP(...) are themselves Call nodes at the
+    # site they're constructed (e.g. `key.encrypt(msg, padding.PKCS1v15())`),
+    # so they resolve like any other catalog symbol — no dataflow needed.
+    # RSA is already unconditionally banned regardless of padding; this
+    # extraction exists so a padding-specific policy rule (and the CBOM) can
+    # name the concrete weakness rather than only "RSA".
+    "cryptography.hazmat.primitives.asymmetric.padding.PKCS1v15":
+        AlgorithmHit("RSA", _ASYM, padding="PKCS1v15"),
+    "cryptography.hazmat.primitives.asymmetric.padding.OAEP":
+        AlgorithmHit("RSA", _ASYM, padding="OAEP"),
     # ---- cryptography ciphers wrapper + algorithms + modes ----
     # The Cipher(...) wrapper is detected as a marker so the visitor can
     # walk its args to extract the concrete algorithm + mode.

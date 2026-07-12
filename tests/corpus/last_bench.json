@@ -1,30 +1,30 @@
 {
-  "tp": 230,
+  "tp": 244,
   "fp": 0,
   "pending": 0,
   "precision": 1.0,
   "per_repo": {
     "pyjwt": {
-      "gated": 4,
-      "tp": 4,
+      "gated": 6,
+      "tp": 6,
       "fp": 0,
       "pending": 0
     },
     "python-jose": {
-      "gated": 4,
-      "tp": 4,
-      "fp": 0,
-      "pending": 0
-    },
-    "paramiko": {
       "gated": 9,
       "tp": 9,
       "fp": 0,
       "pending": 0
     },
+    "paramiko": {
+      "gated": 11,
+      "tp": 11,
+      "fp": 0,
+      "pending": 0
+    },
     "sigstore-python": {
-      "gated": 15,
-      "tp": 15,
+      "gated": 20,
+      "tp": 20,
       "fp": 0,
       "pending": 0
     },
