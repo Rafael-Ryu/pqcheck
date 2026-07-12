@@ -137,6 +137,81 @@ def test_evaluate_sha512_unmatched_deliberately_warns_despite_quantum_safe():
     assert d.matched == "default-action"
 
 
+def test_evaluate_ml_kem_768_via_kyber_py_is_allow_info():
+    # kyber-py bakes the parameter set into key_size (see algorithms.py) so
+    # this reaches the same approved/info disposition the Go
+    # mlkem.GenerateKey768 path is documented to intend.
+    policy = load_default_policy("cryptoct-default")
+    finding = _f("ML-KEM", AlgorithmFamily.KEM, 1.0, key_size=768)
+    [d] = evaluate([finding], policy)
+    assert d.rule_kind == "approved"
+    assert d.action == RuleAction.ALLOW
+    assert d.base_severity == Severity.INFO
+
+
+def test_evaluate_ml_dsa_65_is_allow_info():
+    policy = load_default_policy("cryptoct-default")
+    finding = _f("ML-DSA", AlgorithmFamily.SIGNATURE, 1.0, key_size=65)
+    [d] = evaluate([finding], policy)
+    assert d.rule_kind == "approved"
+    assert d.action == RuleAction.ALLOW
+
+
+def test_evaluate_slh_dsa_sha2_128s_is_allow_info():
+    policy = load_default_policy("cryptoct-default")
+    finding = _f("SLH-DSA", AlgorithmFamily.SIGNATURE, 1.0, key_size="SHA2-128s")
+    [d] = evaluate([finding], policy)
+    assert d.rule_kind == "approved"
+    assert d.action == RuleAction.ALLOW
+
+
+def test_evaluate_slh_dsa_other_parameter_set_falls_to_default():
+    # Only SHA2-128s is policy-approved (02 §13); SHAKE-128f is a valid FIPS
+    # 205 parameter set but not the curated one, so it stays default/warn —
+    # same "curated subset, not every safe option" pattern as SHA-512.
+    policy = load_default_policy("cryptoct-default")
+    finding = _f("SLH-DSA", AlgorithmFamily.SIGNATURE, 1.0, key_size="SHAKE-128f")
+    [d] = evaluate([finding], policy)
+    assert d.rule_kind == "default"
+    assert d.action == RuleAction.WARN
+
+
+def test_evaluate_ml_kem_unknown_variant_from_oqs_falls_to_default():
+    # oqs.KeyEncapsulation's variant is a runtime string; the detector cannot
+    # prove which parameter set it selects, so key_size is None and the
+    # finding cannot match a parameter-sets-scoped approved rule. Honest
+    # default/warn, not a silent approve.
+    policy = load_default_policy("cryptoct-default")
+    finding = _f("ML-KEM", AlgorithmFamily.KEM, 1.0)
+    [d] = evaluate([finding], policy)
+    assert d.rule_kind == "default"
+    assert d.action == RuleAction.WARN
+
+
+def test_evaluate_argon2_is_allow_info():
+    # Detector canonical is "ARGON2" (nacl.pwhash argon2id/argon2i collapse
+    # to it); the approved rule matches on that, not the display name
+    # "Argon2id" — see the fix in policy/defaults/*.yaml.
+    policy = load_default_policy("cryptoct-default")
+    finding = _f("ARGON2", AlgorithmFamily.KDF, 1.0)
+    [d] = evaluate([finding], policy)
+    assert d.rule_kind == "approved"
+    assert d.action == RuleAction.ALLOW
+    assert d.base_severity == Severity.INFO
+
+
+def test_evaluate_xsalsa20_poly1305_stays_default_warn():
+    # XSALSA20-POLY1305 (pynacl SecretBox) is quantum-safe but not one of
+    # the 8 curated algorithms (plan 02 §2) — same deliberate-gap precedent
+    # as SHA-512. It stays outside the approved list, not banned.
+    policy = load_default_policy("cryptoct-default")
+    finding = _f("XSALSA20-POLY1305", AlgorithmFamily.AEAD, 1.0)
+    [d] = evaluate([finding], policy)
+    assert d.finding.quantum_risk == QuantumRisk.SAFE
+    assert d.rule_kind == "default"
+    assert d.action == RuleAction.WARN
+
+
 def test_evaluate_does_not_auto_apply_exception_to_rsa():
     # default policy has EXC-001 (RSA under github-app-jwt). A bare RSA finding
     # must still FAIL — the exception is audit metadata, not an auto-pass.
