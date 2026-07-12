@@ -163,9 +163,7 @@ _PYTHON_SYMBOLS: dict[str, AlgorithmHit] = {
     # None and these findings fall through to the policy default-action
     # rather than an approved rule that names specific parameter sets.
     # That is the honest answer: static analysis cannot prove which
-    # variant a runtime string selects. Emitted without a variant, same
-    # tradeoff the Go mlkem.GenerateKey768/GenerateKey1024 entries already
-    # make in crypto-catalog.json (their key_size is also None today).
+    # variant a runtime string selects.
     "oqs.KeyEncapsulation": AlgorithmHit("ML-KEM", _KEM),
     "oqs.Signature": AlgorithmHit("ML-DSA", _SIG),
     # ---- kyber-py (kyber_py.ml_kem) ----
@@ -295,6 +293,7 @@ def load_go_catalog() -> dict[str, AlgorithmHit]:
             canonical=entry["canonical"],
             family=AlgorithmFamily(entry["family"]),
             curve=entry.get("curve"),
+            key_size=entry.get("key_size"),
         )
         for symbol, entry in raw.items()
     }

@@ -434,6 +434,7 @@ func (v *visitor) build(call *ast.CallExpr, hit catalog.Hit) Finding {
 		Algorithm:  hit.Canonical,
 		Family:     hit.Family,
 		Curve:      hit.Curve,
+		KeySize:    hit.KeySize,
 		Path:       start.Filename,
 		Line:       start.Line,
 		Column:     zeroBasedColumn(start.Column),

@@ -16,11 +16,14 @@ var catalogJSON []byte
 
 // Hit is one catalog entry: the canonical algorithm a Go symbol maps to.
 // Curve is empty unless the symbol encodes a curve in its name (ECDH P-curves,
-// Ed25519).
+// Ed25519). KeySize is nil unless the symbol encodes a PQC parameter set in
+// its name (mlkem.GenerateKey768/1024) — the policy's approved ML-KEM rules
+// match on parameter-sets, so the finding must carry it.
 type Hit struct {
 	Canonical string `json:"canonical"`
 	Family    string `json:"family"`
 	Curve     string `json:"curve,omitempty"`
+	KeySize   *int   `json:"key_size,omitempty"`
 }
 
 // Load parses the embedded catalog. It panics on a malformed embed: the JSON is
