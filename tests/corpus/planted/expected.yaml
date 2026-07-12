@@ -48,3 +48,31 @@ planted:
   - {path: go/keys.go, line: 23, algorithm: X25519}
 
   - {path: go/dot_import.go, line: 12, algorithm: SHA-256}
+
+  - {path: python/pqc.py, line: 13, algorithm: ML-KEM}
+  - {path: python/pqc.py, line: 14, algorithm: ML-DSA}
+  - {path: python/pqc.py, line: 16, algorithm: ML-KEM}
+  - {path: python/pqc.py, line: 17, algorithm: ML-KEM}
+  - {path: python/pqc.py, line: 18, algorithm: ML-KEM}
+  - {path: python/pqc.py, line: 20, algorithm: ML-DSA}
+  - {path: python/pqc.py, line: 21, algorithm: ML-DSA}
+  - {path: python/pqc.py, line: 22, algorithm: ML-DSA}
+  - {path: python/pqc.py, line: 24, algorithm: ML-KEM}
+  - {path: python/pqc.py, line: 25, algorithm: ML-KEM}
+  - {path: python/pqc.py, line: 26, algorithm: ML-DSA}
+  - {path: python/pqc.py, line: 27, algorithm: ML-DSA}
+  - {path: python/pqc.py, line: 28, algorithm: ML-DSA}
+  - {path: python/pqc.py, line: 30, algorithm: SLH-DSA}
+  - {path: python/pqc.py, line: 31, algorithm: SLH-DSA}
+  - {path: python/pqc.py, line: 32, algorithm: SLH-DSA}
+  - {path: python/pqc.py, line: 34, algorithm: SLH-DSA}
+
+  - {path: python/pynacl_primitives.py, line: 12, algorithm: EdDSA}
+  - {path: python/pynacl_primitives.py, line: 13, algorithm: X25519}
+  - {path: python/pynacl_primitives.py, line: 14, algorithm: XSALSA20-POLY1305}
+  - {path: python/pynacl_primitives.py, line: 15, algorithm: BLAKE2B}
+  - {path: python/pynacl_primitives.py, line: 16, algorithm: ARGON2}
+  - {path: python/pynacl_primitives.py, line: 17, algorithm: ARGON2}
+  - {path: python/pynacl_primitives.py, line: 18, algorithm: ARGON2}
+  - {path: python/pynacl_primitives.py, line: 19, algorithm: ARGON2}
+  - {path: python/pynacl_primitives.py, line: 20, algorithm: ARGON2}
