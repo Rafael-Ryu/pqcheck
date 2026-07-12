@@ -206,5 +206,105 @@
   "golang.org/x/crypto/sha3.Sum512": {
     "canonical": "SHA3-512",
     "family": "hash"
+  },
+  "math/rand.Float32": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand.Float64": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand.Int": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand.Int31": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand.Int31n": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand.Int63": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand.Int63n": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand.Intn": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand.New": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand.Perm": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand.Read": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand.Shuffle": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand/v2.Float32": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand/v2.Float64": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand/v2.Int": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand/v2.Int32": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand/v2.Int32N": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand/v2.Int64": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand/v2.Int64N": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand/v2.IntN": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand/v2.New": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand/v2.Perm": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand/v2.Shuffle": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand/v2.Uint32": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand/v2.Uint64": {
+    "canonical": "MATH-RAND",
+    "family": "random"
   }
 }

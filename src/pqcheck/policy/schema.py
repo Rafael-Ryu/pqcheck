@@ -41,6 +41,7 @@ class PolicyFamily(StrEnum):
     KDF = "kdf"
     KEY_AGREEMENT = "key-agreement"
     ASYMMETRIC_ENCRYPTION = "asymmetric-encryption"
+    RNG = "rng"
 
 
 class AlgorithmRule(BaseModel):
@@ -53,6 +54,7 @@ class AlgorithmRule(BaseModel):
     parameter_sets: list[str] | None = None
     curves: list[str] | None = None
     modes: list[str] | None = None
+    paddings: list[str] | None = None
     hash: list[str] | None = None
     params: dict[str, Any] | None = None
     context: str | None = None

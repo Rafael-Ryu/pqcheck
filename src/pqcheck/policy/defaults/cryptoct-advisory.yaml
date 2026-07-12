@@ -24,6 +24,7 @@ spec:
       action: allow
   banned:
     - { family: asymmetric-encryption, algorithm: RSA, action: warn, severity: critical, reason: "Shor — migrate to ML-KEM-768" }
+    - { family: asymmetric-encryption, algorithm: RSA, paddings: ["PKCS1v15", "OAEP-SHA1"], action: warn, severity: critical, reason: "RSA-PKCS1v1.5 / RSA-OAEP-SHA1 padding — independently broken (Bleichenbacher / SHA-1) on top of Shor" }
     - { family: signature, algorithm: ECDSA, action: warn, severity: critical, reason: "Shor — migrate to ML-DSA-65" }
     - { family: signature, algorithm: EdDSA, curves: ["Ed25519", "Ed448"], action: warn, severity: critical }
     - { family: key-agreement, algorithm: DH, action: warn, severity: critical }
@@ -47,6 +48,7 @@ spec:
       modes: ["ECB", "CBC", "CFB", "OFB"]
       action: warn
       severity: medium
+    - { family: rng, algorithm: MATH-RAND, action: warn, severity: medium, reason: "math/rand (incl. rand/v2) is not cryptographically secure — use crypto/rand where randomness feeds key material, nonces, or tokens" }
   exceptions:
     - id: EXC-001
       description: "GitHub App JWT requires RS256 per GitHub upstream limitation"
