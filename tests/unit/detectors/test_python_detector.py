@@ -953,6 +953,12 @@ def test_oqs_key_encapsulation_emits_ml_kem() -> None:
     assert findings[0].algorithm == "ML-KEM"
     assert findings[0].family is AlgorithmFamily.KEM
     assert findings[0].quantum_risk is QuantumRisk.SAFE
+    # The variant is a runtime string oqs takes as an argument, not a static
+    # class/module name — the detector has no dataflow to prove which
+    # parameter set "ML-KEM-768" (the literal) actually selects, so key_size
+    # stays None rather than trusting the string. Falls to the policy
+    # default-action; see test_policy_dispositions.py.
+    assert findings[0].key_size is None
 
 
 def test_oqs_signature_emits_ml_dsa() -> None:
@@ -961,6 +967,7 @@ def test_oqs_signature_emits_ml_dsa() -> None:
     assert findings[0].algorithm == "ML-DSA"
     assert findings[0].family is AlgorithmFamily.SIGNATURE
     assert findings[0].quantum_risk is QuantumRisk.SAFE
+    assert findings[0].key_size is None
 
 
 def test_kyber_py_keygen_encaps_decaps_emit_ml_kem() -> None:
@@ -973,6 +980,10 @@ def test_kyber_py_keygen_encaps_decaps_emit_ml_kem() -> None:
     findings = _scan(src)
     assert len(findings) == 3
     assert all(f.algorithm == "ML-KEM" for f in findings)
+    # kyber-py's variant is baked into the imported class name (ML_KEM_768),
+    # so the catalog carries it statically — key_size must survive to the
+    # finding so the policy's parameter-sets rule can match it.
+    assert all(f.key_size == 768 for f in findings)
 
 
 def test_dilithium_py_keygen_sign_verify_emit_ml_dsa() -> None:
@@ -985,6 +996,7 @@ def test_dilithium_py_keygen_sign_verify_emit_ml_dsa() -> None:
     findings = _scan(src)
     assert len(findings) == 3
     assert all(f.algorithm == "ML-DSA" for f in findings)
+    assert all(f.key_size == 65 for f in findings)
 
 
 def test_cryptography_mlkem_generate_emits_ml_kem() -> None:
@@ -996,6 +1008,7 @@ def test_cryptography_mlkem_generate_emits_ml_kem() -> None:
     assert len(findings) == 1
     assert findings[0].algorithm == "ML-KEM"
     assert findings[0].family is AlgorithmFamily.KEM
+    assert findings[0].key_size == 768
 
 
 def test_cryptography_mldsa_generate_emits_ml_dsa() -> None:
@@ -1007,6 +1020,7 @@ def test_cryptography_mldsa_generate_emits_ml_dsa() -> None:
     assert len(findings) == 1
     assert findings[0].algorithm == "ML-DSA"
     assert findings[0].family is AlgorithmFamily.SIGNATURE
+    assert findings[0].key_size == 65
 
 
 def test_pyspx_generate_keypair_sign_verify_emit_slh_dsa() -> None:
@@ -1020,6 +1034,16 @@ def test_pyspx_generate_keypair_sign_verify_emit_slh_dsa() -> None:
     assert len(findings) == 3
     assert all(f.algorithm == "SLH-DSA" for f in findings)
     assert all(f.family is AlgorithmFamily.SIGNATURE for f in findings)
+    # Submodule name (shake_128f) is baked into key_size as the policy's
+    # "SHAKE-128f"-style parameter-set token.
+    assert all(f.key_size == "SHAKE-128f" for f in findings)
+
+
+def test_pyspx_sha2_128s_emits_approved_parameter_set_token() -> None:
+    findings = _scan(
+        "import pyspx.sha2_128s\npk, sk = pyspx.sha2_128s.generate_keypair(b's' * 96)\n"
+    )
+    assert findings[0].key_size == "SHA2-128s"
 
 
 # ---- pynacl catalog entries ----

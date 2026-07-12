@@ -138,7 +138,11 @@ class CryptoFinding(BaseModel):
 
     algorithm: str
     family: AlgorithmFamily
-    key_size: int | None = None
+    # int for classical bit-lengths (AES-256, RSA-2048); str for PQC parameter-set
+    # identifiers that aren't numeric (SLH-DSA's "SHA2-128s"). Both stringify the
+    # same way for policy `parameter-sets` matching and the CBOM
+    # parameterSetIdentifier property — see policy/engine.py rule_matches.
+    key_size: int | str | None = None
     curve: str | None = None
     mode: str | None = None
     padding: str | None = None
