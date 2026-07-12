@@ -122,6 +122,21 @@ def test_evaluate_unmatched_uses_default_action():
     assert d.matched == "default-action"
 
 
+def test_evaluate_sha512_unmatched_deliberately_warns_despite_quantum_safe():
+    # SHA-512 is QuantumRisk.SAFE (models._QUANTUM_MAP) but the policy's approved
+    # hash list is curated to {SHA-256, SHA-384} per plan 02 §2.4 — a minimal
+    # 8-algorithm set, not "every hash Grover doesn't break". SHA-512 therefore
+    # falls through to default-action WARN, same as any other unlisted hash.
+    # This is deliberate, not a gap: expanding the approved set is customer-demand
+    # driven (plan 02 §2 preamble), not preemptive.
+    policy = load_default_policy("cryptoct-default")
+    [d] = evaluate([_f("SHA-512", AlgorithmFamily.HASH, 0.9)], policy)
+    assert d.finding.quantum_risk == QuantumRisk.SAFE
+    assert d.rule_kind == "default"
+    assert d.action == RuleAction.WARN
+    assert d.matched == "default-action"
+
+
 def test_evaluate_does_not_auto_apply_exception_to_rsa():
     # default policy has EXC-001 (RSA under github-app-jwt). A bare RSA finding
     # must still FAIL — the exception is audit metadata, not an auto-pass.
