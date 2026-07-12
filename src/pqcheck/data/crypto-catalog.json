@@ -180,6 +180,10 @@
     "canonical": "SHA-512",
     "family": "hash"
   },
+  "github.com/google/go-containerregistry/pkg/v1.SHA256": {
+    "canonical": "SHA-256",
+    "family": "hash"
+  },
   "golang.org/x/crypto/blake2b.New": {
     "canonical": "BLAKE2B",
     "family": "hash"
@@ -196,11 +200,27 @@
     "canonical": "BLAKE2B",
     "family": "hash"
   },
+  "golang.org/x/crypto/blake2b.Sum256": {
+    "canonical": "BLAKE2B",
+    "family": "hash"
+  },
+  "golang.org/x/crypto/blake2b.Sum384": {
+    "canonical": "BLAKE2B",
+    "family": "hash"
+  },
+  "golang.org/x/crypto/blake2b.Sum512": {
+    "canonical": "BLAKE2B",
+    "family": "hash"
+  },
   "golang.org/x/crypto/blake2s.New128": {
     "canonical": "BLAKE2S",
     "family": "hash"
   },
   "golang.org/x/crypto/blake2s.New256": {
+    "canonical": "BLAKE2S",
+    "family": "hash"
+  },
+  "golang.org/x/crypto/blake2s.Sum256": {
     "canonical": "BLAKE2S",
     "family": "hash"
   },
@@ -308,6 +328,66 @@
     "canonical": "MATH-RAND",
     "family": "random"
   },
+  "math/rand.Uint32": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand.Uint64": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand.Rand.Float32": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand.Rand.Float64": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand.Rand.Int": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand.Rand.Int31": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand.Rand.Int31n": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand.Rand.Int63": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand.Rand.Int63n": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand.Rand.Intn": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand.Rand.Perm": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand.Rand.Read": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand.Rand.Shuffle": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand.Rand.Uint32": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand.Rand.Uint64": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
   "math/rand/v2.Float32": {
     "canonical": "MATH-RAND",
     "family": "random"
@@ -357,6 +437,54 @@
     "family": "random"
   },
   "math/rand/v2.Uint64": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand/v2.Rand.Float32": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand/v2.Rand.Float64": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand/v2.Rand.Int": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand/v2.Rand.Int32": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand/v2.Rand.Int32N": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand/v2.Rand.Int64": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand/v2.Rand.Int64N": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand/v2.Rand.IntN": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand/v2.Rand.Perm": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand/v2.Rand.Shuffle": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand/v2.Rand.Uint32": {
+    "canonical": "MATH-RAND",
+    "family": "random"
+  },
+  "math/rand/v2.Rand.Uint64": {
     "canonical": "MATH-RAND",
     "family": "random"
   }

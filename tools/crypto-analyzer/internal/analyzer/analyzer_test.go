@@ -836,3 +836,67 @@ func TestAnalyzeClassicalHPKEKEMDoesNotClaimHybrid(t *testing.T) {
 		t.Fatalf("expected no findings for classical-only hpke KEM, got %+v", fs)
 	}
 }
+
+func TestAnalyzeResolvesMathRandV2VersionedImportPath(t *testing.T) {
+	// go/types resolves the call through the type-checked package object, so
+	// the qualified callee is built from Pkg().Path() (the literal import
+	// path, "math/rand/v2") regardless of the identifier bound at the call
+	// site ("rand") -- this engine never had the tree-sitter bug where the
+	// resolver bound the "/v2" path segment itself.
+	dir := writeModule(t, map[string]string{
+		"main.go": "package main\n\nimport \"math/rand/v2\"\n\n" +
+			"func main() { _ = rand.Int64N(10) }\n",
+	})
+	fs, err := Analyze(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := findingsByAlgo(fs)["MATH-RAND"]; !ok {
+		t.Fatalf("expected MATH-RAND from math/rand/v2.Int64N, got %+v", fs)
+	}
+}
+
+func TestAnalyzeResolvesGoContainerRegistrySHA256(t *testing.T) {
+	// go-containerregistry's pkg/v1 directory *is* the package "v1" (Go's
+	// semantic import versioning never applies to v0/v1, only v2+), so the
+	// unaliased import binds "v1" at call sites -- this is a real, non-SIV
+	// use of a trailing "/v1" path segment.
+	dir := writeModule(t, map[string]string{
+		"go.mod": "module testmod\n\ngo 1.24\n\nrequire github.com/google/go-containerregistry v0.0.0\n",
+		"vendor/modules.txt": "# github.com/google/go-containerregistry v0.0.0\n" +
+			"## explicit; go 1.24\n" +
+			"github.com/google/go-containerregistry/pkg/v1\n",
+		"vendor/github.com/google/go-containerregistry/pkg/v1/hash.go": "package v1\n\n" +
+			"import \"io\"\n\n" +
+			"type Hash struct{}\n\n" +
+			"func SHA256(r io.Reader) (Hash, int64, error) { return Hash{}, 0, nil }\n",
+		"main.go": "package main\n\n" +
+			"import (\n\t\"strings\"\n\n\tv1 \"github.com/google/go-containerregistry/pkg/v1\"\n)\n\n" +
+			"func main() { _, _, _ = v1.SHA256(strings.NewReader(\"x\")) }\n",
+	})
+	fs, err := Analyze(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := findingsByAlgo(fs)["SHA-256"]; !ok {
+		t.Fatalf("expected SHA-256 from go-containerregistry pkg/v1.SHA256, got %+v", fs)
+	}
+}
+
+func TestAnalyzeResolvesRandRandReceiverMethod(t *testing.T) {
+	// *rand.Rand method calls resolve generically through methodKey's named-
+	// type receiver lookup (same machinery as crypto/ecdsa.PublicKey.ECDH) --
+	// no new mechanism needed, just catalog entries for the Rand type's
+	// methods alongside the package-level funcs already catalogued.
+	dir := writeModule(t, map[string]string{
+		"main.go": "package main\n\nimport \"math/rand\"\n\n" +
+			"func main() { r := rand.New(rand.NewSource(1)); _ = r.Uint32() }\n",
+	})
+	fs, err := Analyze(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := findingsByAlgo(fs)["MATH-RAND"]; !ok {
+		t.Fatalf("expected MATH-RAND from (*rand.Rand).Uint32, got %+v", fs)
+	}
+}

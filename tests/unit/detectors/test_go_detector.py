@@ -44,6 +44,26 @@ def test_aliased_import_binds_alias() -> None:
     assert r.resolve("rand") is None
 
 
+def test_versioned_import_v2_binds_pre_suffix_segment() -> None:
+    r = _resolver('package m\nimport "math/rand/v2"\n')
+    assert r.resolve("rand") == "math/rand/v2"
+    assert r.resolve("v2") is None
+
+
+def test_versioned_import_v1_binds_literal_v1_segment() -> None:
+    r = _resolver(
+        'package m\nimport "github.com/google/go-containerregistry/pkg/v1"\n'
+    )
+    assert r.resolve("v1") == "github.com/google/go-containerregistry/pkg/v1"
+
+
+def test_versioned_import_v10_binds_pre_suffix_segment() -> None:
+    # Generic /vN handling: not hardcoded to v2.
+    r = _resolver('package m\nimport "example.com/mod/sub/v10"\n')
+    assert r.resolve("sub") == "example.com/mod/sub/v10"
+    assert r.resolve("v10") is None
+
+
 def test_grouped_imports_all_resolve() -> None:
     r = _resolver('package m\nimport (\n  "crypto/rsa"\n  "crypto/aes"\n)\n')
     assert r.resolve("rsa") == "crypto/rsa"
@@ -101,11 +121,59 @@ def test_detects_math_rand_as_rng() -> None:
 
 
 def test_detects_math_rand_v2_as_rng() -> None:
-    # The v2 import path's last segment ("v2") is the bound identifier.
+    # math/rand/v2's declared package name is "rand" (Go's semantic import
+    # versioning convention), not the "v2" path segment -- an unaliased
+    # import binds "rand" at call sites, matching the real package clause.
+    fs = _findings(
+        'package m\nimport "math/rand/v2"\nfunc f() { rand.IntN(10) }\n'
+    )
+    assert [f.algorithm for f in fs] == ["MATH-RAND"]
+
+
+def test_math_rand_v2_stray_alias_segment_does_not_resolve() -> None:
+    # Confirms the old (wrong) binding no longer fires: nothing in real Go
+    # source refers to this package as "v2".
     fs = _findings(
         'package m\nimport "math/rand/v2"\nfunc f() { v2.IntN(10) }\n'
     )
-    assert [f.algorithm for f in fs] == ["MATH-RAND"]
+    assert fs == []
+
+
+def test_v1_versioned_import_path_binds_literal_segment() -> None:
+    # Go's semantic import versioning never applies to v0/v1 (only v2+), so a
+    # trailing "/v1" is a real, literal package name -- e.g.
+    # go-containerregistry's pkg/v1, whose package clause is `package v1`.
+    fs = _findings(
+        'package m\n'
+        'import "github.com/google/go-containerregistry/pkg/v1"\n'
+        'func f() { v1.SHA256(nil) }\n'
+    )
+    assert [f.algorithm for f in fs] == ["SHA-256"]
+
+
+def test_math_rand_uint32_and_uint64_detected() -> None:
+    fs = _findings(
+        'package m\nimport "math/rand"\n'
+        "func f() { rand.Uint32(); rand.Uint64() }\n"
+    )
+    assert [f.algorithm for f in fs] == ["MATH-RAND", "MATH-RAND"]
+    assert all(f.family == AlgorithmFamily.RNG for f in fs)
+
+
+def test_blake2s_sum256_detected() -> None:
+    fs = _findings(
+        'package m\nimport "golang.org/x/crypto/blake2s"\n'
+        "func f() { blake2s.Sum256(nil) }\n"
+    )
+    assert [f.algorithm for f in fs] == ["BLAKE2S"]
+
+
+def test_blake2b_sum_variants_detected() -> None:
+    fs = _findings(
+        'package m\nimport "golang.org/x/crypto/blake2b"\n'
+        "func f() { blake2b.Sum256(nil); blake2b.Sum384(nil); blake2b.Sum512(nil) }\n"
+    )
+    assert [f.algorithm for f in fs] == ["BLAKE2B", "BLAKE2B", "BLAKE2B"]
 
 
 def test_crypto_rand_is_not_flagged_as_math_rand() -> None:
