@@ -1,7 +1,7 @@
 {
   "sites": 527,
-  "detected": 505,
-  "recall": 0.9583,
+  "detected": 514,
+  "recall": 0.9753,
   "per_repo": {
     "pyjwt": {
       "sites": 6,
@@ -13,7 +13,7 @@
     },
     "paramiko": {
       "sites": 27,
-      "detected": 18
+      "detected": 27
     },
     "sigstore-python": {
       "sites": 51,
@@ -45,15 +45,6 @@
     }
   },
   "misses": [
-    "paramiko:paramiko/ed25519key.py:119",
-    "paramiko:paramiko/ed25519key.py:128",
-    "paramiko:paramiko/pkey.py:654",
-    "paramiko:paramiko/pkey.py:713",
-    "paramiko:paramiko/pkey.py:727",
-    "paramiko:paramiko/transport.py:1903",
-    "paramiko:tests/test_packetizer.py:49",
-    "paramiko:tests/test_packetizer.py:79",
-    "paramiko:tests/test_packetizer.py:103",
     "age:pq.go:115",
     "smallstep-crypto:kms/mackms/mackms.go:1451",
     "smallstep-crypto:kms/mackms/signer.go:210",
