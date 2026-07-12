@@ -1,7 +1,7 @@
 {
   "sites": 527,
-  "detected": 514,
-  "recall": 0.9753,
+  "detected": 527,
+  "recall": 1.0,
   "per_repo": {
     "pyjwt": {
       "sites": 6,
@@ -29,7 +29,7 @@
     },
     "age": {
       "sites": 77,
-      "detected": 76
+      "detected": 77
     },
     "go-jose": {
       "sites": 98,
@@ -41,22 +41,8 @@
     },
     "smallstep-crypto": {
       "sites": 251,
-      "detected": 239
+      "detected": 251
     }
   },
-  "misses": [
-    "age:pq.go:115",
-    "smallstep-crypto:kms/mackms/mackms.go:1451",
-    "smallstep-crypto:kms/mackms/signer.go:210",
-    "smallstep-crypto:kms/mackms/signer_test.go:91",
-    "smallstep-crypto:kms/mackms/signer_test.go:93",
-    "smallstep-crypto:kms/mackms/signer_test.go:100",
-    "smallstep-crypto:kms/mackms/signer_test.go:102",
-    "smallstep-crypto:kms/mackms/signer_test.go:109",
-    "smallstep-crypto:kms/mackms/signer_test.go:111",
-    "smallstep-crypto:kms/mackms/signer_test.go:204",
-    "smallstep-crypto:kms/yubikey/yubikey.go:358",
-    "smallstep-crypto:pemutil/ssh.go:191",
-    "smallstep-crypto:sshutil/sshutil_test.go:43"
-  ]
+  "misses": []
 }

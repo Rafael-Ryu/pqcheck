@@ -15,6 +15,7 @@ import pytest
 
 from pqcheck.detectors import go_module_detector as gmd
 from pqcheck.detectors.go_module_detector import detect_go_module
+from pqcheck.models import QuantumRisk
 
 _REPO = Path(__file__).resolve().parents[2]
 _ANALYZER_DIR = _REPO / "tools" / "crypto-analyzer"
@@ -114,6 +115,69 @@ def test_detect_go_module_semantic_path(
     # ECDSA with curve extracted from elliptic.P256() call argument.
     ecdsa_findings = [f for f in findings if f.algorithm == "ECDSA"]
     assert any(f.curve == "P-256" for f in ecdsa_findings), "expected ECDSA with P-256 curve"
+
+
+@pytest.mark.integration
+def test_detect_go_module_resolves_ecdh_method_and_hpke_hybrid(
+    crypto_analyzer_binary: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # End-to-end: the real analyzer binary + JSON bridge for the method-call
+    # detection added to close the corpus-v2 recall gap (smallstep/crypto
+    # pub.ECDH(), age's hpke.MLKEM768X25519().GenerateKey()).
+    monkeypatch.setenv("PQCHECK_CRYPTO_ANALYZER", str(crypto_analyzer_binary))
+    (tmp_path / "go.mod").write_text(
+        "module example.com/m\n\ngo 1.24\n\nrequire filippo.io/hpke v0.4.0\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "vendor" / "modules.txt").parent.mkdir(parents=True, exist_ok=True)
+    (tmp_path / "vendor" / "modules.txt").write_text(
+        "# filippo.io/hpke v0.4.0\n## explicit; go 1.24\nfilippo.io/hpke\n",
+        encoding="utf-8",
+    )
+    hpke_dir = tmp_path / "vendor" / "filippo.io" / "hpke"
+    hpke_dir.mkdir(parents=True, exist_ok=True)
+    (hpke_dir / "hpke.go").write_text(
+        textwrap.dedent(
+            """
+            package hpke
+
+            type PrivateKey interface{}
+            type KEM interface{ GenerateKey() (PrivateKey, error) }
+            type hybridKEM struct{}
+            func (hybridKEM) GenerateKey() (PrivateKey, error) { return nil, nil }
+            func MLKEM768X25519() KEM { return hybridKEM{} }
+            """
+        ).lstrip(),
+        encoding="utf-8",
+    )
+    (tmp_path / "main.go").write_text(
+        textwrap.dedent(
+            """
+            package main
+
+            import (
+                "crypto/ecdsa"
+                "filippo.io/hpke"
+            )
+
+            func f(pub *ecdsa.PublicKey) {
+                pub.ECDH()
+                hpke.MLKEM768X25519().GenerateKey()
+            }
+            """
+        ).lstrip(),
+        encoding="utf-8",
+    )
+
+    findings = detect_go_module(tmp_path)
+    by_algo = {f.algorithm: f for f in findings}
+
+    assert by_algo["ECDH"].confidence == 1.0
+    assert by_algo["ECDH"].quantum_risk == QuantumRisk.VULNERABLE
+
+    assert by_algo["X25519MLKEM768"].confidence == 1.0
+    assert by_algo["X25519MLKEM768"].quantum_risk == QuantumRisk.HYBRID
+    assert all(f.detector_id == "go-types" for f in findings)
 
 
 @pytest.mark.integration

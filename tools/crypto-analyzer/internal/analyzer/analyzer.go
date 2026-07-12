@@ -214,9 +214,39 @@ type visitor struct {
 }
 
 type cryptoSite struct {
-	call *ast.CallExpr
-	hit  catalog.Hit
+	call       *ast.CallExpr
+	hit        catalog.Hit
+	confidence float64
 }
+
+// goOpaqueMethods maps a resolved method key (see methodKey) to a generic
+// finding whose algorithm is a dataflow-opaque runtime value the analyzer
+// cannot name — go-piv's YubiKey.GenerateKey takes a runtime piv.Key{Algorithm}
+// value, never a literal, at every call site seen so far. Mirrors the Python
+// go_detector's CIPHER marker (PR #224): the construction is real, but naming
+// a concrete algorithm/quantum-risk verdict from static analysis alone would
+// overclaim. Deliberately not in the shared catalog: every catalog entry must
+// classify through the Python side's _QUANTUM_MAP invariant, and "opaque,
+// unknown algorithm" is not a real verdict to assert there.
+var goOpaqueMethods = map[string]catalog.Hit{
+	"github.com/go-piv/piv-go/v2/piv.YubiKey.GenerateKey": {Canonical: "KEYGEN", Family: "signature"},
+}
+
+// opaqueMethodConfidence mirrors the Python detectors' reduced confidence for
+// dataflow-opaque constructions.
+const opaqueMethodConfidence = 0.5
+
+// hpkeHybridConstructor is the qualified callee of filippo.io/hpke's hybrid
+// PQC KEM constructor. GenerateKey() called on its result is matched by this
+// exact call-chain shape (see chainedHPKEHit) rather than by the receiver's
+// static type, because MLKEM768X25519() returns the hpke.KEM interface — the
+// same interface every other hpke KEM constructor (DHKEM, MLKEM768, ...)
+// returns. Resolving GenerateKey generically by receiver type would also
+// claim a classical-only hpke.DHKEM(...) call as the post-quantum hybrid.
+const hpkeHybridConstructor = "filippo.io/hpke.MLKEM768X25519"
+
+// hpkeHybridCatalogKey mirrors go_detector.py's chain-specific catalog key.
+const hpkeHybridCatalogKey = "filippo.io/hpke.MLKEM768X25519.GenerateKey"
 
 type modeSite struct {
 	call *ast.CallExpr
@@ -267,16 +297,44 @@ func identsToExprs(names []*ast.Ident) []ast.Expr {
 
 func (v *visitor) recordCall(call *ast.CallExpr) {
 	qualified := v.qualifiedCallee(call)
-	if qualified == "" {
-		return
+	if qualified != "" {
+		if mode, ok := goModeConstructors[qualified]; ok {
+			v.modes = append(v.modes, modeSite{call, mode})
+			return
+		}
+		if hit, ok := v.cat[qualified]; ok {
+			v.crypto = append(v.crypto, cryptoSite{call, hit, 1.0})
+			return
+		}
+		if hit, ok := goOpaqueMethods[qualified]; ok {
+			v.crypto = append(v.crypto, cryptoSite{call, hit, opaqueMethodConfidence})
+			return
+		}
 	}
-	if mode, ok := goModeConstructors[qualified]; ok {
-		v.modes = append(v.modes, modeSite{call, mode})
-		return
+	// Not a resolvable package-function or method call site: it may still be
+	// the hpke hybrid chain, which the receiver's interface type cannot
+	// disambiguate above (see hpkeHybridConstructor).
+	if hit, ok := v.chainedHPKEHit(call); ok {
+		v.crypto = append(v.crypto, cryptoSite{call, hit, 1.0})
 	}
-	if hit, ok := v.cat[qualified]; ok {
-		v.crypto = append(v.crypto, cryptoSite{call, hit})
+}
+
+// chainedHPKEHit matches `hpke.MLKEM768X25519().GenerateKey()` (and any
+// aliased-import spelling of the same call, since qualifiedCallee resolves
+// through go/types rather than text) by call shape: the outer call's method
+// is GenerateKey and its receiver expression is itself a call to the hybrid
+// KEM constructor.
+func (v *visitor) chainedHPKEHit(call *ast.CallExpr) (catalog.Hit, bool) {
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok || sel.Sel.Name != "GenerateKey" {
+		return catalog.Hit{}, false
 	}
+	inner, ok := sel.X.(*ast.CallExpr)
+	if !ok || v.qualifiedCallee(inner) != hpkeHybridConstructor {
+		return catalog.Hit{}, false
+	}
+	hit, ok := v.cat[hpkeHybridCatalogKey]
+	return hit, ok
 }
 
 // recordBindings notes, for `x := <algorithm-call>(...)`, the variable x so a
@@ -343,7 +401,34 @@ func (v *visitor) qualifiedCallee(call *ast.CallExpr) string {
 	if !ok || fn.Pkg() == nil {
 		return ""
 	}
+	if sig, ok := fn.Type().(*types.Signature); ok && sig.Recv() != nil {
+		return methodKey(sig.Recv(), fn)
+	}
 	return fn.Pkg().Path() + "." + fn.Name()
+}
+
+// methodKey builds the catalog lookup key for a method call:
+// <pkg-path>.<ReceiverTypeName>.<Method>. Pointer and value receivers both
+// normalize to the underlying named type, so `pub.ECDH()` (a pointer-receiver
+// method, addressable field or var) and a value-receiver method resolve the
+// same way. Only a named type resolves — a literal struct, interface literal,
+// or type parameter returns "" — which covers every catalogued receiver
+// (crypto/ecdsa.PublicKey, crypto/ecdh.PrivateKey, piv.YubiKey) generically,
+// with no receiver type enumerated here.
+func methodKey(recv *types.Var, fn *types.Func) string {
+	t := recv.Type()
+	if ptr, ok := t.(*types.Pointer); ok {
+		t = ptr.Elem()
+	}
+	named, ok := t.(*types.Named)
+	if !ok {
+		return ""
+	}
+	obj := named.Obj()
+	if obj.Pkg() == nil {
+		return ""
+	}
+	return obj.Pkg().Path() + "." + obj.Name() + "." + fn.Name()
 }
 
 func (v *visitor) varOf(ident *ast.Ident) *types.Var {
@@ -363,7 +448,7 @@ func (v *visitor) resolve(out *[]Finding) {
 	varToIdx := map[*types.Var]int{}
 	producer := map[int]*types.Var{}
 	for _, site := range v.crypto {
-		*out = append(*out, v.build(site.call, site.hit))
+		*out = append(*out, v.build(site.call, site.hit, site.confidence))
 		if vobj, ok := v.callVar[site.call]; ok {
 			idx := len(*out) - 1
 			varToIdx[vobj] = idx
@@ -426,7 +511,7 @@ func (v *visitor) resolve(out *[]Finding) {
 // its mode cannot be use-def linked to a single producer.
 const ambiguousModeConfidence = 0.7
 
-func (v *visitor) build(call *ast.CallExpr, hit catalog.Hit) Finding {
+func (v *visitor) build(call *ast.CallExpr, hit catalog.Hit, confidence float64) Finding {
 	fset := v.pkg.Fset
 	start := fset.Position(call.Pos())
 	end := fset.Position(call.End())
@@ -441,7 +526,7 @@ func (v *visitor) build(call *ast.CallExpr, hit catalog.Hit) Finding {
 		EndLine:    end.Line,
 		EndColumn:  zeroBasedColumn(end.Column),
 		Evidence:   v.src.line(start.Filename, start.Line),
-		Confidence: 1.0,
+		Confidence: confidence,
 	}
 	switch hit.Canonical {
 	case "RSA":

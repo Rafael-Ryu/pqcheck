@@ -23,9 +23,32 @@ from tree_sitter import Node, Parser
 from pqcheck.detectors._source_read import read_source_bytes
 from pqcheck.detectors.algorithms import AlgorithmHit, lookup_go_symbol, normalize_curve
 from pqcheck.detectors.tree_sitter_loader import go_language
-from pqcheck.models import CryptoFinding, SourceLocation
+from pqcheck.models import AlgorithmFamily, CryptoFinding, SourceLocation
 
 _DETECTOR_ID = "go-tree-sitter"
+
+# Method calls on a typed receiver (`pub.ECDH()`, `k.yk.GenerateKey(...)`) have
+# no package-qualified callee for lookup_go_symbol, and tree-sitter carries no
+# type info to resolve the receiver the way go/types does. Instead of a bare
+# name match on `.ECDH(`/`.GenerateKey(` -- which would fire on any type with a
+# same-named method -- each is gated on the file importing the package that
+# declares the real receiver, at reduced confidence (mirrors the dot-import
+# and dataflow-opaque precedents elsewhere in this detector/python_detector).
+# Any of the crypto/ecdsa.*.ECDH / crypto/ecdh.*.ECDH catalog entries carries
+# the same canonical+family, so one representative key is enough here.
+_ECDH_METHOD_CATALOG_KEY = "crypto/ecdsa.PublicKey.ECDH"
+_ECDH_IMPORT_GATES = ("crypto/ecdsa", "crypto/ecdh")
+_YUBIKEY_IMPORT_PATH = "github.com/go-piv/piv-go/v2/piv"
+# go-piv's YubiKey.GenerateKey takes an opaque `piv.Key{Algorithm: ...}` whose
+# concrete algorithm is a runtime value (a variable, not a literal) at every
+# corpus call site -- the construction is real but the algorithm is dataflow-
+# opaque, so this stays out of the catalog (which requires every entry to
+# classify through _QUANTUM_MAP) and mirrors python_detector's CIPHER marker:
+# a generic canonical that resolves to QuantumRisk.UNKNOWN by design.
+_YUBIKEY_KEYGEN_HIT = AlgorithmHit("KEYGEN", AlgorithmFamily.SIGNATURE)
+_HPKE_IMPORT_PATH = "filippo.io/hpke"
+_HPKE_HYBRID_CATALOG_KEY = "filippo.io/hpke.MLKEM768X25519.GenerateKey"
+_METHOD_CONFIDENCE = 0.5
 
 # The 2 MiB byte cap bounds input size but not node count: a small blob of
 # deeply nested expressions can explode into millions of nodes, and walking
@@ -91,6 +114,10 @@ class GoImportResolver:
     def dot_imports(self) -> tuple[str, ...]:
         return tuple(sorted(self._dot_imports))
 
+    def imports_path(self, path: str) -> bool:
+        """True when the file imports `path`, under any alias (or dot)."""
+        return path in self._names.values() or path in self._dot_imports
+
     def visit_root(self, root: Node, source: bytes) -> None:
         for node in _walk(root):
             if node.type == "import_spec":
@@ -124,6 +151,48 @@ def _int_literal(node: Node, source: bytes) -> int | None:
     return value if value <= _MAX_KEY_SIZE else None
 
 
+def _composite_literal_type(expr: Node) -> Node | None:
+    # `&X{...}` is a unary_expression wrapping the composite_literal; unwrap it
+    # so both `X{...}` and `&X{...}` resolve to the same type node.
+    if expr.type == "unary_expression":
+        operand = expr.child_by_field_name("operand")
+        if operand is not None:
+            expr = operand
+    if expr.type != "composite_literal":
+        return None
+    return expr.child_by_field_name("type")
+
+
+def _collect_locally_constructed(root: Node, source: bytes) -> set[str]:
+    """Identifiers bound to a composite literal of an unqualified, package-local
+    type — `e := &ECDH{...}` or `e = SomeType{...}`.
+
+    Such an identifier can never hold a crypto/ecdsa or crypto/ecdh stdlib
+    value: those types are always package-qualified from outside their own
+    package (`ecdsa.PublicKey{}`), never a bare `type_identifier`. Excluding
+    these from the import-gated method match below closes a real false
+    positive (smallstep/crypto's own `type ECDH struct{...}` with its own
+    `ECDH()` method, unrelated to crypto/ecdsa's) without tracking dataflow in
+    general — this only follows the single literal an identifier is directly
+    constructed from, not values threaded through further assignments.
+    """
+    idents: set[str] = set()
+    for node in _walk(root):
+        if node.type not in ("short_var_declaration", "assignment_statement"):
+            continue
+        left = node.child_by_field_name("left")
+        right = node.child_by_field_name("right")
+        if left is None or right is None:
+            continue
+        lhs = [c for c in left.named_children if c.type == "identifier"]
+        rhs = right.named_children
+        for ident, expr in zip(lhs, rhs, strict=False):
+            type_node = _composite_literal_type(expr)
+            if type_node is not None and type_node.type == "type_identifier":
+                idents.add(_node_text(ident, source))
+    return idents
+
+
 class GoDetector:
     """Second pass: emit CryptoFinding per detected primitive use."""
 
@@ -136,12 +205,14 @@ class GoDetector:
         # trailing \r from \r\n is removed by _evidence's strip().
         self._lines = source.decode("utf-8", "replace").split("\n")
         self._imports = GoImportResolver()
+        self._locally_constructed: set[str] = set()
         self.findings: list[CryptoFinding] = []
 
     def run(self, root: Node) -> None:
         if root.descendant_count > _MAX_PARSE_NODES:
             return
         self._imports.visit_root(root, self._source)
+        self._locally_constructed = _collect_locally_constructed(root, self._source)
         for node in _walk(root):
             if node.type == "call_expression":
                 self._visit_call(node)
@@ -151,22 +222,78 @@ class GoDetector:
         if func is None:
             return
         if func.type == "selector_expression":
-            operand = func.child_by_field_name("operand")
-            field = func.child_by_field_name("field")
-            # operand must be a bare package identifier. When it is itself a
-            # call/selector (e.g. ecdh.P256().GenerateKey), it does not resolve
-            # to a catalog key, so the outer call is skipped and only the inner
-            # ecdh.P256() emits — no double count.
-            if operand is None or field is None or operand.type != "identifier":
-                return
-            import_path = self._imports.resolve(_node_text(operand, self._source))
-            if import_path is None:
-                return
-            hit = lookup_go_symbol(f"{import_path}.{_node_text(field, self._source)}")
-            if hit is not None:
-                self._emit(node, hit, confidence=1.0)
+            self._visit_selector_call(node, func)
         elif func.type == "identifier":
             self._emit_dot_import(node, func)
+
+    def _visit_selector_call(self, node: Node, func: Node) -> None:
+        operand = func.child_by_field_name("operand")
+        field = func.child_by_field_name("field")
+        if operand is None or field is None:
+            return
+        field_name = _node_text(field, self._source)
+        if operand.type == "identifier":
+            operand_name = _node_text(operand, self._source)
+            import_path = self._imports.resolve(operand_name)
+            if import_path is not None:
+                hit = lookup_go_symbol(f"{import_path}.{field_name}")
+                if hit is not None:
+                    self._emit(node, hit, confidence=1.0)
+                    return
+            # Not a package-qualified call (or no catalog hit): may be a
+            # method call on a variable of a catalogued receiver type --
+            # unless the variable was directly constructed from a
+            # package-local composite literal, which rules out a stdlib
+            # receiver type outright (see _collect_locally_constructed).
+            if operand_name not in self._locally_constructed:
+                self._visit_method_call(node, field_name)
+        elif operand.type == "selector_expression":
+            # A field-access chain (`k.PublicKey.ECDH()`, `k.yk.GenerateKey(...)`)
+            # is never a package-qualified call -- Go package identifiers are
+            # always bare, so this can only be a method call on the field's
+            # value. Same import-gated match as the identifier case.
+            self._visit_method_call(node, field_name)
+        elif operand.type == "call_expression":
+            # e.g. `ecdh.P256().GenerateKey(...)` or the hpke hybrid chain
+            # below. The general case (operand is a plain package/constructor
+            # call unrelated to a catalogued method) does not resolve to a
+            # catalog key -- the outer call is skipped and only the inner
+            # call, if catalogued, emits on its own. No double count.
+            self._visit_chained_method_call(node, operand, field_name)
+
+    def _visit_method_call(self, node: Node, field_name: str) -> None:
+        if field_name == "ECDH" and any(
+            self._imports.imports_path(pkg) for pkg in _ECDH_IMPORT_GATES
+        ):
+            hit = lookup_go_symbol(_ECDH_METHOD_CATALOG_KEY)
+            if hit is not None:
+                self._emit(node, hit, confidence=_METHOD_CONFIDENCE)
+        elif field_name == "GenerateKey" and self._imports.imports_path(_YUBIKEY_IMPORT_PATH):
+            self._emit(node, _YUBIKEY_KEYGEN_HIT, confidence=_METHOD_CONFIDENCE)
+
+    def _visit_chained_method_call(self, node: Node, operand_call: Node, field_name: str) -> None:
+        # hpke.MLKEM768X25519().GenerateKey(): the receiver is itself a call,
+        # so the identifier-based path above never sees it. Matched textually
+        # against the exact chain (tree-sitter has no type for operand_call's
+        # result) and import-gated so an unrelated `X().GenerateKey()` cannot
+        # false-positive.
+        if field_name != "GenerateKey":
+            return
+        inner_func = operand_call.child_by_field_name("function")
+        if inner_func is None or inner_func.type != "selector_expression":
+            return
+        inner_operand = inner_func.child_by_field_name("operand")
+        inner_field = inner_func.child_by_field_name("field")
+        if inner_operand is None or inner_field is None or inner_operand.type != "identifier":
+            return
+        if _node_text(inner_field, self._source) != "MLKEM768X25519":
+            return
+        import_path = self._imports.resolve(_node_text(inner_operand, self._source))
+        if import_path != _HPKE_IMPORT_PATH:
+            return
+        hit = lookup_go_symbol(_HPKE_HYBRID_CATALOG_KEY)
+        if hit is not None:
+            self._emit(node, hit, confidence=_METHOD_CONFIDENCE)
 
     def _emit_dot_import(self, node: Node, func: Node) -> None:
         name = _node_text(func, self._source)
