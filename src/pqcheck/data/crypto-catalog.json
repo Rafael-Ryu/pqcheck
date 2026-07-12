@@ -34,6 +34,10 @@
     "curve": "P-521",
     "family": "key-agreement"
   },
+  "crypto/ecdh.PrivateKey.ECDH": {
+    "canonical": "ECDH",
+    "family": "key-agreement"
+  },
   "crypto/ecdh.X25519": {
     "canonical": "X25519",
     "family": "key-agreement"
@@ -41,6 +45,14 @@
   "crypto/ecdsa.GenerateKey": {
     "canonical": "ECDSA",
     "family": "signature"
+  },
+  "crypto/ecdsa.PrivateKey.ECDH": {
+    "canonical": "ECDH",
+    "family": "key-agreement"
+  },
+  "crypto/ecdsa.PublicKey.ECDH": {
+    "canonical": "ECDH",
+    "family": "key-agreement"
   },
   "crypto/ed25519.GenerateKey": {
     "canonical": "EdDSA",
@@ -91,6 +103,10 @@
   "crypto/rand.Read": {
     "canonical": "CSPRNG",
     "family": "random"
+  },
+  "filippo.io/hpke.MLKEM768X25519.GenerateKey": {
+    "canonical": "X25519MLKEM768",
+    "family": "key-encapsulation"
   },
   "crypto/rc4.NewCipher": {
     "canonical": "RC4",

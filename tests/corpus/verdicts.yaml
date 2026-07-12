@@ -244,3 +244,14 @@ d37eb58c5c9d01fd: {verdict: tp, note: "python-jose RSA sign — RSA-PKCS1v15 pad
 55929f0de6eb2f74: {verdict: tp, note: "test file"}
 cdbc390dc0ca0bdc: {verdict: tp, note: "test file"}
 9a88317bc03199ff: {verdict: tp, note: "test file"}
+50d039bae0963513: {verdict: tp, note: "mackms.go k.ECDH() — crypto/ecdsa PublicKey method, darwin/cgo-gated"}
+8ad2c519bf77c6cf: {verdict: tp, note: "signer.go pub.ECDH() — crypto/ecdsa PublicKey method, darwin/cgo-gated"}
+c182b12210397721: {verdict: tp, note: "signer_test.go pub.ECDH() — crypto/ecdsa PublicKey method, test file"}
+665c76131221f18a: {verdict: tp, note: "signer_test.go goP256.ECDH(...) — crypto/ecdh PrivateKey method, test file"}
+1939d6487a1f1587: {verdict: tp, note: "signer_test.go pub.ECDH() — crypto/ecdsa PublicKey method, test file"}
+079158a5bc24ebb7: {verdict: tp, note: "signer_test.go goP384.ECDH(...) — crypto/ecdh PrivateKey method, test file"}
+f971dcee15732930: {verdict: tp, note: "signer_test.go pub.ECDH() — crypto/ecdsa PublicKey method, test file"}
+3136879daf5e1f04: {verdict: tp, note: "signer_test.go goP521.ECDH(...) — crypto/ecdh PrivateKey method, test file"}
+03242cafa2024fb4: {verdict: tp, note: "signer_test.go pub.ECDH() — crypto/ecdsa PublicKey method, test file"}
+3973b4ada3f48033: {verdict: tp, note: "ssh.go k.PublicKey.ECDH() — crypto/ecdsa PublicKey method via embedded field"}
+1a5957c1b6e80b7a: {verdict: tp, note: "sshutil_test.go k.ECDH() — crypto/ecdsa PublicKey method, test file"}

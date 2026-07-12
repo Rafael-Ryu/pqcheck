@@ -333,3 +333,122 @@ def test_detect_go_file_catalog_file_not_found_returns_empty(
 
 def _raise_file_not_found(*_: object, **__: object) -> None:
     raise FileNotFoundError("data/crypto-catalog.json not found")
+
+
+# ---- Method-call detection (no type info; import-gated) ----
+
+
+def test_ecdh_method_on_bare_identifier_resolves() -> None:
+    fs = _findings(
+        'package m\nimport "crypto/ecdsa"\n'
+        "func f(pub *ecdsa.PublicKey) { pub.ECDH() }\n"
+    )
+    assert [f.algorithm for f in fs] == ["ECDH"]
+    assert fs[0].family == AlgorithmFamily.KEY_AGREEMENT
+    assert fs[0].confidence == 0.5
+    assert fs[0].quantum_risk == QuantumRisk.VULNERABLE
+
+
+def test_ecdh_method_on_field_selector_resolves() -> None:
+    # k.PublicKey.ECDH(): the receiver is a field-access chain, not a bare
+    # identifier — pemutil/ssh.go's actual shape.
+    fs = _findings(
+        'package m\nimport "crypto/ecdsa"\n'
+        "func f(k *ecdsa.PrivateKey) { k.PublicKey.ECDH() }\n"
+    )
+    assert [f.algorithm for f in fs] == ["ECDH"]
+
+
+def test_ecdh_method_gated_on_ecdh_import_too() -> None:
+    fs = _findings(
+        'package m\nimport "crypto/ecdh"\n'
+        "func f(k *ecdh.PrivateKey, pub *ecdh.PublicKey) { k.ECDH(pub) }\n"
+    )
+    assert [f.algorithm for f in fs] == ["ECDH"]
+
+
+def test_ecdh_method_without_import_does_not_emit() -> None:
+    # Same method name, unrelated receiver, and crucially no crypto/ecdsa or
+    # crypto/ecdh import — must not false-positive on a same-named method.
+    fs = _findings(
+        "package m\n"
+        "type Foo struct{}\n"
+        "func (f *Foo) ECDH() (int, error) { return 0, nil }\n"
+        "func g(f *Foo) { f.ECDH() }\n"
+    )
+    assert fs == []
+
+
+def test_yubikey_generatekey_gated_on_piv_import() -> None:
+    fs = _findings(
+        'package m\nimport "github.com/go-piv/piv-go/v2/piv"\n'
+        "func f(yk *piv.YubiKey) { yk.GenerateKey(nil, piv.Slot{}, piv.Key{}) }\n"
+    )
+    assert [f.algorithm for f in fs] == ["KEYGEN"]
+    assert fs[0].family == AlgorithmFamily.SIGNATURE
+    assert fs[0].confidence == 0.5
+    # Opaque algorithm (a runtime piv.Key value) — never claimed post-quantum
+    # safe or vulnerable from static analysis alone.
+    assert fs[0].quantum_risk == QuantumRisk.UNKNOWN
+
+
+def test_generatekey_without_piv_import_does_not_emit() -> None:
+    fs = _findings(
+        "package m\n"
+        "type Thing struct{}\n"
+        "func (t *Thing) GenerateKey() {}\n"
+        "func f(t *Thing) { t.GenerateKey() }\n"
+    )
+    assert fs == []
+
+
+def test_hpke_hybrid_chain_resolves() -> None:
+    fs = _findings(
+        'package m\nimport "filippo.io/hpke"\n'
+        "func f() { hpke.MLKEM768X25519().GenerateKey() }\n"
+    )
+    assert [f.algorithm for f in fs] == ["X25519MLKEM768"]
+    assert fs[0].family == AlgorithmFamily.KEM
+    assert fs[0].confidence == 0.5
+    assert fs[0].quantum_risk == QuantumRisk.HYBRID
+
+
+def test_hpke_hybrid_chain_gated_on_hpke_import() -> None:
+    # Same textual chain shape, but the package is not actually filippo.io/hpke.
+    fs = _findings(
+        "package m\n"
+        "type hpke struct{}\n"
+        "func MLKEM768X25519() hpke { return hpke{} }\n"
+        "func (hpke) GenerateKey() {}\n"
+        "func f() { MLKEM768X25519().GenerateKey() }\n"
+    )
+    assert fs == []
+
+
+def test_ecdh_method_on_locally_constructed_receiver_does_not_emit() -> None:
+    # Regression: a package that both imports crypto/ecdh/ecdsa AND declares
+    # its own `type ECDH struct{...}` with its own `ECDH()` method (real
+    # shape in smallstep/crypto's kms/mackms) must not have every call
+    # through that local type false-positive as the stdlib method just
+    # because the file also has genuine crypto/ecdsa.PublicKey.ECDH() sites.
+    fs = _findings(
+        'package m\nimport "crypto/ecdh"\n'
+        "type ECDH struct{}\n"
+        "func (e *ECDH) ECDH(pub *ecdh.PublicKey) ([]byte, error) { return nil, nil }\n"
+        "func f() {\n"
+        "    e := &ECDH{}\n"
+        "    e.ECDH(nil)\n"
+        "}\n"
+    )
+    assert fs == []
+
+
+def test_ecdh_p256_generatekey_chain_still_does_not_double_count() -> None:
+    # Regression guard: the chained-method path must not start matching
+    # unrelated `X().GenerateKey()` shapes just because the field name lines
+    # up with the yubikey/hpke cases.
+    fs = _findings(
+        'package m\nimport (\n "crypto/ecdh"\n "crypto/rand"\n)\n'
+        "func f() { ecdh.P256().GenerateKey(rand.Reader) }\n"
+    )
+    assert [f.algorithm for f in fs] == ["ECDH"]

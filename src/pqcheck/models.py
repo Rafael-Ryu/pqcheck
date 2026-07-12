@@ -35,7 +35,6 @@ class AlgorithmFamily(StrEnum):
 
 class QuantumRisk(StrEnum):
     SAFE = "quantum-safe"
-    # Reserved for hybrid PQC constructs (e.g., X25519MLKEM768) once detectors emit them.
     HYBRID = "hybrid"
     VULNERABLE = "quantum-vulnerable"
     BROKEN = "broken"
@@ -123,6 +122,11 @@ _QUANTUM_MAP: dict[str, QuantumRisk] = {
     # algorithm, same split as XSALSA20-POLY1305 above.
     "FALCON": QuantumRisk.SAFE,
     "HQC": QuantumRisk.SAFE,
+    # X25519MLKEM768 (filippo.io/hpke's hybrid KEM, also age's post-quantum
+    # recipient): classical X25519 plus ML-KEM-768 in one construct. HYBRID,
+    # not SAFE — the classical component is still there as defense in depth,
+    # not because the PQC component is in doubt.
+    "X25519MLKEM768": QuantumRisk.HYBRID,
     "MD5": QuantumRisk.BROKEN,
     "SHA-1": QuantumRisk.BROKEN,
     "DES": QuantumRisk.BROKEN,
