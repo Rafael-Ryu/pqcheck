@@ -20,8 +20,8 @@ HIGH/CRITICAL severity buckets over 10 pinned public repos
    findings**; pending ones are listed, never guessed. Results land in
    `last_bench.json`.
 
-Recall (fn) is out of scope for the 0.85 gate — it would need an
-independent ground-truth sweep per repo. Tracked for the corpus v2.
+Recall (fn) is out of scope for the 0.85 gate — it is measured separately
+by the corpus v2 below.
 
 Network required for the first run (clones). Not part of the default
 pytest run.
@@ -45,6 +45,50 @@ annotated in `planted/expected.yaml`.
 
 **Honest limitation**: this is recall on synthetic, single-call-per-line
 fixtures the detectors were built against — it says nothing about recall on
-real, idiomatic, multi-line, refactored code in the wild. A labeled
-real-world corpus (corpus v2) is future work, same caveat as the precision
-corpus's fn gap above.
+real, idiomatic, multi-line, refactored code in the wild. That gap is what
+the corpus v2 below measures.
+
+## Recall (corpus v2 — real-world)
+
+Measures recall on the same 10 pinned repos, against a ground truth built by
+an oracle that is deliberately independent of the detectors: a line-level
+regex sweep (`run_recall_v2.py`) for tokens derived from the crypto catalogs,
+matched textually with no AST/import/type resolution. The oracle over-matches
+by design (comments, strings, look-alike names, files the detectors cannot
+parse); adjudication in `ground_truth.yaml` separates real call sites
+(`site`) from noise (`not_site`), same protocol as `verdicts.yaml`.
+
+1. `uv run python tests/corpus/run_recall_v2.py --candidates` — sweep the
+   pinned clones, list oracle hits not yet adjudicated (also written to
+   `last_candidates.json`).
+2. Adjudicate each candidate into `ground_truth.yaml`: `site` when the line
+   really invokes a crypto-library primitive (test files count, aliased
+   imports count); `not_site` for comments/strings, definitions, in-repo
+   wrappers and same-name non-crypto APIs. Pending candidates block the
+   measurement — recall over a partial ground truth would overstate.
+3. `uv run python tests/corpus/run_recall_v2.py` — scans each repo with no
+   policy and reports recall = detected/`site`, matched by
+   (repo, path, line). Report, not gate: always exits 0; results in
+   `last_recall_v2.json` with per-repo counts and the full miss list.
+
+First measurement (2026-07-12, 792 candidates adjudicated): recall **0.70**
+(370/527 sites). Python is near-perfect (89/98; the 9 paramiko misses are
+indirect algorithm variables — `Cipher(cipher(key), ...)` — the documented
+no-dataflow limitation, plus `bcrypt.kdf` and multi-line artifacts, where the
+finding lands on the `Cipher(` line and the ground truth also marks the
+`algorithms.AES(` argument line). Go misses are dominated by catalog scope,
+not detector bugs: `crypto/rand.Read` (41), `crypto/elliptic.P256/P384/P521`
+curve constructors (77), `golang.org/x/crypto/curve25519.X25519` (13) and
+receiver-method forms like `pub.ECDH()` (11) are not catalog symbols today.
+Those are recall signal for catalog expansion, kept as misses on purpose —
+measuring recall only against the shipped catalog would inflate the number
+by construction.
+
+**Honest limitations**: recall is relative to the oracle — crypto that
+matches no catalog token (vendored primitives with renamed symbols,
+hand-rolled ciphers) is invisible to the ground truth too. Qualified-only
+tokens (`AES.new`, `rand.Read`…) miss aliased imports (`mathrand.Int()` in
+age is a known, accepted example) and bare from-imports of generic names.
+The oracle being strictly broader than the detectors everywhere else
+(commented-out code, build-gated files, unparseable sources) is what lets
+real misses surface.
