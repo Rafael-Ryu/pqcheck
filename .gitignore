@@ -70,3 +70,4 @@ autoresearch/
 docs/
 CLAUDE.md
 tests/corpus/.cache/
+graphify-out/
