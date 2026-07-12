@@ -74,6 +74,10 @@ _QUANTUM_MAP: dict[str, QuantumRisk] = {
     "ED448": QuantumRisk.VULNERABLE,
     "X25519": QuantumRisk.VULNERABLE,
     "X448": QuantumRisk.VULNERABLE,
+    "ELGAMAL": QuantumRisk.VULNERABLE,
+    "GOST-R-34.10-2001": QuantumRisk.VULNERABLE,
+    "SM2": QuantumRisk.VULNERABLE,
+    "BLS12-381": QuantumRisk.VULNERABLE,
     "AES": QuantumRisk.SAFE,
     "CHACHA20": QuantumRisk.SAFE,
     "SHA-224": QuantumRisk.SAFE,
@@ -99,6 +103,10 @@ _QUANTUM_MAP: dict[str, QuantumRisk] = {
     "BLOWFISH": QuantumRisk.BROKEN,
     "IDEA": QuantumRisk.BROKEN,
     "RIPEMD-160": QuantumRisk.VULNERABLE,
+    # Not a quantum concern — a classically predictable/seedable PRNG used
+    # where crypto/rand is required (policy §2.6). Treated as BROKEN like
+    # MD5/SHA-1/RC4: a practical, non-quantum break available today.
+    "MATH-RAND": QuantumRisk.BROKEN,
 }
 
 

@@ -1,0 +1,50 @@
+# Recall manifest for tests/corpus/planted/ — every call site a detector is
+# expected to flag. path is relative to tests/corpus/planted/. Protocol and
+# limitations: tests/corpus/README.md "Recall (planted fixtures)".
+planted:
+  - {path: python/hashes.py, line: 12, algorithm: MD5}
+  - {path: python/hashes.py, line: 13, algorithm: SHA-1}
+  - {path: python/hashes.py, line: 14, algorithm: SHA-256}
+  - {path: python/hashes.py, line: 15, algorithm: RIPEMD-160}
+  - {path: python/hashes.py, line: 17, algorithm: SHA-1}
+  - {path: python/hashes.py, line: 18, algorithm: MD5}
+  - {path: python/hashes.py, line: 20, algorithm: SHA-1}
+
+  - {path: python/asymmetric.py, line: 9, algorithm: RSA}
+  - {path: python/asymmetric.py, line: 10, algorithm: ECDSA}
+  - {path: python/asymmetric.py, line: 11, algorithm: ECDH}
+  - {path: python/asymmetric.py, line: 12, algorithm: DH}
+  - {path: python/asymmetric.py, line: 13, algorithm: EdDSA}
+  - {path: python/asymmetric.py, line: 14, algorithm: X25519}
+  - {path: python/asymmetric.py, line: 16, algorithm: RSA}
+  - {path: python/asymmetric.py, line: 17, algorithm: ECDSA}
+
+  - {path: python/ciphers_cryptography.py, line: 12, algorithm: AES}
+  - {path: python/ciphers_cryptography.py, line: 13, algorithm: 3DES}
+  - {path: python/ciphers_cryptography.py, line: 14, algorithm: RC4}
+  - {path: python/ciphers_cryptography.py, line: 15, algorithm: Blowfish}
+  - {path: python/ciphers_cryptography.py, line: 16, algorithm: IDEA}
+
+  - {path: python/ciphers_pycryptodome.py, line: 11, algorithm: AES}
+  - {path: python/ciphers_pycryptodome.py, line: 12, algorithm: DES}
+  - {path: python/ciphers_pycryptodome.py, line: 13, algorithm: 3DES}
+  - {path: python/ciphers_pycryptodome.py, line: 14, algorithm: RC4}
+
+  - {path: python/star_import.py, line: 8, algorithm: MD5}
+
+  - {path: go/hashes_and_ciphers.go, line: 21, algorithm: MD5}
+  - {path: go/hashes_and_ciphers.go, line: 22, algorithm: SHA-1}
+  - {path: go/hashes_and_ciphers.go, line: 23, algorithm: DES}
+  - {path: go/hashes_and_ciphers.go, line: 24, algorithm: 3DES}
+  - {path: go/hashes_and_ciphers.go, line: 25, algorithm: RC4}
+  - {path: go/hashes_and_ciphers.go, line: 26, algorithm: Blowfish}
+  - {path: go/hashes_and_ciphers.go, line: 27, algorithm: RIPEMD-160}
+  - {path: go/hashes_and_ciphers.go, line: 28, algorithm: CHACHA20}
+
+  - {path: go/keys.go, line: 18, algorithm: RSA}
+  - {path: go/keys.go, line: 19, algorithm: ECDSA}
+  - {path: go/keys.go, line: 20, algorithm: EdDSA}
+  - {path: go/keys.go, line: 22, algorithm: DSA}
+  - {path: go/keys.go, line: 23, algorithm: X25519}
+
+  - {path: go/dot_import.go, line: 12, algorithm: SHA-256}

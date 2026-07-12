@@ -25,3 +25,26 @@ independent ground-truth sweep per repo. Tracked for the corpus v2.
 
 Network required for the first run (clones). Not part of the default
 pytest run.
+
+## Recall (planted fixtures)
+
+Precision alone can't catch a detector that silently stops firing. This
+harness measures **recall** (detected / planted) over `tests/corpus/planted/`
+— small `.py` and `.go` files with known crypto call sites, one per line,
+annotated in `planted/expected.yaml`.
+
+1. `uv run python tests/corpus/run_recall.py` scans `tests/corpus/planted/`
+   with no policy (raw findings, not severity-gated) and diffs
+   `(path, line, algorithm)` against the manifest.
+2. Misses print as `path:line  algorithm` and land in `last_recall.json`
+   alongside the recall ratio. Always exits 0 — this is a report, not a
+   ship gate (unlike `run_bench.py --check`).
+3. Go fixtures have no `go.mod` on purpose: the tree-sitter detector is the
+   permanent floor (ADR 0005) and resolves `pkg.Func(...)` calls without a
+   compiled module, so the harness never needs a Go toolchain.
+
+**Honest limitation**: this is recall on synthetic, single-call-per-line
+fixtures the detectors were built against — it says nothing about recall on
+real, idiomatic, multi-line, refactored code in the wild. A labeled
+real-world corpus (corpus v2) is future work, same caveat as the precision
+corpus's fn gap above.

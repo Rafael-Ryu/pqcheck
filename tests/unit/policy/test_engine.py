@@ -7,11 +7,12 @@ from pqcheck.models import (
     AlgorithmFamily,
     ConfidenceBand,
     CryptoFinding,
+    QuantumRisk,
     RuleAction,
     Severity,
     SourceLocation,
 )
-from pqcheck.policy.engine import confidence_to_band, demote, evaluate, rule_matches
+from pqcheck.policy.engine import confidence_to_band, demote, evaluate, gate, rule_matches
 from pqcheck.policy.loader import load_default_policy
 from pqcheck.policy.schema import (
     AlgorithmRule,
@@ -69,6 +70,23 @@ def test_rule_matches_refines_on_key_size_curve_mode():
                         modes=["ECB", "CBC"], action=RuleAction.WARN)
     assert rule_matches(ecb, _find("AES", AlgorithmFamily.SYMMETRIC_CIPHER, mode="ECB"))
     assert not rule_matches(ecb, _find("AES", AlgorithmFamily.SYMMETRIC_CIPHER, mode="GCM"))
+
+
+def test_rule_matches_refines_on_paddings():
+    pkcs1v15 = AlgorithmRule(family=PolicyFamily.ASYMMETRIC_ENCRYPTION, algorithm="RSA",
+                             paddings=["PKCS1v15", "OAEP-SHA1"], action=RuleAction.FAIL)
+    assert rule_matches(
+        pkcs1v15, _find("RSA", AlgorithmFamily.ASYMMETRIC_ENCRYPTION, padding="PKCS1v15")
+    )
+    assert not rule_matches(
+        pkcs1v15, _find("RSA", AlgorithmFamily.ASYMMETRIC_ENCRYPTION, padding="OAEP-SHA256")
+    )
+    assert not rule_matches(pkcs1v15, _find("RSA", AlgorithmFamily.ASYMMETRIC_ENCRYPTION))
+
+
+def test_rule_matches_rng_family_maps_to_policy_rng():
+    rule = AlgorithmRule(family=PolicyFamily.RNG, algorithm="MATH-RAND", action=RuleAction.WARN)
+    assert rule_matches(rule, _find("MATH-RAND", AlgorithmFamily.RNG))
 
 
 def _f(algo: str, fam: AlgorithmFamily, conf: float, **kw: object) -> CryptoFinding:
@@ -155,6 +173,37 @@ def test_evaluate_accepts_a_tuple_of_findings():
     policy = load_default_policy("cryptoct-default")
     decisions = evaluate((_f("RSA", AlgorithmFamily.ASYMMETRIC_ENCRYPTION, 0.9),), policy)
     assert len(decisions) == 1
+
+
+def test_strict_gate_trips_on_unknown_quantum_risk():
+    # Whirlpool is unbanned/unapproved in the default policy, so it hits
+    # default-action WARN; strict must also trip it via UNKNOWN quantum_risk.
+    policy = load_default_policy("cryptoct-default")
+    decisions = evaluate([_f("Whirlpool", AlgorithmFamily.HASH, 0.9)], policy)
+    assert decisions[0].finding.quantum_risk == QuantumRisk.UNKNOWN
+    assert gate(decisions, strict=True) is not None
+
+
+def test_non_strict_gate_does_not_trip_on_unknown_quantum_risk():
+    policy = load_default_policy("cryptoct-default")
+    decisions = evaluate([_f("Whirlpool", AlgorithmFamily.HASH, 0.9)], policy)
+    assert gate(decisions, strict=False) is None
+
+
+def test_strict_gate_does_not_trip_when_unknown_algorithm_is_explicitly_approved():
+    rule = AlgorithmRule(
+        family=PolicyFamily.HASH, algorithm="Whirlpool", action=RuleAction.ALLOW
+    )
+    policy = CryptoPolicy(
+        apiVersion="pqcheck.cryptoct.com/v1", kind="CryptoPolicy",
+        metadata=PolicyMetadata(name="t", version="0.0.1", publisher="t",
+                                applies_to="t", effective_from=date.today(),
+                                review_date=date.today()),
+        spec=PolicySpec(default_action=RuleAction.WARN, approved=[rule]),
+    )
+    decisions = evaluate([_f("Whirlpool", AlgorithmFamily.HASH, 0.9)], policy)
+    assert decisions[0].rule_kind == "approved"
+    assert gate(decisions, strict=True) is None
 
 
 def test_evaluate_banned_medium_confidence_demotes_one_tier():
