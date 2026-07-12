@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 
+from pqcheck.detectors.go_detector import detect_go_file
 from pqcheck.models import (
     AlgorithmFamily,
     ConfidenceBand,
@@ -139,14 +140,33 @@ def test_evaluate_sha512_unmatched_deliberately_warns_despite_quantum_safe():
 
 def test_evaluate_ml_kem_768_via_kyber_py_is_allow_info():
     # kyber-py bakes the parameter set into key_size (see algorithms.py) so
-    # this reaches the same approved/info disposition the Go
-    # mlkem.GenerateKey768 path is documented to intend.
+    # this reaches the same approved/info disposition as the Go
+    # mlkem.GenerateKey768 path.
     policy = load_default_policy("cryptoct-default")
     finding = _f("ML-KEM", AlgorithmFamily.KEM, 1.0, key_size=768)
     [d] = evaluate([finding], policy)
     assert d.rule_kind == "approved"
     assert d.action == RuleAction.ALLOW
     assert d.base_severity == Severity.INFO
+
+
+def test_evaluate_go_mlkem_findings_are_allow_info(tmp_path):
+    # End-to-end for issue #217: the Go catalog bakes the parameter set into
+    # the crypto/mlkem entries, so real detector findings — not hand-built
+    # ones — match the approved parameter-sets rule instead of falling to
+    # default/warn.
+    src = tmp_path / "main.go"
+    src.write_text(
+        'package m\nimport "crypto/mlkem"\n'
+        "func f() { mlkem.GenerateKey768(); mlkem.GenerateKey1024() }\n"
+    )
+    findings = detect_go_file(src)
+    assert [f.key_size for f in findings] == [768, 1024]
+    policy = load_default_policy("cryptoct-default")
+    decisions = evaluate(findings, policy)
+    assert all(d.rule_kind == "approved" for d in decisions)
+    assert all(d.action == RuleAction.ALLOW for d in decisions)
+    assert all(d.base_severity == Severity.INFO for d in decisions)
 
 
 def test_evaluate_ml_dsa_65_is_allow_info():

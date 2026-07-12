@@ -441,17 +441,24 @@ func TestAnalyzeResolvesMLKEM(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var mlkem int
+	// The parameter set is baked into the catalog entry (key_size 768/1024)
+	// so the policy's parameter-sets approved rule can match — without it the
+	// finding falls to default/medium instead of approved/info.
+	sizes := map[int]int{}
 	for _, f := range fs {
 		if f.Algorithm == "ML-KEM" {
 			if f.Family != "key-encapsulation" {
 				t.Errorf("family = %q, want key-encapsulation", f.Family)
 			}
-			mlkem++
+			if f.KeySize == nil {
+				t.Errorf("KeySize = nil, want parameter set, finding %+v", f)
+				continue
+			}
+			sizes[*f.KeySize]++
 		}
 	}
-	if mlkem != 2 {
-		t.Fatalf("ML-KEM findings = %d, want 2 (768 + 1024), got %+v", mlkem, fs)
+	if sizes[768] != 1 || sizes[1024] != 1 {
+		t.Fatalf("ML-KEM parameter sets = %v, want one 768 and one 1024, got %+v", sizes, fs)
 	}
 }
 

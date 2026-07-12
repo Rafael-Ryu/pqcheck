@@ -124,6 +124,23 @@ def test_ecdh_curve_does_not_double_count() -> None:
     assert fs[0].curve == "P-256"
 
 
+def test_mlkem_carries_parameter_set_from_catalog() -> None:
+    # crypto/mlkem bakes the parameter set into the function name, so the
+    # catalog carries it as key_size — without it the finding cannot match
+    # the policy's parameter-sets approved rule and falls to default/medium
+    # instead of approved/info (issue #217; same fix as the Python catalog
+    # in #216).
+    fs = _findings(
+        'package m\nimport "crypto/mlkem"\n'
+        "func f() { mlkem.GenerateKey768(); mlkem.GenerateKey1024() }\n"
+    )
+    assert [(f.algorithm, f.key_size) for f in fs] == [
+        ("ML-KEM", 768),
+        ("ML-KEM", 1024),
+    ]
+    assert all(f.quantum_risk == QuantumRisk.SAFE for f in fs)
+
+
 def test_aes_has_no_key_size() -> None:
     fs = _findings(
         'package m\nimport "crypto/aes"\nfunc f() { aes.NewCipher(key) }\n'

@@ -57,11 +57,13 @@
   },
   "crypto/mlkem.GenerateKey1024": {
     "canonical": "ML-KEM",
-    "family": "key-encapsulation"
+    "family": "key-encapsulation",
+    "key_size": 1024
   },
   "crypto/mlkem.GenerateKey768": {
     "canonical": "ML-KEM",
-    "family": "key-encapsulation"
+    "family": "key-encapsulation",
+    "key_size": 768
   },
   "crypto/rc4.NewCipher": {
     "canonical": "RC4",

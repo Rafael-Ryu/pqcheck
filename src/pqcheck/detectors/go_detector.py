@@ -177,7 +177,7 @@ class GoDetector:
                 return
 
     def _emit(self, node: Node, hit: AlgorithmHit, *, confidence: float) -> None:
-        key_size: int | None = None
+        key_size = hit.key_size
         curve = hit.curve
         if hit.canonical == "RSA":
             key_size = self._second_arg_int(node)

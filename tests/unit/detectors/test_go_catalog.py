@@ -123,6 +123,17 @@ def test_lookup_mlkem_is_kem() -> None:
     assert hit.family is AlgorithmFamily.KEM
 
 
+def test_lookup_mlkem_carries_parameter_set() -> None:
+    # The parameter set is baked into the catalog entry, same as EdDSA's
+    # curve — the policy's approved ML-KEM rule matches on parameter-sets,
+    # so without it the finding falls to default/medium instead of
+    # approved/info (issue #217).
+    hit768 = lookup_go_symbol("crypto/mlkem.GenerateKey768")
+    hit1024 = lookup_go_symbol("crypto/mlkem.GenerateKey1024")
+    assert hit768 is not None and hit768.key_size == 768
+    assert hit1024 is not None and hit1024.key_size == 1024
+
+
 def test_lookup_xcrypto_chacha20poly1305() -> None:
     hit = lookup_go_symbol("golang.org/x/crypto/chacha20poly1305.New")
     assert hit is not None
