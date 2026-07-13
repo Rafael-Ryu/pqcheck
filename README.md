@@ -112,15 +112,38 @@ verdicts are in `tests/corpus/`.
 
 ## Known limitations
 
-- Findings carry no usage context yet: the policy cannot distinguish
-  "RSA verifying a third-party webhook" from "RSA encrypting data at
-  rest". Context-scoped rules are parsed but deliberately not shipped in
-  the bundled policies until detectors emit context.
-- Hybrid-scheme detection covers `filippo.io/hpke` (X25519MLKEM768);
-  other hybrid constructions still read as their classical component.
+pqcheck is a static, single-repo scanner, and these gaps follow from
+that design:
+
+- No dataflow analysis: an algorithm reached through a variable,
+  parameter, or lookup table is either missed or reported as a generic
+  low-confidence finding — e.g. `.digest()` called on a hash object
+  passed in as a parameter, or a cipher picked from a dict at runtime.
+  authlib is the clearest example in the held-out corpus.
+- No C-extension or FFI visibility: crypto implemented behind an
+  in-repo Cython or C binding, like borgbackup's OpenSSL binding, is
+  invisible to source-level detection — only the Python or Go call
+  surface is scanned.
+- Catalog-scoped detection: pqcheck flags what's in its curated Python
+  and Go catalogs. A library or symbol outside the catalog produces no
+  findings, and no findings isn't evidence of no crypto.
+- Static analysis only: there's no runtime or dynamic-dispatch
+  resolution. `hashlib.new(name_var)` with a name computed at runtime,
+  or `getattr`-based dispatch, resolve to nothing.
+- Usage-context blindness: a symbol match carries no intent. "RSA
+  verifying a third-party webhook" reads the same as "RSA encrypting
+  data at rest," and an `ECDH()` call used only for key-format
+  conversion gets flagged the same as a real key agreement (one known
+  false positive in the held-out set). Context-scoped policy rules are
+  parsed but not shipped in the bundled policies until detectors emit
+  context.
+- Hybrid-scheme detection covers `filippo.io/hpke` (X25519MLKEM768)
+  only; other hybrid constructions read as their classical component.
 - Only the repo root's `.gitignore`/`.pqcheckignore` are honored.
 - Dependency findings are inventory (`introduces` metadata in the CBOM);
   they do not trip the policy gate in v0.1 — call sites do.
+
+See `tests/corpus/` for the adjudication protocol behind these numbers.
 
 ## Development
 
