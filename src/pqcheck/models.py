@@ -177,6 +177,15 @@ class CryptoFinding(BaseModel):
     detector_id: str
     confidence: float = Field(default=1.0, ge=0.0, le=1.0)
 
+    @field_validator("key_size")
+    @classmethod
+    def _key_size_must_be_positive(cls, value: int | str | None) -> int | str | None:
+        # PQC parameter-set identifiers (str) pass through untouched; only
+        # the classical bit-length (int) case has a meaningful lower bound.
+        if isinstance(value, int) and value <= 0:
+            raise ValueError(f"key_size must be positive, got {value}")
+        return value
+
     @computed_field  # type: ignore[prop-decorator]
     @property
     def quantum_risk(self) -> QuantumRisk:

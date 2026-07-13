@@ -90,6 +90,26 @@ def test_confidence_bounded_0_to_1() -> None:
         )
 
 
+@pytest.mark.parametrize("bad_size", [0, -1, -256])
+def test_crypto_finding_rejects_non_positive_int_key_size(bad_size: int) -> None:
+    loc = SourceLocation(path=Path("a.py"), line=1, column=0)
+    with pytest.raises(ValidationError):
+        CryptoFinding(
+            algorithm="AES", family=AlgorithmFamily.SYMMETRIC_CIPHER, location=loc,
+            evidence="x", detector_id="python-ast", key_size=bad_size,
+        )
+
+
+@pytest.mark.parametrize("good_size", [1, 128, 256, "SHA2-128s", None])
+def test_crypto_finding_accepts_valid_key_size(good_size: int | str | None) -> None:
+    loc = SourceLocation(path=Path("a.py"), line=1, column=0)
+    finding = CryptoFinding(
+        algorithm="AES", family=AlgorithmFamily.SYMMETRIC_CIPHER, location=loc,
+        evidence="x", detector_id="python-ast", key_size=good_size,
+    )
+    assert finding.key_size == good_size
+
+
 def test_crypto_dependency_minimal_construction() -> None:
     dep = CryptoDependency(
         purl="pkg:pypi/cryptography@43.0.0",

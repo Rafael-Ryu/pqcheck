@@ -146,6 +146,29 @@ version = "43.0.0"
     assert deps[0].name == "Cryptography"
 
 
+def test_parse_skips_virtual_and_editable_workspace_root(tmp_path: Path) -> None:
+    # The project's own workspace root shows up as a [[package]] entry with
+    # source.virtual or source.editable — not a real dependency.
+    f = _write(tmp_path, """
+version = 1
+[[package]]
+name = "pqcheck"
+version = "0.0.1"
+source = { editable = "." }
+
+[[package]]
+name = "some-virtual-root"
+source = { virtual = "." }
+
+[[package]]
+name = "cryptography"
+version = "43.0.0"
+source = { registry = "https://pypi.org/simple" }
+""")
+    deps = parse(f)
+    assert {d.name for d in deps} == {"cryptography"}
+
+
 def test_parse_deeply_nested_toml_never_raises(tmp_path: Path) -> None:
     # Nested arrays parse recursively; a hostile lock can blow the stack.
     f = _write(tmp_path, "a = " + "[" * 3000 + "]" * 3000 + "\n")

@@ -113,6 +113,15 @@ class PolicyMetadata(BaseModel):
     effective_from: date
     review_date: date
 
+    @model_validator(mode="after")
+    def _validate_review_after_effective(self) -> PolicyMetadata:
+        if self.review_date < self.effective_from:
+            raise ValueError(
+                f"review-date ({self.review_date}) must not be before "
+                f"effective-from ({self.effective_from})"
+            )
+        return self
+
 
 class PolicySpec(BaseModel):
     model_config = _CONFIG

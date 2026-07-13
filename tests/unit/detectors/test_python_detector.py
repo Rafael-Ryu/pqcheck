@@ -884,6 +884,22 @@ def test_detect_python_file_deep_expression_returns_empty(tmp_path: Path) -> Non
     assert detect_python_file(f) == []
 
 
+def test_detect_python_file_visit_recursion_error_returns_empty(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Simulates a future parser that flattens parse-time recursion, reaching
+    # the visit pass with a deep-but-parseable tree. Forces the failure
+    # directly rather than relying on CPython's current recursion behavior.
+    f = tmp_path / "shallow.py"
+    f.write_text("import hashlib\nhashlib.md5(b'x')\n", encoding="utf-8")
+
+    def _raise(self: PythonDetector, node: ast.AST) -> None:
+        raise RecursionError
+
+    monkeypatch.setattr(PythonDetector, "visit", _raise)
+    assert detect_python_file(f) == []
+
+
 def test_detect_python_file_too_large_returns_empty(tmp_path: Path) -> None:
     f = tmp_path / "huge.py"
     f.write_bytes(b"# pad\n" * (400 * 1024))  # ~2.4 MiB
