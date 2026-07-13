@@ -311,6 +311,13 @@
   token: "Signature"
   verdict: not_site
   note: "in-repo oci.Signature interface method/wrapper, no crypto primitive invoked"
+"1eefab3f92b4b55c":
+  repo: cosign
+  path: cmd/cosign/cli/dockerfile/verify.go
+  line: 125
+  token: "Expand"
+  verdict: not_site
+  note: "os.Expand template-variable substitution in Dockerfile parsing, unrelated stdlib os function, name collision only"
 "1f2c1998f3d9e547":
   repo: wireguard-go
   path: tun/checksum_test.go
@@ -353,6 +360,13 @@
   token: "blake2s.New256"
   verdict: site
   note: "golang.org/x/crypto/blake2s.New256 real call inside HMAC1/HMAC2"
+"217f1433a069b3b3":
+  repo: borgbackup
+  path: src/borg/archiver/benchmark_cmd.py
+  line: 230
+  token: "digest"
+  verdict: site
+  note: "blake3.blake3(..., key=key_256, max_threads=...).digest() — real keyed BLAKE3 hash call"
 "218e37bdab83f82d":
   repo: cosign
   path: pkg/cosign/verify_bundle_test.go
@@ -360,6 +374,20 @@
   token: "sha256.Sum256"
   verdict: site
   note: "real crypto/sha256 Sum256 call"
+"21fdc7fd1f6c040c":
+  repo: borgbackup
+  path: src/borg/constants.py
+  line: 196
+  token: "PBKDF2"
+  verdict: not_site
+  note: "PBKDF2 appears only in a comment describing the KEY_ALGORITHMS map, not a call site"
+"227686a6d09db66f":
+  repo: authlib
+  path: authlib/jose/rfc7518/jwe_algs.py
+  line: 121
+  token: "secrets.token_bytes"
+  verdict: site
+  note: "real secrets.token_bytes CEK fallback generation"
 "22c10105208ecb87":
   repo: wireguard-go
   path: tun/offload_linux.go
@@ -542,6 +570,13 @@
   token: "Uint64"
   verdict: not_site
   note: "encoding/binary Uint32/Uint64, not crypto (IP byte comparison)"
+"307de8c297835bdf":
+  repo: authlib
+  path: authlib/jose/rfc7518/jwe_encs.py
+  line: 46
+  token: "hmac.new"
+  verdict: site
+  note: "real stdlib hmac.new call computing the AEAD authentication tag"
 "31340913857a9f30":
   repo: wireguard-go
   path: device/indextable.go
@@ -591,6 +626,13 @@
   token: "sha256.Sum256"
   verdict: site
   note: "real crypto/sha256 Sum256 call"
+"35fd0430fb2befc2":
+  repo: borgbackup
+  path: src/borg/crypto/key.py
+  line: 512
+  token: "low_level.hash_secret_raw"
+  verdict: site
+  note: "real argon2.low_level.hash_secret_raw KDF call"
 "364054058624fc39":
   repo: cosign
   path: pkg/cosign/tlog_test.go
@@ -626,6 +668,13 @@
   token: "ec.generate_private_key"
   verdict: site
   note: "ec.generate_private_key(curve=..., backend=...) real call"
+"38f74b048761fff3":
+  repo: authlib
+  path: authlib/jose/rfc7518/jwe_algs.py
+  line: 44
+  token: "secrets.token_bytes"
+  verdict: site
+  note: "real secrets.token_bytes CEK fallback generation"
 "3a62449ea0e9feee":
   repo: cosign
   path: pkg/oci/mutate/signature_test.go
@@ -752,6 +801,13 @@
   token: "sha256"
   verdict: site
   note: "expected_pack_id = sha256(pack_data).digest(), test file"
+"3fcb74114e3ecbed":
+  repo: cosign
+  path: internal/ui/warnings.go
+  line: 19
+  token: "digest"
+  verdict: not_site
+  note: "digest appears inside a Go string constant (user-facing warning message), not a call site"
 "3fdef04b9bea7e30":
   repo: cosign
   path: pkg/oci/mutate/signature_test.go
@@ -759,6 +815,13 @@
   token: "Signature"
   verdict: not_site
   note: "in-repo oci.Signature interface method/wrapper, no crypto primitive invoked"
+"3fff7203b79c71bd":
+  repo: authlib
+  path: authlib/jose/rfc7518/jwe_algs.py
+  line: 157
+  token: "secrets.token_bytes"
+  verdict: site
+  note: "real secrets.token_bytes IV generation"
 "4148da82626ba7b9":
   repo: cosign
   path: pkg/oci/static/file_test.go
@@ -857,6 +920,13 @@
   token: "sha256.New"
   verdict: site
   note: "real crypto/sha256 New() call"
+"4a589714ca6d592c":
+  repo: borgbackup
+  path: src/borg/crypto/key.py
+  line: 1016
+  token: "digest"
+  verdict: site
+  note: "blake3(data, key=self.id_key).digest(length=32) — real keyed BLAKE3 hash used as authenticated ID hash"
 "4a7db344e2175864":
   repo: cosign
   path: pkg/cosign/verify_test.go
@@ -864,6 +934,13 @@
   token: "sha256.Sum256"
   verdict: site
   note: "real crypto/sha256 Sum256 call"
+"4a9a3293c04525c2":
+  repo: authlib
+  path: authlib/common/security.py
+  line: 9
+  token: "random.SystemRandom"
+  verdict: site
+  note: "random.SystemRandom() constructed for generate_token, same CSPRNG-attestation precedent as oauthlib"
 "4b1bf2deaa406268":
   repo: cosign
   path: internal/test/cert_utils.go
@@ -892,6 +969,13 @@
   token: "Uint64"
   verdict: not_site
   note: "binary.NativeEndian/BigEndian Uint64/Uint32, IP checksum arithmetic, not crypto"
+"4c3168d166a984b5":
+  repo: cosign
+  path: cmd/cosign/cli/dockerfile/verify.go
+  line: 189
+  token: "Expand"
+  verdict: not_site
+  note: "os.Expand template-variable substitution, same as above"
 "4ccd100978e92b7d":
   repo: wireguard-go
   path: tun/checksum.go
@@ -899,6 +983,20 @@
   token: "Uint64"
   verdict: not_site
   note: "binary.NativeEndian/BigEndian Uint64/Uint32, IP checksum arithmetic, not crypto"
+"4d420429f3c1f13a":
+  repo: cosign
+  path: cmd/cosign/cli/dockerfile/verify.go
+  line: 156
+  token: "Expand"
+  verdict: not_site
+  note: "os.Expand template-variable substitution, same as above"
+"4eac57ffdb8e6b1c":
+  repo: borgbackup
+  path: src/borg/helpers/parseformat.py
+  line: 1027
+  token: "digest"
+  verdict: not_site
+  note: "digest appears only inside a comment about shake_* hashlib algorithms, not a call site"
 "4f65434ffa78d762":
   repo: cosign
   path: pkg/oci/mutate/signature_test.go
@@ -1039,6 +1137,13 @@
   token: "Uint32"
   verdict: not_site
   note: "encoding/binary Uint32/Uint64, not crypto (IP byte comparison)"
+"5fc9ded656a9edfa":
+  repo: authlib
+  path: authlib/jose/drafts/_jwe_enc_cryptography.py
+  line: 35
+  token: "ChaCha20Poly1305"
+  verdict: site
+  note: "cryptography.hazmat.primitives.ciphers.aead.ChaCha20Poly1305 constructed and used to encrypt"
 "5ff513b7332fe247":
   repo: authlib
   path: authlib/jose/rfc7518/jwe_encs.py
@@ -1046,6 +1151,13 @@
   token: "Cipher"
   verdict: site
   note: "Cipher(AES(key), GCM(iv), backend=default_backend()) real call"
+"60d51ff220844878":
+  repo: cosign
+  path: cmd/cosign/cli/sign.go
+  line: 37
+  token: "digest"
+  verdict: not_site
+  note: "digest appears inside a Cobra command help string literal, not a call site"
 "618259eb8bb82f5f":
   repo: cosign
   path: pkg/cosign/verify_test.go
@@ -1067,6 +1179,20 @@
   token: "sha256.Sum256"
   verdict: site
   note: "real crypto/sha256 Sum256 call"
+"64cf441aaa6818d4":
+  repo: authlib
+  path: authlib/jose/rfc7518/jws_algs.py
+  line: 69
+  token: "hmac.new"
+  verdict: site
+  note: "real stdlib hmac.new HMAC verify call"
+"651ecd48d75fb07f":
+  repo: authlib
+  path: authlib/jose/drafts/_jwe_enc_cryptography.py
+  line: 50
+  token: "ChaCha20Poly1305"
+  verdict: site
+  note: "same ChaCha20Poly1305 object used to decrypt"
 "65234bff2bd32374":
   repo: borgbackup
   path: src/borg/hlfuse.py
@@ -1123,6 +1249,13 @@
   token: "hashlib.sha256"
   verdict: site
   note: "hashlib.sha256(data + b\"11\").hexdigest() reference value in impure_hash write test"
+"68632a8ba3d81ef4":
+  repo: authlib
+  path: authlib/jose/rfc7518/jws_algs.py
+  line: 65
+  token: "hmac.new"
+  verdict: site
+  note: "real stdlib hmac.new HMAC signing call"
 "6a177baa7cbb0e17":
   repo: cosign
   path: test/e2e_test.go
@@ -1130,6 +1263,13 @@
   token: "Signature"
   verdict: not_site
   note: "in-repo oci.Signature interface method/wrapper, no crypto primitive invoked"
+"6ade3099a06f29e7":
+  repo: authlib
+  path: authlib/oauth1/rfc5849/signature.py
+  line: 288
+  token: "hmac.new"
+  verdict: site
+  note: "real stdlib hmac.new call for OAuth1 HMAC-SHA1 signature"
 "6af3f185787570a4":
   repo: wireguard-go
   path: device/noise-protocol.go
@@ -1200,6 +1340,13 @@
   token: "rand.Intn"
   verdict: site
   note: "math/rand.Intn real call"
+"6f69d32b2bdbb23a":
+  repo: authlib
+  path: authlib/oidc/core/util.py
+  line: 16
+  token: "digest"
+  verdict: site
+  note: "hash_alg(to_bytes(s)).digest() — real hashlib digest call for at_hash/c_hash computation"
 "7009829b4dd46842":
   repo: cosign
   path: pkg/oci/internal/signature/layer_test.go
@@ -1249,6 +1396,13 @@
   token: "Cipher"
   verdict: site
   note: "Cipher(AES(key), GCM(iv, tag), backend=default_backend()) real call"
+"75e993fd7083b998":
+  repo: borgbackup
+  path: scripts/chunker_bench.py
+  line: 101
+  token: "choice"
+  verdict: not_site
+  note: "rng.choice(words) is random.Random(1234), a deterministic non-crypto PRNG for synthetic benchmark data, not a catalogued secrets.choice call"
 "76861d0e86c7d835":
   repo: cosign
   path: pkg/oci/static/signature.go
@@ -1396,6 +1550,13 @@
   token: "Uint64"
   verdict: not_site
   note: "encoding/binary.LittleEndian.Uint64 counter decode, not crypto"
+"85549cae57c9d0e8":
+  repo: borgbackup
+  path: src/borg/archiver/benchmark_cmd.py
+  line: 229
+  token: "digest"
+  verdict: site
+  note: "blake3.blake3(random_10M, key=key_256).digest() — real keyed BLAKE3 hash call, benchmarked but genuine"
 "860687a693fc8001":
   repo: cosign
   path: pkg/blob/load.go
@@ -1417,6 +1578,13 @@
   token: "Cipher"
   verdict: site
   note: "Cipher(AES(ekey), CBC(iv), backend=default_backend()) real call"
+"87b6e97577126f74":
+  repo: authlib
+  path: authlib/jose/rfc7518/jws_algs.py
+  line: 196
+  token: "padding.PSS"
+  verdict: site
+  note: "cryptography.hazmat.primitives.asymmetric.padding.PSS constructed for RSA-PSS verification"
 "87e747ed36202372":
   repo: cosign
   path: pkg/oci/remote/write.go
@@ -1515,6 +1683,13 @@
   token: "Uint64"
   verdict: not_site
   note: "binary.NativeEndian/BigEndian Uint64/Uint32, IP checksum arithmetic, not crypto"
+"936f7c5c8732bd3e":
+  repo: borgbackup
+  path: src/borg/cockpit/widgets.py
+  line: 224
+  token: "choice"
+  verdict: not_site
+  note: "random.choice([\".\", \"·\"]) is cosmetic star-rendering randomness, explicitly annotated nosec B311 — not security-relevant"
 "9440478ac20dabd8":
   repo: cosign
   path: cmd/cosign/cli/verify/verify_blob_test.go
@@ -1522,6 +1697,13 @@
   token: "sha256.Sum256"
   verdict: site
   note: "real crypto/sha256 Sum256 call"
+"94abff9399977910":
+  repo: certbot
+  path: src/acme/challenges.py
+  line: 266
+  token: "digest"
+  verdict: site
+  note: "hashlib.sha256(...).digest() — real digest call for ACME key-authorization validation"
 "95c1982c55eea7eb":
   repo: cosign
   path: pkg/oci/mutate/signature_test.go
@@ -1543,6 +1725,13 @@
   token: "chacha20poly1305.New"
   verdict: site
   note: "golang.org/x/crypto/chacha20poly1305.New real call"
+"98fefe27e371339b":
+  repo: wireguard-go
+  path: device/noise-helpers.go
+  line: 25
+  token: "hmac.New"
+  verdict: site
+  note: "real crypto/hmac.New call keyed with a blake2s hash constructor for Noise HKDF"
 "9920ff0c10364942":
   repo: wireguard-go
   path: tun/checksum.go
@@ -1578,6 +1767,13 @@
   token: "sha256"
   verdict: site
   note: "expected = sha256(...).digest()[:size] reference value for derive_key test"
+"9c8b3fb70051fc33":
+  repo: authlib
+  path: authlib/jose/rfc7519/jwt.py
+  line: 144
+  token: "choice"
+  verdict: not_site
+  note: "random.choice(key.keys) picks an arbitrary signing key from a KeySet, not a catalogued secrets.choice call; plain random module is uncatalogued for Python"
 "9e1ed49e039cff82":
   repo: cosign
   path: pkg/cosign/pivkey/pivkey.go
@@ -1697,6 +1893,13 @@
   token: "blake2s.New128"
   verdict: site
   note: "golang.org/x/crypto/blake2s.New128 real call"
+"a7585c60c34ae161":
+  repo: authlib
+  path: authlib/jose/rfc7518/oct_key.py
+  line: 96
+  token: "secrets.token_bytes"
+  verdict: site
+  note: "real secrets.token_bytes octet-key generation"
 "a84a07fb2f49d244":
   repo: borgbackup
   path: src/borg/testsuite/repository_test.py
@@ -1830,6 +2033,13 @@
   token: "rsa.GenerateKey"
   verdict: site
   note: "real call, RSA8192 key type"
+"b246069e29b270cf":
+  repo: authlib
+  path: authlib/oauth1/rfc5849/signature.py
+  line: 295
+  token: "digest"
+  verdict: site
+  note: "signature.digest() called on the hmac.new object constructed 7 lines above"
 "b257b6993a905e43":
   repo: wireguard-go
   path: tun/checksum.go
@@ -2089,6 +2299,13 @@
   token: "Signature"
   verdict: not_site
   note: "in-repo oci.Signature interface method/wrapper, no crypto primitive invoked"
+"c5865ea67a490c9f":
+  repo: wireguard-go
+  path: device/noise-helpers.go
+  line: 34
+  token: "hmac.New"
+  verdict: site
+  note: "real crypto/hmac.New call, second HMAC in the HKDF chain"
 "c5d8b64c5ac6c2e8":
   repo: cosign
   path: pkg/cosign/tlog_test.go
@@ -2201,6 +2418,20 @@
   token: "ecdsa.GenerateKey"
   verdict: site
   note: "real crypto/ecdsa GenerateKey call"
+"d0540618c8c3d953":
+  repo: authlib
+  path: authlib/jose/rfc7518/jws_algs.py
+  line: 184
+  token: "padding.PSS"
+  verdict: site
+  note: "cryptography.hazmat.primitives.asymmetric.padding.PSS constructed for RSA-PSS signing"
+"d085f37fc14f1837":
+  repo: authlib
+  path: authlib/common/security.py
+  line: 10
+  token: "choice"
+  verdict: not_site
+  note: "rand.choice(chars) is an instance method on a local SystemRandom object, not the secrets.choice module function — dataflow-dependent, not catalogued"
 "d0aa7bfa64d55b5e":
   repo: cosign
   path: test/e2e_test.go
@@ -2257,6 +2488,13 @@
   token: "rand.Uint32"
   verdict: site
   note: "math/rand import; rand.Uint32() real call to catalog symbol"
+"d4e19a1aedaed860":
+  repo: authlib
+  path: authlib/jose/rfc7518/jwe_algs.py
+  line: 82
+  token: "secrets.token_bytes"
+  verdict: site
+  note: "real secrets.token_bytes CEK fallback generation"
 "d5c3f8375f84a14d":
   repo: wireguard-go
   path: device/pools_test.go
@@ -2369,6 +2607,20 @@
   token: "GenerateKey"
   verdict: not_site
   note: "cfg.KeySource.GenerateKey() dispatches through KeyGenerator interface field, not a direct crypto-library call"
+"dfc4ebe00de54fd4":
+  repo: borgbackup
+  path: src/borg/legacy/crypto/key.py
+  line: 20
+  token: "pbkdf2_hmac"
+  verdict: site
+  note: "real hashlib.pbkdf2_hmac call, legacy KDF path"
+"e1a886d069bd5c73":
+  repo: authlib
+  path: authlib/jose/rfc7519/jwt.py
+  line: 157
+  token: "choice"
+  verdict: not_site
+  note: "random.choice(keys) picks an arbitrary signing key from a JWKS dict, not a catalogued secrets.choice call"
 "e1c20ff5797092f7":
   repo: wireguard-go
   path: tun/offload_linux.go
@@ -2453,6 +2705,13 @@
   token: "sha256.Sum256"
   verdict: site
   note: "real crypto/sha256 Sum256 call"
+"ed80f79c6aae33a5":
+  repo: authlib
+  path: authlib/jose/rfc7518/jwe_algs.py
+  line: 188
+  token: "secrets.token_bytes"
+  verdict: site
+  note: "real secrets.token_bytes CEK fallback generation"
 "ee0fec50e376abd0":
   repo: cosign
   path: pkg/cosign/verify_test.go
