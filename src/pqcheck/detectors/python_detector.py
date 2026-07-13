@@ -469,8 +469,9 @@ def detect_python_file(path: Path) -> list[CryptoFinding]:
     Returns an empty list (never raises) for: any condition that makes
     read_source_bytes return None (missing/symlink/non-regular/oversized
     file — see that function for the file-IO hardening), encoding failure on
-    both UTF-8 and Latin-1, or a parse that fails with SyntaxError,
-    ValueError, RecursionError, or MemoryError.
+    both UTF-8 and Latin-1, a parse that fails with SyntaxError, ValueError,
+    RecursionError, or MemoryError, or a visit pass that raises
+    RecursionError/MemoryError.
     """
     raw = read_source_bytes(path)
     if raw is None:
@@ -494,5 +495,12 @@ def detect_python_file(path: Path) -> list[CryptoFinding]:
         # abort the scan.
         return []
     detector = PythonDetector(source_path=path, source=source)
-    detector.visit(tree)
+    try:
+        detector.visit(tree)
+    except (RecursionError, MemoryError):
+        # Same latent-risk rationale as the ast.parse guard above: a
+        # deep-but-parseable tree should degrade to empty findings, not
+        # abort the scan. Not reachable on current CPython (parsing
+        # recurses first) but cheap insurance against future parser changes.
+        return []
     return detector.findings
