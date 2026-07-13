@@ -9,6 +9,18 @@ def _write(tmp_path: Path, content: str) -> Path:
     return f
 
 
+def test_parse_utf8_bom_still_parses(tmp_path: Path) -> None:
+    # A BOM'd lock (routine Windows tooling output) made tomllib raise, which
+    # parse() swallowed into zero deps. utf-8-sig strips the BOM.
+    f = tmp_path / "uv.lock"
+    f.write_bytes(
+        b"\xef\xbb\xbf"
+        + b'version = 1\n\n[[package]]\nname = "cryptography"\nversion = "43.0.0"\n'
+    )
+    deps = parse(f)
+    assert {d.name for d in deps} == {"cryptography"}
+
+
 def test_parse_skips_blank_name_keeps_valid(tmp_path: Path) -> None:
     # A whitespace-only package name survives the empty-name guard but breaks
     # PackageURL. The parser must skip it and still emit the valid sibling —

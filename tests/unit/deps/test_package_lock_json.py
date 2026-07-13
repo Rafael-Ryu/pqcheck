@@ -17,6 +17,19 @@ def test_parse_v1_flat_deps() -> None:
     assert by_name["node-forge"].purl == "pkg:npm/node-forge@1.3.1"
 
 
+def test_parse_utf8_bom_still_parses(tmp_path: Path) -> None:
+    # A BOM'd lockfile made json.loads raise (JSON forbids a leading BOM),
+    # which parse() swallowed into zero deps. utf-8-sig strips the BOM.
+    f = tmp_path / "package-lock.json"
+    f.write_bytes(
+        b"\xef\xbb\xbf"
+        + b'{"lockfileVersion":3,"packages":{'
+        + b'"node_modules/node-forge":{"version":"1.3.1"}}}'
+    )
+    deps = parse(f)
+    assert {d.name for d in deps} == {"node-forge"}
+
+
 def test_parse_skips_blank_package_name_keeps_valid(tmp_path: Path) -> None:
     # A "node_modules/ " key yields a whitespace-only name that survives the
     # empty-name guard but breaks PackageURL. The parser must skip it and still

@@ -599,7 +599,7 @@ def detect_python_file(path: Path) -> list[CryptoFinding]:
     if raw is None:
         return []
     source: str | None = None
-    for encoding in ("utf-8", "latin-1"):
+    for encoding in ("utf-8-sig", "latin-1"):
         try:
             source = raw.decode(encoding)
             break
