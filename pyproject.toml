@@ -206,7 +206,6 @@ markers = [
 branch = true
 source = ["pqcheck"]
 omit = [
-    "src/pqcheck/grammars/*",
     "src/pqcheck/bin/*",
     "tests/fixtures/*",
 ]
