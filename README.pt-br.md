@@ -22,8 +22,9 @@ migração PQC hoje** — os perfis BR inclusos (`br-bcb-conservative`,
 `br-drex-piloto`, `br-vendor-dd`) antecipam essa direção alinhados aos
 controles da Res. CMN 4.893/2021, sem alegar obrigação que não existe.
 
-**Status: pre-release.** A v0.1.0 chega ao PyPI com wheels assinadas via
-Sigstore.
+**Status: v0.1.0** no PyPI com wheels assinadas via Sigstore:
+`pip install pqcheck`. A partir de um clone:
+`uv sync --all-extras && uv run pqcheck --help`.
 
 ## Início rápido
 
@@ -47,10 +48,13 @@ x/crypto, união de análise semântica via `go/types` com um passe
 tree-sitter que cobre arquivos condicionados a GOOS/cgo); 6 formatos de
 lockfile. Java vem a seguir no roadmap.
 
-Precisão medida: 260 findings HIGH/CRITICAL em 10 repos públicos, todos
+Precisão medida: 261 findings HIGH/CRITICAL em 10 repos públicos, todos
 adjudicados manualmente — 0 falsos positivos. Recall de 1.00 sobre 584
 call sites adjudicados nos mesmos repos (conjunto de tuning) e de
-0.9834 (296/301) em 6 repos held-out — os 5 misses restantes são todos
+0.9834 (296/301) em 6 repos held-out. A precisão no held-out foi uma
+adjudicação manual única (76/77 medida em 2026-07-12) e, ao contrário da
+precisão do corpus de tuning, não é re-checada a cada mudança — leia como
+indicativa, não como gate ao vivo. Os 5 misses restantes são todos
 estruturais, das classes descritas em "Limitações conhecidas" abaixo.
 Três rodadas de correções vieram da lista de misses do held-out, então
 ele já não é estritamente intocado; afirmações de generalização exigem
@@ -85,8 +89,10 @@ vêm dessa escolha de design:
   agreement real (um falso positivo conhecido no conjunto held-out).
   Regras de política com escopo de contexto já são parseadas, mas não
   entram nas políticas inclusas até os detectores emitirem contexto.
-- Detecção de esquema híbrido cobre só `filippo.io/hpke`
-  (X25519MLKEM768); outras construções híbridas são lidas pelo
+- Detecção de esquema híbrido cobre os identificadores de KEM híbrido
+  catalogados (`filippo.io/hpke` X25519MLKEM768, `crypto/tls`
+  X25519MLKEM768 no Go 1.24+, e X-Wing e Kyber768-draft do
+  cloudflare/circl); outras construções híbridas são lidas pelo
   componente clássico.
 - Só o `.gitignore`/`.pqcheckignore` da raiz do repo é respeitado.
 - Findings de dependência são inventário (metadado `introduces` no
