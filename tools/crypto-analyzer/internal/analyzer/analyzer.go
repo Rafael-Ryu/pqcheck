@@ -213,8 +213,13 @@ type visitor struct {
 	assigns map[*types.Var]int
 }
 
+// expr is *ast.CallExpr for every algorithm call site, or *ast.SelectorExpr for
+// a package-level constant reference (crypto/tls.X25519MLKEM768, circl hpke's
+// hybrid KEM identifiers -- see recordConstUse). Both implement ast.Expr, so
+// resolve/build handle either uniformly; only the RSA/ECDSA arg-extraction
+// switch in build cares which concrete type it has.
 type cryptoSite struct {
-	call       *ast.CallExpr
+	expr       ast.Expr
 	hit        catalog.Hit
 	confidence float64
 }
@@ -247,6 +252,23 @@ const hpkeHybridConstructor = "filippo.io/hpke.MLKEM768X25519"
 
 // hpkeHybridCatalogKey mirrors go_detector.py's chain-specific catalog key.
 const hpkeHybridCatalogKey = "filippo.io/hpke.MLKEM768X25519.GenerateKey"
+
+// hpkeNewSuiteKey is circl hpke's suite constructor: NewSuite(kemID, kdfID,
+// aeadID). Its first argument is the KEM identifier -- when that argument is
+// one of hpkeHybridKEMConstants below, hasConstantKEMArg lets recordCall skip
+// the generic HPKE/VULNERABLE finding in favor of the precise one
+// recordConstUse emits for the argument itself.
+const hpkeNewSuiteKey = "github.com/cloudflare/circl/hpke.NewSuite"
+
+// hpkeHybridKEMConstants are circl hpke's two hybrid KEM identifiers. Unlike
+// every other catalog key, these are never called -- they are referenced as
+// plain package-level constants (`hpke.KEM_XWING`), resolved via
+// TypesInfo.Uses to a *types.Const in recordConstUse rather than the
+// *types.Func path qualifiedCallee follows for calls.
+var hpkeHybridKEMConstants = map[string]bool{
+	"github.com/cloudflare/circl/hpke.KEM_X25519_KYBER768_DRAFT00": true,
+	"github.com/cloudflare/circl/hpke.KEM_XWING":                   true,
+}
 
 type modeSite struct {
 	call *ast.CallExpr
@@ -283,6 +305,8 @@ func (v *visitor) visit(n ast.Node) bool {
 		}
 	case *ast.CallExpr:
 		v.recordCall(node)
+	case *ast.SelectorExpr:
+		v.recordConstUse(node)
 	}
 	return true
 }
@@ -302,6 +326,15 @@ func (v *visitor) recordCall(call *ast.CallExpr) {
 			v.modes = append(v.modes, modeSite{call, mode})
 			return
 		}
+		// hpke.NewSuite(hpke.KEM_X25519_KYBER768_DRAFT00, ...): when the KEM
+		// argument is a recognized hybrid constant, that argument's own
+		// *ast.SelectorExpr node (visited independently, see recordConstUse)
+		// already emits the precise hybrid finding -- skip the generic
+		// HPKE/VULNERABLE finding here so one call site does not carry two
+		// contradictory verdicts.
+		if qualified == hpkeNewSuiteKey && v.hasConstantKEMArg(call) {
+			return
+		}
 		if hit, ok := v.cat[qualified]; ok {
 			v.crypto = append(v.crypto, cryptoSite{call, hit, 1.0})
 			return
@@ -316,6 +349,40 @@ func (v *visitor) recordCall(call *ast.CallExpr) {
 	// disambiguate above (see hpkeHybridConstructor).
 	if hit, ok := v.chainedHPKEHit(call); ok {
 		v.crypto = append(v.crypto, cryptoSite{call, hit, 1.0})
+	}
+}
+
+// hasConstantKEMArg reports whether call's first argument is a package-level
+// constant reference resolving to one of hpkeHybridKEMConstants.
+func (v *visitor) hasConstantKEMArg(call *ast.CallExpr) bool {
+	if len(call.Args) == 0 {
+		return false
+	}
+	sel, ok := call.Args[0].(*ast.SelectorExpr)
+	if !ok {
+		return false
+	}
+	obj, ok := v.pkg.TypesInfo.Uses[sel.Sel].(*types.Const)
+	if !ok || obj.Pkg() == nil {
+		return false
+	}
+	return hpkeHybridKEMConstants[obj.Pkg().Path()+"."+obj.Name()]
+}
+
+// recordConstUse matches a package-level constant reference (`tls.
+// X25519MLKEM768`, `hpke.KEM_XWING`) against the catalog. Unlike
+// qualifiedCallee's *types.Func resolution for calls, a constant resolves via
+// TypesInfo.Uses to a *types.Const -- this is the only place that path is
+// checked, so it can never double-emit against a call site qualifiedCallee
+// already claimed (those resolve to *types.Func, never *types.Const).
+func (v *visitor) recordConstUse(sel *ast.SelectorExpr) {
+	obj, ok := v.pkg.TypesInfo.Uses[sel.Sel].(*types.Const)
+	if !ok || obj.Pkg() == nil {
+		return
+	}
+	qualified := obj.Pkg().Path() + "." + obj.Name()
+	if hit, ok := v.cat[qualified]; ok {
+		v.crypto = append(v.crypto, cryptoSite{sel, hit, 1.0})
 	}
 }
 
@@ -448,11 +515,16 @@ func (v *visitor) resolve(out *[]Finding) {
 	varToIdx := map[*types.Var]int{}
 	producer := map[int]*types.Var{}
 	for _, site := range v.crypto {
-		*out = append(*out, v.build(site.call, site.hit, site.confidence))
-		if vobj, ok := v.callVar[site.call]; ok {
-			idx := len(*out) - 1
-			varToIdx[vobj] = idx
-			producer[idx] = vobj
+		*out = append(*out, v.build(site.expr, site.hit, site.confidence))
+		// Only a real call site can bind a variable a mode constructor later
+		// consumes; a constant reference (site.expr is *ast.SelectorExpr) has
+		// no entry in callVar, which is keyed by *ast.CallExpr.
+		if call, ok := site.expr.(*ast.CallExpr); ok {
+			if vobj, ok := v.callVar[call]; ok {
+				idx := len(*out) - 1
+				varToIdx[vobj] = idx
+				producer[idx] = vobj
+			}
 		}
 	}
 	ambiguous := map[*types.Var]bool{}
@@ -511,10 +583,14 @@ func (v *visitor) resolve(out *[]Finding) {
 // its mode cannot be use-def linked to a single producer.
 const ambiguousModeConfidence = 0.7
 
-func (v *visitor) build(call *ast.CallExpr, hit catalog.Hit, confidence float64) Finding {
+// build turns a cryptoSite into a Finding. expr is *ast.CallExpr for every
+// algorithm call site, or *ast.SelectorExpr for a package-level constant
+// reference (see cryptoSite) -- both implement ast.Expr, giving Pos()/End()
+// uniformly; the RSA/ECDSA arg-extraction below only applies to the call form.
+func (v *visitor) build(expr ast.Expr, hit catalog.Hit, confidence float64) Finding {
 	fset := v.pkg.Fset
-	start := fset.Position(call.Pos())
-	end := fset.Position(call.End())
+	start := fset.Position(expr.Pos())
+	end := fset.Position(expr.End())
 	f := Finding{
 		Algorithm:  hit.Canonical,
 		Family:     hit.Family,
@@ -527,6 +603,10 @@ func (v *visitor) build(call *ast.CallExpr, hit catalog.Hit, confidence float64)
 		EndColumn:  zeroBasedColumn(end.Column),
 		Evidence:   v.src.line(start.Filename, start.Line),
 		Confidence: confidence,
+	}
+	call, ok := expr.(*ast.CallExpr)
+	if !ok {
+		return f
 	}
 	switch hit.Canonical {
 	case "RSA":

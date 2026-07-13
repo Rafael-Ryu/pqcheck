@@ -115,6 +115,10 @@ planted:
   - {path: go/tink.go, line: 27, algorithm: RSA}
   - {path: go/tink.go, line: 28, algorithm: RSA}
 
+  - {path: go/hybrid_pqc.go, line: 14, algorithm: X25519MLKEM768}
+  - {path: go/hybrid_pqc.go, line: 15, algorithm: X-WING}
+  - {path: go/hybrid_pqc.go, line: 16, algorithm: X25519KYBER768-DRAFT}
+
   - {path: python/pqc.py, line: 13, algorithm: ML-KEM}
   - {path: python/pqc.py, line: 14, algorithm: ML-DSA}
   - {path: python/pqc.py, line: 16, algorithm: ML-KEM}

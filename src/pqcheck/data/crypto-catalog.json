@@ -108,6 +108,10 @@
     "canonical": "X25519MLKEM768",
     "family": "key-encapsulation"
   },
+  "crypto/tls.X25519MLKEM768": {
+    "canonical": "X25519MLKEM768",
+    "family": "key-encapsulation"
+  },
   "crypto/rc4.NewCipher": {
     "canonical": "RC4",
     "family": "symmetric-cipher"
@@ -653,6 +657,14 @@
   },
   "github.com/cloudflare/circl/hpke.NewSuite": {
     "canonical": "HPKE",
+    "family": "key-encapsulation"
+  },
+  "github.com/cloudflare/circl/hpke.KEM_X25519_KYBER768_DRAFT00": {
+    "canonical": "X25519KYBER768-DRAFT",
+    "family": "key-encapsulation"
+  },
+  "github.com/cloudflare/circl/hpke.KEM_XWING": {
+    "canonical": "X-WING",
     "family": "key-encapsulation"
   },
   "github.com/tink-crypto/tink-go/v2/aead.AES128GCMKeyTemplate": {
