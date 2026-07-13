@@ -104,12 +104,7 @@ jobs:
             --format sarif -o /tmp/pqcheck.sarif || test $? -eq 1
       - name: Validate emitted SARIF against the official SARIF 2.1.0 schema
         run: uv run python -m pqcheck.output.sarif_validator /tmp/pqcheck.sarif
-      # Tolerated while the repo is private: Code Scanning upload requires
-      # GitHub Advanced Security there ("Resource not accessible by
-      # integration"). Drop continue-on-error when the repo goes public —
-      # the SARIF generation above still gates either way.
       - uses: github/codeql-action/upload-sarif@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4
-        continue-on-error: true
         with:
           sarif_file: /tmp/pqcheck.sarif
           category: pqcheck-self-scan

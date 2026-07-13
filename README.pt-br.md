@@ -1,5 +1,11 @@
 # pqcheck
 
+[![CI](https://github.com/Rafael-Ryu/pqcheck/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/Rafael-Ryu/pqcheck/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/pqcheck)](https://pypi.org/project/pqcheck/)
+[![Python](https://img.shields.io/pypi/pyversions/pqcheck)](https://pypi.org/project/pqcheck/)
+[![License](https://img.shields.io/pypi/l/pqcheck)](LICENSE)
+[![Sigstore](https://img.shields.io/badge/releases-signed%20with%20Sigstore-blue)](SECURITY.md)
+
 Gere um Cryptography Bill of Materials (CBOM) do seu código em segundos
 e bloqueie o CI com uma política de criptografia que dá para ler.
 
