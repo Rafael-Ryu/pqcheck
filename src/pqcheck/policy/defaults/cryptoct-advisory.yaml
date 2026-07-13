@@ -65,6 +65,9 @@ spec:
     - { family: protocol, algorithm: TLS-1.1, action: warn, severity: critical, reason: "Deprecated by RFC 8996 — no supported use remains" }
     - { family: protocol, algorithm: SSL-3.0, action: warn, severity: critical, reason: "Deprecated by RFC 8996 — no supported use remains" }
     - { family: protocol, algorithm: TLS-RSA-KX, action: warn, severity: high, reason: "Static RSA key exchange — no forward secrecy" }
+    - { family: kdf, algorithm: PBKDF2, parameter-sets-below: 600000, action: warn, severity: high, reason: "OWASP Password Storage Cheat Sheet: PBKDF2-HMAC-SHA256 requires >=600,000 iterations" }
+    - { family: kdf, algorithm: SCRYPT, parameter-sets-below: 131072, action: warn, severity: high, reason: "OWASP Password Storage Cheat Sheet: scrypt requires N >= 2^17 (131072)" }
+    - { family: kdf, algorithm: BCRYPT, parameter-sets-below: 10, action: warn, severity: high, reason: "OWASP Password Storage Cheat Sheet: bcrypt work factor requires >= 10" }
   exceptions:
     - id: EXC-001
       description: "GitHub App JWT requires RS256 per GitHub upstream limitation"

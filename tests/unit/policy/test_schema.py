@@ -27,6 +27,15 @@ def test_algorithm_rule_accepts_kebab_keys():
     assert rule.action is RuleAction.ALLOW
 
 
+def test_algorithm_rule_accepts_parameter_sets_below_kebab_alias():
+    rule = AlgorithmRule.model_validate(
+        {"family": "kdf", "algorithm": "PBKDF2",
+         "parameter-sets-below": 600000, "action": "fail"}
+    )
+    assert rule.parameter_sets_below == 600000
+    assert rule.action is RuleAction.FAIL
+
+
 def test_algorithm_rule_rejects_bad_action():
     with pytest.raises(ValidationError):
         AlgorithmRule.model_validate({"family": "hash", "algorithm": "MD5", "action": "nuke"})

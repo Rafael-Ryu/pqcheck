@@ -1413,11 +1413,12 @@ def test_argon2_low_level_hash_secret_emits_argon2() -> None:
 
 
 def test_bcrypt_hashpw_emits_bcrypt() -> None:
+    # bcrypt.gensalt() nested in the call is B2-catalogued too (it carries the
+    # work-factor literal hashpw itself never sees) -- both fire.
     src = "import bcrypt\nbcrypt.hashpw(b'p', bcrypt.gensalt())\n"
     findings = _scan(src)
-    assert len(findings) == 1
-    assert findings[0].algorithm == "BCRYPT"
-    assert findings[0].family is AlgorithmFamily.KDF
+    assert len(findings) == 2
+    assert all(f.algorithm == "BCRYPT" and f.family is AlgorithmFamily.KDF for f in findings)
 
 
 def test_bcrypt_checkpw_emits_bcrypt() -> None:

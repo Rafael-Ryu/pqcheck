@@ -90,6 +90,37 @@ def test_rule_matches_rng_family_maps_to_policy_rng():
     assert rule_matches(rule, _find("MATH-RAND", AlgorithmFamily.RNG))
 
 
+def test_rule_matches_parameter_sets_below_threshold():
+    rule = AlgorithmRule(family=PolicyFamily.KDF, algorithm="PBKDF2",
+                         parameter_sets_below=600000, action=RuleAction.FAIL)
+    assert rule_matches(rule, _find("PBKDF2", AlgorithmFamily.KDF, key_size=100000))
+    assert not rule_matches(rule, _find("PBKDF2", AlgorithmFamily.KDF, key_size=600000))
+    assert not rule_matches(rule, _find("PBKDF2", AlgorithmFamily.KDF, key_size=650000))
+
+
+def test_rule_matches_parameter_sets_below_no_match_without_literal_key_size():
+    # None (variable/computed argument the detector could not extract) and a
+    # str (a PQC parameter-set identifier, never a KDF cost) both fail to
+    # match a numeric threshold rule -- the finding must fall through to
+    # whatever else would have matched, not silently trip a threshold it
+    # cannot actually evaluate.
+    rule = AlgorithmRule(family=PolicyFamily.KDF, algorithm="PBKDF2",
+                         parameter_sets_below=600000, action=RuleAction.FAIL)
+    assert not rule_matches(rule, _find("PBKDF2", AlgorithmFamily.KDF, key_size=None))
+    assert not rule_matches(rule, _find("PBKDF2", AlgorithmFamily.KDF, key_size="768"))
+
+
+def test_rule_matches_parameter_sets_below_composes_with_other_filters():
+    rule = AlgorithmRule(family=PolicyFamily.KDF, algorithm="PBKDF2",
+                         parameter_sets_below=600000, hash=["SHA-256"], action=RuleAction.FAIL)
+    # `hash` is not checked by rule_matches (no detector emits it for KDF
+    # findings today; same documented gap as `params`/`context`), so only the
+    # threshold clause actually gates here -- composability means the rule
+    # object accepts both fields without erroring, not that every field is
+    # wired into matching yet.
+    assert rule_matches(rule, _find("PBKDF2", AlgorithmFamily.KDF, key_size=1000))
+
+
 def _f(algo: str, fam: AlgorithmFamily, conf: float, **kw: object) -> CryptoFinding:
     return CryptoFinding(algorithm=algo, family=fam, confidence=conf,
                          location=SourceLocation(path=Path("a.py"), line=1, column=0),
@@ -206,6 +237,52 @@ def test_evaluate_ml_kem_unknown_variant_from_oqs_falls_to_default():
     [d] = evaluate([finding], policy)
     assert d.rule_kind == "default"
     assert d.action == RuleAction.WARN
+
+
+@pytest.mark.parametrize(
+    "algo,weak,strong",
+    [("PBKDF2", 100000, 650000), ("SCRYPT", 65536, 131072), ("BCRYPT", 4, 12)],
+)
+def test_evaluate_weak_kdf_parameter_is_banned_fail_high(algo, weak, strong):
+    # cryptoct-default is a strict-profile file: fail+high per the B2 rules
+    # (mirrors AES-128's fail+high pattern in the same file).
+    policy = load_default_policy("cryptoct-default")
+    [weak_decision] = evaluate([_f(algo, AlgorithmFamily.KDF, 1.0, key_size=weak)], policy)
+    assert weak_decision.rule_kind == "banned"
+    assert weak_decision.action == RuleAction.FAIL
+    assert weak_decision.base_severity == Severity.HIGH
+
+    [strong_decision] = evaluate([_f(algo, AlgorithmFamily.KDF, 1.0, key_size=strong)], policy)
+    assert strong_decision.rule_kind == "default"
+
+
+@pytest.mark.parametrize("algo", ["PBKDF2", "SCRYPT", "BCRYPT"])
+def test_evaluate_weak_kdf_parameter_variable_arg_falls_to_default(algo):
+    # A variable/computed cost argument extracts no literal (key_size=None),
+    # so the threshold rule cannot evaluate it and the finding falls through
+    # to the same default-action every other unmatched KDF finding gets --
+    # it must not silently pass as "approved" nor silently fail as "banned".
+    policy = load_default_policy("cryptoct-default")
+    [d] = evaluate([_f(algo, AlgorithmFamily.KDF, 1.0)], policy)
+    assert d.rule_kind == "default"
+    assert d.action == RuleAction.WARN
+
+
+def test_evaluate_weak_kdf_parameter_advisory_profile_is_warn_high():
+    policy = load_default_policy("cryptoct-advisory")
+    [d] = evaluate([_f("PBKDF2", AlgorithmFamily.KDF, 1.0, key_size=100000)], policy)
+    assert d.rule_kind == "banned"
+    assert d.action == RuleAction.WARN
+    assert d.base_severity == Severity.HIGH
+
+
+def test_evaluate_argon2_still_approved_alongside_pbkdf2_threshold_rule():
+    # The new PBKDF2/SCRYPT/BCRYPT threshold rules must not shadow the
+    # pre-existing ARGON2 approved rule -- different algorithm, same family.
+    policy = load_default_policy("cryptoct-default")
+    [d] = evaluate([_f("ARGON2", AlgorithmFamily.KDF, 1.0)], policy)
+    assert d.rule_kind == "approved"
+    assert d.action == RuleAction.ALLOW
 
 
 def test_evaluate_argon2_is_allow_info():

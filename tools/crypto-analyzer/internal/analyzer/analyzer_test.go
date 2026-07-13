@@ -1036,3 +1036,110 @@ func TestAnalyzeResolvesRandRandReceiverMethod(t *testing.T) {
 		t.Fatalf("expected MATH-RAND from (*rand.Rand).Uint32, got %+v", fs)
 	}
 }
+
+// pbkdf2Vendor, scryptVendor, bcryptVendor stub the golang.org/x/crypto
+// packages actually catalogued (real x/crypto is not in this test
+// environment's module cache) with just enough of each real signature for
+// go/types to resolve the calls -- same vendoring pattern as
+// TestAnalyzeResolvesVendoredThirdParty.
+const pbkdf2Vendor = "package pbkdf2\n\nimport \"hash\"\n\n" +
+	"func Key(password, salt []byte, iter, keyLen int, h func() hash.Hash) []byte { return nil }\n"
+
+const scryptVendor = "package scrypt\n\n" +
+	"func Key(password, salt []byte, N, r, p, keyLen int) ([]byte, error) { return nil, nil }\n"
+
+const bcryptVendor = "package bcrypt\n\n" +
+	"const DefaultCost = 10\n\n" +
+	"func GenerateFromPassword(password []byte, cost int) ([]byte, error) { return nil, nil }\n"
+
+func vendoredXCryptoModule(pkg, source string, mainSrc string) map[string]string {
+	return map[string]string{
+		"go.mod": "module testmod\n\ngo 1.24\n\nrequire golang.org/x/crypto v0.0.0\n",
+		"vendor/modules.txt": "# golang.org/x/crypto v0.0.0\n" +
+			"## explicit; go 1.24\n" +
+			"golang.org/x/crypto/" + pkg + "\n",
+		"vendor/golang.org/x/crypto/" + pkg + "/" + pkg + ".go": source,
+		"main.go": mainSrc,
+	}
+}
+
+func TestAnalyzeExtractsPBKDF2IterationsFromXCrypto(t *testing.T) {
+	dir := writeModule(t, vendoredXCryptoModule("pbkdf2", pbkdf2Vendor,
+		"package main\n\n"+
+			"import (\n\t\"crypto/sha256\"\n\n\t\"golang.org/x/crypto/pbkdf2\"\n)\n\n"+
+			"func main() { _ = pbkdf2.Key([]byte(\"p\"), []byte(\"s\"), 100000, 32, sha256.New) }\n"))
+	fs, err := Analyze(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := findingsByAlgo(fs)["PBKDF2"]
+	if f.KeySize == nil || *f.KeySize != 100000 {
+		t.Fatalf("expected PBKDF2 key_size=100000 from x/crypto pbkdf2.Key's 3rd arg, got %+v", f)
+	}
+}
+
+func TestAnalyzeExtractsPBKDF2IterationsFromStdlib(t *testing.T) {
+	// crypto/pbkdf2 (Go 1.24 stdlib) needs no vendoring, and its signature
+	// leads with the hash constructor -- iter shifts from arg 2 to arg 3.
+	dir := writeModule(t, map[string]string{
+		"main.go": "package main\n\n" +
+			"import (\n\t\"crypto/pbkdf2\"\n\t\"crypto/sha256\"\n)\n\n" +
+			"func main() { _, _ = pbkdf2.Key(sha256.New, \"p\", []byte(\"s\"), 650000, 32) }\n",
+	})
+	fs, err := Analyze(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := findingsByAlgo(fs)["PBKDF2"]
+	if f.KeySize == nil || *f.KeySize != 650000 {
+		t.Fatalf("expected PBKDF2 key_size=650000 from stdlib pbkdf2.Key's 4th arg, got %+v", f)
+	}
+}
+
+func TestAnalyzeExtractsSCRYPTCostFromXCrypto(t *testing.T) {
+	dir := writeModule(t, vendoredXCryptoModule("scrypt", scryptVendor,
+		"package main\n\n"+
+			"import \"golang.org/x/crypto/scrypt\"\n\n"+
+			"func main() { _, _ = scrypt.Key([]byte(\"p\"), []byte(\"s\"), 65536, 8, 1, 32) }\n"))
+	fs, err := Analyze(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := findingsByAlgo(fs)["SCRYPT"]
+	if f.KeySize == nil || *f.KeySize != 65536 {
+		t.Fatalf("expected SCRYPT key_size=65536 from x/crypto scrypt.Key's N arg, got %+v", f)
+	}
+}
+
+func TestAnalyzeExtractsBCRYPTCostFromXCrypto(t *testing.T) {
+	dir := writeModule(t, vendoredXCryptoModule("bcrypt", bcryptVendor,
+		"package main\n\n"+
+			"import \"golang.org/x/crypto/bcrypt\"\n\n"+
+			"func main() { _, _ = bcrypt.GenerateFromPassword([]byte(\"p\"), 4) }\n"))
+	fs, err := Analyze(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := findingsByAlgo(fs)["BCRYPT"]
+	if f.KeySize == nil || *f.KeySize != 4 {
+		t.Fatalf("expected BCRYPT key_size=4 from x/crypto GenerateFromPassword's cost arg, got %+v", f)
+	}
+}
+
+func TestAnalyzeBCRYPTVariableCostExtractsNoKeySize(t *testing.T) {
+	// A runtime variable argument is not a compile-time constant go/types can
+	// fold, so constInt returns nil -- "literals only" per the B2 contract.
+	// The finding still fires, just without a gateable key_size.
+	dir := writeModule(t, vendoredXCryptoModule("bcrypt", bcryptVendor,
+		"package main\n\n"+
+			"import \"golang.org/x/crypto/bcrypt\"\n\n"+
+			"func main(cost int) { _, _ = bcrypt.GenerateFromPassword([]byte(\"p\"), cost) }\n"))
+	fs, err := Analyze(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := findingsByAlgo(fs)["BCRYPT"]
+	if f.KeySize != nil {
+		t.Fatalf("expected no key_size for a variable cost argument, got %+v", f)
+	}
+}

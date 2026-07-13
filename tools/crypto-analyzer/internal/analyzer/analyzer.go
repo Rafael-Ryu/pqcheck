@@ -222,6 +222,11 @@ type cryptoSite struct {
 	expr       ast.Expr
 	hit        catalog.Hit
 	confidence float64
+	// qualified is the <import-path>.<Name> callee identity (empty for the
+	// constant-reference and chained-HPKE paths, which never need it) — build's
+	// PBKDF2 case uses it to tell golang.org/x/crypto/pbkdf2.Key's iter-arg
+	// position apart from crypto/pbkdf2.Key's differently-shaped signature.
+	qualified string
 }
 
 // goOpaqueMethods maps a resolved method key (see methodKey) to a generic
@@ -336,11 +341,11 @@ func (v *visitor) recordCall(call *ast.CallExpr) {
 			return
 		}
 		if hit, ok := v.cat[qualified]; ok {
-			v.crypto = append(v.crypto, cryptoSite{call, hit, 1.0})
+			v.crypto = append(v.crypto, cryptoSite{expr: call, hit: hit, confidence: 1.0, qualified: qualified})
 			return
 		}
 		if hit, ok := goOpaqueMethods[qualified]; ok {
-			v.crypto = append(v.crypto, cryptoSite{call, hit, opaqueMethodConfidence})
+			v.crypto = append(v.crypto, cryptoSite{expr: call, hit: hit, confidence: opaqueMethodConfidence})
 			return
 		}
 	}
@@ -348,7 +353,7 @@ func (v *visitor) recordCall(call *ast.CallExpr) {
 	// the hpke hybrid chain, which the receiver's interface type cannot
 	// disambiguate above (see hpkeHybridConstructor).
 	if hit, ok := v.chainedHPKEHit(call); ok {
-		v.crypto = append(v.crypto, cryptoSite{call, hit, 1.0})
+		v.crypto = append(v.crypto, cryptoSite{expr: call, hit: hit, confidence: 1.0})
 	}
 }
 
@@ -382,7 +387,7 @@ func (v *visitor) recordConstUse(sel *ast.SelectorExpr) {
 	}
 	qualified := obj.Pkg().Path() + "." + obj.Name()
 	if hit, ok := v.cat[qualified]; ok {
-		v.crypto = append(v.crypto, cryptoSite{sel, hit, 1.0})
+		v.crypto = append(v.crypto, cryptoSite{expr: sel, hit: hit, confidence: 1.0})
 	}
 }
 
@@ -515,7 +520,7 @@ func (v *visitor) resolve(out *[]Finding) {
 	varToIdx := map[*types.Var]int{}
 	producer := map[int]*types.Var{}
 	for _, site := range v.crypto {
-		*out = append(*out, v.build(site.expr, site.hit, site.confidence))
+		*out = append(*out, v.build(site.expr, site.hit, site.confidence, site.qualified))
 		// Only a real call site can bind a variable a mode constructor later
 		// consumes; a constant reference (site.expr is *ast.SelectorExpr) has
 		// no entry in callVar, which is keyed by *ast.CallExpr.
@@ -587,7 +592,7 @@ const ambiguousModeConfidence = 0.7
 // algorithm call site, or *ast.SelectorExpr for a package-level constant
 // reference (see cryptoSite) -- both implement ast.Expr, giving Pos()/End()
 // uniformly; the RSA/ECDSA arg-extraction below only applies to the call form.
-func (v *visitor) build(expr ast.Expr, hit catalog.Hit, confidence float64) Finding {
+func (v *visitor) build(expr ast.Expr, hit catalog.Hit, confidence float64, qualified string) Finding {
 	fset := v.pkg.Fset
 	start := fset.Position(expr.Pos())
 	end := fset.Position(expr.End())
@@ -621,6 +626,28 @@ func (v *visitor) build(expr ast.Expr, hit catalog.Hit, confidence float64) Find
 			if c := v.curveFromArg(call.Args[0]); c != "" {
 				f.Curve = c
 			}
+		}
+	case "PBKDF2":
+		// golang.org/x/crypto/pbkdf2.Key(password, salt, iter, keyLen, h): iter
+		// is arg 2. Go 1.24's stdlib crypto/pbkdf2.Key(h, password, salt, iter,
+		// keyLen) leads with the hash constructor, shifting iter to arg 3 --
+		// same canonical, different signature, told apart by import path.
+		idx := 2
+		if qualified == "crypto/pbkdf2.Key" {
+			idx = 3
+		}
+		if len(call.Args) > idx {
+			f.KeySize = v.constInt(call.Args[idx])
+		}
+	case "SCRYPT":
+		// scrypt.Key(password, salt, N, r, p, keyLen): N is arg 2.
+		if len(call.Args) > 2 {
+			f.KeySize = v.constInt(call.Args[2])
+		}
+	case "BCRYPT":
+		// bcrypt.GenerateFromPassword(password, cost): cost is arg 1.
+		if len(call.Args) > 1 {
+			f.KeySize = v.constInt(call.Args[1])
 		}
 	}
 	return f

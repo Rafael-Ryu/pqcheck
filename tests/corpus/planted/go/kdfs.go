@@ -27,3 +27,19 @@ func plantedKDFs() {
 	_ = hkdf.Extract(sha256.New, []byte("secret"), []byte("salt"))
 	_ = hkdf.Expand(sha256.New, []byte("prk"), []byte("info"))
 }
+
+// B2: weak-KDF-parameter fixtures (weak literal / strong literal / variable
+// arg per symbol) — see tests/corpus/planted/expected.yaml.
+func plantedKDFParams(iter int) {
+	_ = pbkdf2.Key([]byte("password"), []byte("salt"), 100000, 32, sha256.New)
+	_ = pbkdf2.Key([]byte("password"), []byte("salt"), 650000, 32, sha256.New)
+	_ = pbkdf2.Key([]byte("password"), []byte("salt"), iter, 32, sha256.New)
+
+	_, _ = scrypt.Key([]byte("password"), []byte("salt"), 65536, 8, 1, 32)
+	_, _ = scrypt.Key([]byte("password"), []byte("salt"), 131072, 8, 1, 32)
+	_, _ = scrypt.Key([]byte("password"), []byte("salt"), iter, 8, 1, 32)
+
+	_, _ = bcrypt.GenerateFromPassword([]byte("password"), 4)
+	_, _ = bcrypt.GenerateFromPassword([]byte("password"), 12)
+	_, _ = bcrypt.GenerateFromPassword([]byte("password"), iter)
+}
