@@ -43,12 +43,15 @@ Verifique um release você mesmo (extra `sigstore`; o bundle
 `pqcheck verify-release pqcheck-0.0.1-py3-none-any.whl`.
 
 Cobertura: Python (hashlib, cryptography, pycryptodome) e Go (stdlib +
-x/crypto, com análise semântica via `go/types`); 6 formatos de lockfile.
-Java vem a seguir no roadmap.
+x/crypto, união de análise semântica via `go/types` com um passe
+tree-sitter que cobre arquivos condicionados a GOOS/cgo); 6 formatos de
+lockfile. Java vem a seguir no roadmap.
 
-Precisão medida: 230 findings HIGH/CRITICAL em 10 repos públicos, todos
-adjudicados manualmente — 0 falsos positivos (protocolo em
-`tests/corpus/`). Caveat honesto: recall ainda não foi medido.
+Precisão medida: 255 findings HIGH/CRITICAL em 10 repos públicos, todos
+adjudicados manualmente — 0 falsos positivos. Recall de 1.00 sobre 527
+call sites adjudicados nos mesmos repos (conjunto de tuning) e de 0.989
+em 6 repos held-out nunca vistos (protocolo e caveats em
+`tests/corpus/`).
 
 Limitações conhecidas, processo de segurança e detalhes completos no
 [README em inglês](README.md) e em [SECURITY.md](SECURITY.md).

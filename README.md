@@ -93,15 +93,22 @@ does not exist.
 `pqcheck policy show <name>` prints any of them resolved;
 `pqcheck policy validate <file>` checks your own against the schema.
 
-## Measured precision
+## Measured precision and recall
 
 Every HIGH/CRITICAL finding across a 10-repo public corpus (pyjwt,
 paramiko, sigstore-python, age, go-jose, smallstep/crypto, …) was
-human-adjudicated by reading the flagged line: **230 findings, 0 false
-positives**. Protocol, pinned SHAs, and verdicts are in `tests/corpus/`.
-The honest caveat: explicit-call detection is precise by construction;
-recall (what the scanner misses) is not yet measured — that is the next
-corpus iteration.
+human-adjudicated by reading the flagged line: **255 findings, 0 false
+positives**. Recall on the same repos, against a ground truth of 527
+adjudicated call sites, is 1.00. The honest caveat: that corpus's miss
+list drove the catalog expansion, so it is a tuning set and says
+nothing about generalization. A held-out set of 6 unseen repos
+(authlib, borgbackup, certbot, cosign, wireguard-go, certmagic)
+measured recall 0.989 (273/276; the 3 misses are borgbackup's
+Cython/OpenSSL binding, outside the import-resolution model) and
+precision 0.99 (76/77). One round of fixes came from that miss list,
+so the held-out set is no longer strictly untouched either — future
+generalization claims need fresh repos. Protocols, pinned SHAs, and
+verdicts are in `tests/corpus/`.
 
 ## Known limitations
 
@@ -109,8 +116,8 @@ corpus iteration.
   "RSA verifying a third-party webhook" from "RSA encrypting data at
   rest". Context-scoped rules are parsed but deliberately not shipped in
   the bundled policies until detectors emit context.
-- No hybrid-scheme detection (X25519MLKEM768 reads as X25519).
-- Insecure RNG usage (`math/rand` for keys) is not detected yet.
+- Hybrid-scheme detection covers `filippo.io/hpke` (X25519MLKEM768);
+  other hybrid constructions still read as their classical component.
 - Only the repo root's `.gitignore`/`.pqcheckignore` are honored.
 - Dependency findings are inventory (`introduces` metadata in the CBOM);
   they do not trip the policy gate in v0.1 — call sites do.
