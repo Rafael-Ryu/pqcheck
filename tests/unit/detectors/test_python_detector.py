@@ -1202,3 +1202,248 @@ def test_bcrypt_kdf_emits_bcrypt() -> None:
     assert findings[0].algorithm == "BCRYPT"
     assert findings[0].family is AlgorithmFamily.KDF
     assert findings[0].quantum_risk is QuantumRisk.SAFE
+
+
+# --- W2: stdlib hmac/secrets/hashlib KDFs ---
+
+
+def test_hmac_new_emits_hmac() -> None:
+    src = "import hmac\nhmac.new(b'k', b'm')\n"
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "HMAC"
+    assert findings[0].family is AlgorithmFamily.MAC
+    assert findings[0].quantum_risk is QuantumRisk.SAFE
+
+
+def test_hmac_digest_emits_hmac() -> None:
+    src = "import hmac\nhmac.digest(b'k', b'm', 'sha256')\n"
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "HMAC"
+
+
+def test_hashlib_pbkdf2_hmac_emits_pbkdf2() -> None:
+    src = "import hashlib\nhashlib.pbkdf2_hmac('sha256', b'p', b's', 100000)\n"
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "PBKDF2"
+    assert findings[0].family is AlgorithmFamily.KDF
+
+
+def test_hashlib_scrypt_emits_scrypt() -> None:
+    src = "import hashlib\nhashlib.scrypt(b'p', salt=b's', n=16384, r=8, p=1)\n"
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "SCRYPT"
+
+
+def test_secrets_token_bytes_emits_csprng() -> None:
+    src = "import secrets\nsecrets.token_bytes(32)\n"
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "CSPRNG"
+    assert findings[0].family is AlgorithmFamily.RNG
+    assert findings[0].quantum_risk is QuantumRisk.SAFE
+
+
+def test_secrets_system_random_emits_csprng() -> None:
+    src = "import secrets\nsecrets.SystemRandom()\n"
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "CSPRNG"
+
+
+def test_random_system_random_emits_csprng() -> None:
+    # random.SystemRandom (not secrets.SystemRandom) is the same os.urandom
+    # backed class; stdlib fallback imports pull it from `random` directly.
+    src = "from random import SystemRandom\nSystemRandom()\n"
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "CSPRNG"
+
+
+# --- W2: cryptography.hazmat.primitives.kdf ---
+
+
+def test_cryptography_hkdf_emits_hkdf() -> None:
+    src = (
+        "from cryptography.hazmat.primitives.kdf.hkdf import HKDF\n"
+        "HKDF(algorithm=None, length=32, salt=None, info=None)\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "HKDF"
+    assert findings[0].family is AlgorithmFamily.KDF
+    assert findings[0].quantum_risk is QuantumRisk.SAFE
+
+
+def test_cryptography_pbkdf2hmac_emits_pbkdf2() -> None:
+    src = (
+        "from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC\n"
+        "PBKDF2HMAC(algorithm=None, length=32, salt=b's', iterations=100000)\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "PBKDF2"
+
+
+def test_cryptography_scrypt_kdf_emits_scrypt() -> None:
+    src = (
+        "from cryptography.hazmat.primitives.kdf.scrypt import Scrypt\n"
+        "Scrypt(salt=b's', length=32, n=2**14, r=8, p=1)\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "SCRYPT"
+
+
+# --- W2: direct AEAD classes, RSA-PSS padding, Fernet ---
+
+
+def test_aesgcm_direct_class_emits_aes_gcm() -> None:
+    src = (
+        "from cryptography.hazmat.primitives.ciphers.aead import AESGCM\n"
+        "AESGCM(b'k' * 32)\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "AES-GCM"
+    assert findings[0].family is AlgorithmFamily.AEAD
+    assert findings[0].quantum_risk is QuantumRisk.SAFE
+
+
+def test_chacha20poly1305_direct_class_emits_canonical() -> None:
+    src = (
+        "from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305\n"
+        "ChaCha20Poly1305(b'k' * 32)\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "CHACHA20-POLY1305"
+
+
+def test_padding_pss_emits_rsa_with_pss_padding() -> None:
+    src = (
+        "from cryptography.hazmat.primitives.asymmetric import padding\n"
+        "padding.PSS(mgf=padding.MGF1(algorithm=None), salt_length=32)\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "RSA"
+    assert findings[0].padding == "PSS"
+    assert findings[0].quantum_risk is QuantumRisk.VULNERABLE
+
+
+def test_fernet_emits_fernet_canonical() -> None:
+    src = "from cryptography.fernet import Fernet\nFernet(key)\n"
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "FERNET"
+    assert findings[0].family is AlgorithmFamily.AEAD
+    assert findings[0].quantum_risk is QuantumRisk.SAFE
+
+
+# --- W2: argon2-cffi, bcrypt password hashing ---
+
+
+def test_argon2_password_hasher_emits_argon2() -> None:
+    src = "import argon2\nargon2.PasswordHasher()\n"
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "ARGON2"
+
+
+def test_argon2_low_level_hash_secret_emits_argon2() -> None:
+    src = "from argon2 import low_level\nlow_level.hash_secret(b'p', b's', 2, 102400, 8, 32, 0)\n"
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "ARGON2"
+
+
+def test_bcrypt_hashpw_emits_bcrypt() -> None:
+    src = "import bcrypt\nbcrypt.hashpw(b'p', bcrypt.gensalt())\n"
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "BCRYPT"
+    assert findings[0].family is AlgorithmFamily.KDF
+
+
+def test_bcrypt_checkpw_emits_bcrypt() -> None:
+    src = "import bcrypt\nbcrypt.checkpw(b'p', b'h')\n"
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "BCRYPT"
+
+
+# --- W2: pycryptodome KDF/MAC/signature gaps ---
+
+
+def test_pycryptodome_pbkdf2_emits_pbkdf2() -> None:
+    src = "from Crypto.Protocol import KDF\nKDF.PBKDF2(b'p', b's')\n"
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "PBKDF2"
+
+
+def test_pycryptodome_pbkdf1_emits_pbkdf1_vulnerable() -> None:
+    src = "from Crypto.Protocol import KDF\nKDF.PBKDF1(b'p', b's')\n"
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "PBKDF1"
+    assert findings[0].quantum_risk is QuantumRisk.VULNERABLE
+
+
+def test_pycryptodome_hmac_new_emits_hmac() -> None:
+    src = "from Crypto.Hash import HMAC\nHMAC.new(b'k')\n"
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "HMAC"
+
+
+def test_pycryptodome_pkcs1_15_emits_rsa_with_padding() -> None:
+    src = "from Crypto.Signature import pkcs1_15\npkcs1_15.new(rsa_key)\n"
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "RSA"
+    assert findings[0].padding == "PKCS1v15"
+    assert findings[0].family is AlgorithmFamily.SIGNATURE
+
+
+def test_pycryptodome_pss_emits_rsa_with_pss_padding() -> None:
+    src = "from Crypto.Signature import pss\npss.new(rsa_key)\n"
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "RSA"
+    assert findings[0].padding == "PSS"
+
+
+def test_pycryptodome_eddsa_new_emits_eddsa_without_curve() -> None:
+    src = "from Crypto.Signature import eddsa\neddsa.new(ecc_key)\n"
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "EdDSA"
+    assert findings[0].curve is None
+
+
+def test_pycryptodome_dh_key_agreement_emits_dh() -> None:
+    src = "from Crypto.Protocol import DH\nDH.key_agreement(eph_priv=1, eph_pub=2)\n"
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "DH"
+    assert findings[0].family is AlgorithmFamily.KEY_AGREEMENT
+
+
+def test_pycryptodome_dss_new_is_not_catalogued() -> None:
+    # Deliberate skip: DSS dispatches DSA-vs-ECDSA on the key object's type,
+    # which is dataflow this catalog does not follow.
+    src = "from Crypto.Signature import DSS\nDSS.new(key, 'fips-186-3')\n"
+    findings = _scan(src)
+    assert findings == []
+
+
+def test_pycryptodome_ecc_construct_is_not_catalogued() -> None:
+    # Deliberate skip: construct() loads an existing key, it does not mint one.
+    src = "from Crypto.PublicKey import ECC\nECC.construct(curve='P-256', d=1)\n"
+    findings = _scan(src)
+    assert findings == []

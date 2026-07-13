@@ -45,6 +45,8 @@ _SYM = AlgorithmFamily.SYMMETRIC_CIPHER
 _KEM = AlgorithmFamily.KEM
 _AEAD = AlgorithmFamily.AEAD
 _KDF = AlgorithmFamily.KDF
+_MAC = AlgorithmFamily.MAC
+_RNG = AlgorithmFamily.RNG
 
 
 # Fully-qualified callee name → AlgorithmHit.
@@ -281,6 +283,117 @@ _PYTHON_SYMBOLS: dict[str, AlgorithmHit] = {
     # primitive but this catalog only covers the KDF entry point paramiko
     # calls when decrypting bcrypt-encrypted private keys.
     "bcrypt.kdf": AlgorithmHit("BCRYPT", _KDF),
+    # ---- python-bcrypt (password hashing entry points) ----
+    # gensalt() only mints a cost-factor salt, no hash/verify computation is
+    # performed at that call site, so it stays out of the catalog (same
+    # "construction site, not the primitive itself" reasoning as
+    # Fernet.generate_key and ECC.construct below).
+    "bcrypt.hashpw": AlgorithmHit("BCRYPT", _KDF),
+    "bcrypt.checkpw": AlgorithmHit("BCRYPT", _KDF),
+    # ---- stdlib hmac ----
+    # digestmod is a runtime argument (often a hashlib.*/string reference);
+    # resolving it would need dataflow this catalog does not attempt, so
+    # these findings surface the MAC construction without a hash detail.
+    "hmac.new": AlgorithmHit("HMAC", _MAC),
+    "hmac.digest": AlgorithmHit("HMAC", _MAC),
+    # ---- stdlib hashlib KDFs ----
+    "hashlib.pbkdf2_hmac": AlgorithmHit("PBKDF2", _KDF),
+    "hashlib.scrypt": AlgorithmHit("SCRYPT", _KDF),
+    # ---- stdlib secrets (CSPRNG positive attestation) ----
+    # Mirrors the Go crypto/rand.Read/Int/Prime precedent (PR #223): secrets
+    # wraps os.urandom, so every entry point here is a positive "correct RNG
+    # choice" finding, not a violation.
+    "secrets.token_bytes": AlgorithmHit("CSPRNG", _RNG),
+    "secrets.token_hex": AlgorithmHit("CSPRNG", _RNG),
+    "secrets.token_urlsafe": AlgorithmHit("CSPRNG", _RNG),
+    "secrets.choice": AlgorithmHit("CSPRNG", _RNG),
+    "secrets.randbelow": AlgorithmHit("CSPRNG", _RNG),
+    "secrets.SystemRandom": AlgorithmHit("CSPRNG", _RNG),
+    # random.SystemRandom (not secrets.SystemRandom) is the same os.urandom-
+    # backed class re-exported by secrets; stdlib code (including secrets'
+    # own <=3.5 compatibility shims seen in the wild) sometimes imports it
+    # straight from random. random.Random itself is deliberately NOT
+    # catalogued — it is the Mersenne Twister MATH-RAND is meant to flag.
+    "random.SystemRandom": AlgorithmHit("CSPRNG", _RNG),
+    # ---- cryptography.hazmat.primitives.kdf ----
+    "cryptography.hazmat.primitives.kdf.hkdf.HKDF": AlgorithmHit("HKDF", _KDF),
+    "cryptography.hazmat.primitives.kdf.hkdf.HKDFExpand": AlgorithmHit("HKDF", _KDF),
+    "cryptography.hazmat.primitives.kdf.pbkdf2.PBKDF2HMAC": AlgorithmHit("PBKDF2", _KDF),
+    "cryptography.hazmat.primitives.kdf.scrypt.Scrypt": AlgorithmHit("SCRYPT", _KDF),
+    # ConcatKDF/X963KDF/KBKDF (SP 800-56A/108) exist in the module but are not
+    # catalogued: they are rare NIST-suite constructions with negligible hit
+    # rate in the corpora surveyed for this workstream, and adding three more
+    # single-use canonicals for them is not worth the maintenance surface
+    # right now. Revisit if a real repo actually uses them.
+    # ---- cryptography.hazmat.primitives.ciphers.aead (direct AEAD classes) ----
+    # Each class fuses cipher+mode into one construction, so the canonical
+    # bakes the mode in rather than needing detector-level extraction (same
+    # shape as nacl.secret.SecretBox's XSALSA20-POLY1305 fused canonical).
+    "cryptography.hazmat.primitives.ciphers.aead.AESGCM": AlgorithmHit("AES-GCM", _AEAD),
+    "cryptography.hazmat.primitives.ciphers.aead.AESGCMSIV": AlgorithmHit("AES-GCM-SIV", _AEAD),
+    "cryptography.hazmat.primitives.ciphers.aead.AESOCB3": AlgorithmHit("AES-OCB3", _AEAD),
+    "cryptography.hazmat.primitives.ciphers.aead.AESSIV": AlgorithmHit("AES-SIV", _AEAD),
+    "cryptography.hazmat.primitives.ciphers.aead.AESCCM": AlgorithmHit("AES-CCM", _AEAD),
+    "cryptography.hazmat.primitives.ciphers.aead.ChaCha20Poly1305":
+        AlgorithmHit("CHACHA20-POLY1305", _AEAD),
+    # ---- cryptography RSA-PSS padding (§3 precedent: PKCS1v15/OAEP above) ----
+    "cryptography.hazmat.primitives.asymmetric.padding.PSS":
+        AlgorithmHit("RSA", _ASYM, padding="PSS"),
+    # ---- cryptography.fernet ----
+    # Fernet is AES-128-CBC encrypt-then-MAC-SHA256 fused behind one API
+    # (verified against the installed 49.0 wheel's cryptography/fernet.py).
+    # Represented as its own fused canonical rather than decomposed into
+    # AES+HMAC findings — same one-hit-per-symbol reasoning as
+    # XSALSA20-POLY1305. Only the Fernet(key) construction site is
+    # catalogued; generate_key() is a plain os.urandom wrapper (no primitive
+    # to name) and MultiFernet(fernets) does not itself perform crypto — the
+    # Fernet() construction of each wrapped instance is what a scan should
+    # (and does) already catch.
+    "cryptography.fernet.Fernet": AlgorithmHit("FERNET", _AEAD),
+    # ---- argon2-cffi ----
+    "argon2.PasswordHasher": AlgorithmHit("ARGON2", _KDF),
+    "argon2.low_level.hash_secret": AlgorithmHit("ARGON2", _KDF),
+    "argon2.low_level.hash_secret_raw": AlgorithmHit("ARGON2", _KDF),
+    "argon2.low_level.verify_secret": AlgorithmHit("ARGON2", _KDF),
+    # ---- pycryptodome KDF/MAC gaps ----
+    "Crypto.Protocol.KDF.PBKDF2": AlgorithmHit("PBKDF2", _KDF),
+    # PBKDF1 (RFC 2898 legacy): capped at the underlying hash's digest length
+    # (16 bytes for MD5/SHA-1) and deprecated by RFC 8018 SS3 in favor of
+    # PBKDF2 — a distinct, weaker construction from PBKDF2, so it gets its
+    # own canonical rather than collapsing into PBKDF2 (own _QUANTUM_MAP
+    # entry: VULNERABLE, not the SAFE that PBKDF2/SCRYPT get).
+    "Crypto.Protocol.KDF.PBKDF1": AlgorithmHit("PBKDF1", _KDF),
+    "Crypto.Protocol.KDF.scrypt": AlgorithmHit("SCRYPT", _KDF),
+    "Crypto.Protocol.KDF.HKDF": AlgorithmHit("HKDF", _KDF),
+    "Crypto.Protocol.KDF.bcrypt": AlgorithmHit("BCRYPT", _KDF),
+    "Crypto.Protocol.KDF.bcrypt_check": AlgorithmHit("BCRYPT", _KDF),
+    "Crypto.Hash.HMAC.new": AlgorithmHit("HMAC", _MAC),
+    # ---- pycryptodome signature schemes ----
+    # pkcs1_15/pss only accept RSA keys (RSASSA-PKCS1-v1_5 / RSASSA-PSS), so
+    # the algorithm is unambiguous without dataflow — same reasoning as the
+    # cryptography padding.PKCS1v15/OAEP markers above, just reached through
+    # a signature-scheme constructor instead of a padding object.
+    "Crypto.Signature.pkcs1_15.new": AlgorithmHit("RSA", _SIG, padding="PKCS1v15"),
+    "Crypto.Signature.pss.new": AlgorithmHit("RSA", _SIG, padding="PSS"),
+    # eddsa.new(key) accepts either an Ed25519 or Ed448 ECC key; which curve
+    # it is depends on the key object passed in, which is dataflow this
+    # catalog does not follow. curve stays unset (honest "don't know") rather
+    # than guessing — EdDSA is still a correct, unambiguous family+canonical
+    # either way.
+    "Crypto.Signature.eddsa.new": AlgorithmHit("EdDSA", _SIG),
+    # Crypto.Signature.DSS.new(key, mode) is deliberately NOT catalogued:
+    # it dispatches on the key object's type (DsaKey -> DSA, EccKey -> ECDSA)
+    # at runtime, which is dataflow-dependent and cannot be resolved from the
+    # call site alone (verified against pycryptodome's DSS.new source). A
+    # static symbol-lookup catalog cannot honestly claim one algorithm over
+    # the other, so this is a deliberate skip rather than a guess.
+    #
+    # Crypto.PublicKey.ECC.construct is also deliberately NOT catalogued: it
+    # reconstructs a key from already-known parameters (an imported/decoded
+    # key), the same "loads an existing key rather than mints one" scope
+    # line the pynacl VerifyKey/PublicKey entries draw above — only
+    # ECC.generate() is a keygen worth flagging.
+    "Crypto.Protocol.DH.key_agreement": AlgorithmHit("DH", _KA),
 }
 
 
@@ -364,12 +477,15 @@ def hashlib_new_table() -> dict[str, AlgorithmHit]:
     Derived from the `hashlib.*` catalog entries so the string-dispatch path
     in the detector shares a single source of truth with direct-call lookups.
     Keys are the hashlib constructor suffixes (``md5``, ``sha3_256`` …), which
-    match the normalized argument accepted by ``hashlib.new``.
+    match the normalized argument accepted by ``hashlib.new``. Filtered to
+    family HASH so non-hash hashlib entries (pbkdf2_hmac, scrypt — KDFs
+    that live under the same module prefix) don't leak into the
+    ``hashlib.new()`` string-dispatch table, which only ever names a digest.
     """
     return {
         name[len(_HASHLIB_PREFIX) :]: hit
         for name, hit in _PYTHON_SYMBOLS.items()
-        if name.startswith(_HASHLIB_PREFIX)
+        if name.startswith(_HASHLIB_PREFIX) and hit.family == _HASH
     }
 
 

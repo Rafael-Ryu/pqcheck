@@ -255,3 +255,9 @@ f971dcee15732930: {verdict: tp, note: "signer_test.go pub.ECDH() — crypto/ecds
 03242cafa2024fb4: {verdict: tp, note: "signer_test.go pub.ECDH() — crypto/ecdsa PublicKey method, test file"}
 3973b4ada3f48033: {verdict: tp, note: "ssh.go k.PublicKey.ECDH() — crypto/ecdsa PublicKey method via embedded field"}
 1a5957c1b6e80b7a: {verdict: tp, note: "sshutil_test.go k.ECDH() — crypto/ecdsa PublicKey method, test file"}
+# W2 (Python catalog depth): new RSA-PSS padding findings, adjudicated 2026-07-13.
+49edf1bb7be02b9b: {verdict: tp, note: "RSA-PSS signature construction, real RSA use"}
+2fbc334467afc1d4: {verdict: tp, note: "RSA-PSS verify construction, real RSA use"}
+365bb9be8452ec88: {verdict: tp, note: "RSA-PSS construction, test file, real RSA use"}
+781b5796a0ba1127: {verdict: tp, note: "RSA-PSS construction, test file, real RSA use"}
+52ebfae438522fe3: {verdict: tp, note: "RSA-PSS construction, test file, real RSA use"}
