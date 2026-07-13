@@ -62,3 +62,13 @@ def test_load_default_policy_over_long_name_raises_policy_error():
     # underlying OSError must surface as PolicyError, not leak (issue #56).
     with pytest.raises(PolicyError):
         load_default_policy("a" * 5000)
+
+
+def test_load_policy_non_utf8_file_raises_policy_error(tmp_path):
+    # A non-UTF-8 policy file makes read_text raise UnicodeDecodeError, which is
+    # a ValueError (not an OSError). It must surface as PolicyError, not leak a
+    # traceback through the CLI.
+    f = tmp_path / "latin1.yaml"
+    f.write_bytes(b"metadata:\n  name: caf\xe9\n")
+    with pytest.raises(PolicyError):
+        load_policy(f)

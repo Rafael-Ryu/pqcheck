@@ -73,7 +73,10 @@ def load_policy(path: Path) -> CryptoPolicy:
     """Read, parse, and validate a policy file. Raises PolicyError on any failure."""
     try:
         text = path.read_text(encoding="utf-8")
-    except OSError as exc:
+    except (OSError, UnicodeDecodeError) as exc:
+        # UnicodeDecodeError is a ValueError, not an OSError, so it needs its own
+        # catch to honor the "raises PolicyError on any failure" contract instead
+        # of leaking a traceback for a non-UTF-8 policy file.
         raise PolicyError(f"cannot read policy {path}: {exc}") from exc
     return _parse_and_validate(text, str(path))
 
@@ -90,7 +93,7 @@ def load_default_policy(name: str) -> CryptoPolicy:
         if not resource.is_file():
             raise PolicyError(f"no bundled policy named {name!r}")
         text = resource.read_text(encoding="utf-8")
-    except OSError as exc:
+    except (OSError, UnicodeDecodeError) as exc:
         raise PolicyError(f"no bundled policy named {name!r}") from exc
     return _parse_and_validate(text, f"<bundled:{name}>")
 
