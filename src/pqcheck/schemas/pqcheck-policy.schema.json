@@ -293,7 +293,8 @@
         "kdf",
         "key-agreement",
         "asymmetric-encryption",
-        "rng"
+        "rng",
+        "protocol"
       ],
       "title": "PolicyFamily",
       "type": "string"

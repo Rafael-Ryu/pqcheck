@@ -106,6 +106,24 @@ _DETECTOR_ID = "python-ast"
 # argument could be runtime-computed; we only resolve literals.
 _HASHLIB_NEW_NAMES: dict[str, AlgorithmHit] = hashlib_new_table()
 
+# B1 (TLS config analysis): legacy ssl protocol constants, referenced as a
+# plain attribute/attribute-chain rather than called. Matched against this
+# small explicit allowlist rather than the whole catalog -- an Attribute node
+# that is itself a Call's callee (e.g. `hashlib.md5` in `hashlib.md5()`) is
+# also visited here via generic_visit, and matching the full catalog would
+# double-emit every ordinary call finding visit_Call already produces.
+# Mirrors go_detector.py's _GO_CONSTANT_CATALOG_KEYS.
+_SSL_CONSTANT_ALLOWLIST = frozenset(
+    (
+        "ssl.PROTOCOL_TLSv1",
+        "ssl.PROTOCOL_TLSv1_1",
+        "ssl.PROTOCOL_SSLv3",
+        "ssl.TLSVersion.TLSv1",
+        "ssl.TLSVersion.TLSv1_1",
+        "ssl.TLSVersion.SSLv3",
+    )
+)
+
 
 class PythonDetector(ast.NodeVisitor):
     """Second pass: emit CryptoFinding per detected primitive use."""
@@ -165,6 +183,20 @@ class PythonDetector(ast.NodeVisitor):
             self._emit_via_star_import(node, node.func.id)
         if not emitted:
             self._emit_chained_digest(node)
+        self.generic_visit(node)
+
+    def visit_Attribute(self, node: ast.Attribute) -> None:
+        # Legacy ssl protocol constants (`ssl.PROTOCOL_TLSv1`,
+        # `ssl.TLSVersion.TLSv1_1`) — a bare reference, never called. Every
+        # Attribute node in the file reaches here via generic_visit,
+        # including a Call's own callee (`hashlib.md5` in `hashlib.md5()`),
+        # so this only fires for the small explicit allowlist rather than
+        # the whole catalog (see _SSL_CONSTANT_ALLOWLIST).
+        qualified = self._imports.resolve_attribute(node)
+        if qualified in _SSL_CONSTANT_ALLOWLIST:
+            hit = lookup_python_symbol(qualified)
+            if hit is not None:
+                self._emit(node, hit.canonical, hit.family, confidence=1.0)
         self.generic_visit(node)
 
     def _emit_chained_digest(self, node: ast.Call) -> None:
@@ -418,7 +450,10 @@ class PythonDetector(ast.NodeVisitor):
 
     def _emit(
         self,
-        node: ast.Call,
+        # ast.Call for every ordinary catalog hit; ast.Attribute for the
+        # constant-reference path (visit_Attribute) -- both carry lineno/
+        # col_offset/end_lineno/end_col_offset, all this method touches.
+        node: ast.Call | ast.Attribute,
         canonical: str,
         family: AlgorithmFamily,
         *,
@@ -455,7 +490,7 @@ class PythonDetector(ast.NodeVisitor):
             )
         )
 
-    def _evidence(self, node: ast.Call, *, line: int | None = None) -> str:
+    def _evidence(self, node: ast.Call | ast.Attribute, *, line: int | None = None) -> str:
         line_idx = (line if line is not None else node.lineno) - 1
         if 0 <= line_idx < len(self._source_lines):
             return self._source_lines[line_idx].strip()

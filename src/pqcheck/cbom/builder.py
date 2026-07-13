@@ -34,6 +34,11 @@ _PRIMITIVE_BY_FAMILY: dict[AlgorithmFamily, str] = {
     AlgorithmFamily.KDF: "kdf",
     AlgorithmFamily.RNG: "drbg",
     AlgorithmFamily.AEAD: "ae",
+    # CycloneDX 1.6's cryptoProperties.algorithmProperties.primitive enum has
+    # no "protocol" value (only primitive building blocks) — "other" is the
+    # closest schema-valid fit, the same fallback the enum already uses for
+    # any value it doesn't recognize.
+    AlgorithmFamily.PROTOCOL: "other",
 }
 
 # CycloneDX 1.6 closed enums; anything the detectors emit outside these

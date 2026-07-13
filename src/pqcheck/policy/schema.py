@@ -42,6 +42,7 @@ class PolicyFamily(StrEnum):
     KEY_AGREEMENT = "key-agreement"
     ASYMMETRIC_ENCRYPTION = "asymmetric-encryption"
     RNG = "rng"
+    PROTOCOL = "protocol"
 
 
 class AlgorithmRule(BaseModel):

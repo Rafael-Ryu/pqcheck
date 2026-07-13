@@ -1498,3 +1498,57 @@ def test_pycryptodome_ecc_construct_is_not_catalogued() -> None:
     src = "from Crypto.PublicKey import ECC\nECC.construct(curve='P-256', d=1)\n"
     findings = _scan(src)
     assert findings == []
+
+
+# --- B1: legacy ssl protocol constants ---
+
+
+def test_ssl_protocol_tlsv1_constant_resolves() -> None:
+    src = "import ssl\nctx = ssl.PROTOCOL_TLSv1\n"
+    findings = _scan(src)
+    assert [f.algorithm for f in findings] == ["TLS-1.0"]
+    assert findings[0].family == AlgorithmFamily.PROTOCOL
+    assert findings[0].quantum_risk == QuantumRisk.BROKEN
+
+
+def test_ssl_protocol_tlsv1_1_constant_resolves() -> None:
+    src = "import ssl\nctx = ssl.PROTOCOL_TLSv1_1\n"
+    findings = _scan(src)
+    assert [f.algorithm for f in findings] == ["TLS-1.1"]
+
+
+def test_ssl_protocol_sslv3_constant_resolves() -> None:
+    # Flagged by name even though CPython 3.12 no longer defines the
+    # attribute at runtime -- a static scan reads source text, not a live
+    # interpreter (see the algorithms.py catalog comment).
+    src = "import ssl\nctx = ssl.PROTOCOL_SSLv3\n"
+    findings = _scan(src)
+    assert [f.algorithm for f in findings] == ["SSL-3.0"]
+
+
+def test_ssl_tlsversion_enum_constants_resolve() -> None:
+    src = (
+        "import ssl\n"
+        "a = ssl.TLSVersion.TLSv1\n"
+        "b = ssl.TLSVersion.TLSv1_1\n"
+        "c = ssl.TLSVersion.SSLv3\n"
+    )
+    findings = _scan(src)
+    assert [f.algorithm for f in findings] == ["TLS-1.0", "TLS-1.1", "SSL-3.0"]
+    assert all(f.family == AlgorithmFamily.PROTOCOL for f in findings)
+
+
+def test_ssl_constant_gated_on_ssl_import() -> None:
+    # Same attribute text, but not actually the stdlib ssl module.
+    src = "class ssl:\n    PROTOCOL_TLSv1 = 1\nctx = ssl.PROTOCOL_TLSv1\n"
+    findings = _scan(src)
+    assert findings == []
+
+
+def test_ssl_constant_reference_does_not_double_emit_alongside_calls() -> None:
+    # Regression: an ordinary catalogued call (hashlib.md5) must not also
+    # trip the Attribute-based constant path for its own callee.
+    src = "import hashlib\nhashlib.md5(b'x')\n"
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "MD5"

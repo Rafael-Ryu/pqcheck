@@ -863,6 +863,55 @@ func TestAnalyzeResolvesTLSX25519MLKEM768Constant(t *testing.T) {
 	}
 }
 
+func TestAnalyzeResolvesTLSLegacyVersionConstants(t *testing.T) {
+	// crypto/tls.VersionTLS10/11/VersionSSL30 are the same never-called
+	// constant shape as X25519MLKEM768 above -- generic recordConstUse
+	// resolves any catalog-listed *types.Const, no allowlist needed on the
+	// go/types side (unlike the tree-sitter detector).
+	dir := writeModule(t, map[string]string{
+		"main.go": "package main\n\nimport \"crypto/tls\"\n\n" +
+			"func f() {\n" +
+			"    _ = &tls.Config{MinVersion: tls.VersionTLS10}\n" +
+			"    _ = &tls.Config{MaxVersion: tls.VersionTLS11}\n" +
+			"    _ = tls.VersionSSL30\n" +
+			"}\n",
+	})
+	fs, err := Analyze(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	byAlgo := findingsByAlgo(fs)
+	for _, want := range []string{"TLS-1.0", "TLS-1.1", "SSL-3.0"} {
+		f, ok := byAlgo[want]
+		if !ok {
+			t.Fatalf("expected %s finding, got %+v", want, fs)
+		}
+		if f.Family != "protocol" {
+			t.Errorf("%s family = %q, want protocol", want, f.Family)
+		}
+	}
+}
+
+func TestAnalyzeResolvesTLSRSAKeyExchangeCipherSuiteConstant(t *testing.T) {
+	dir := writeModule(t, map[string]string{
+		"main.go": "package main\n\nimport \"crypto/tls\"\n\n" +
+			"func f() uint16 {\n" +
+			"    return tls.TLS_RSA_WITH_AES_128_CBC_SHA\n" +
+			"}\n",
+	})
+	fs, err := Analyze(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	kx, ok := findingsByAlgo(fs)["TLS-RSA-KX"]
+	if !ok {
+		t.Fatalf("expected TLS-RSA-KX finding, got %+v", fs)
+	}
+	if kx.Family != "protocol" {
+		t.Errorf("family = %q, want protocol", kx.Family)
+	}
+}
+
 // circlHPKEStub is a minimal vendor stand-in for github.com/cloudflare/circl/hpke,
 // carrying only the KEM constants and NewSuite signature the analyzer resolves
 // against -- the real package pulls in ML-KEM/Kyber implementations this test
