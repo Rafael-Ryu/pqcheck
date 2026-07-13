@@ -40,7 +40,7 @@ pqcheck.sarif` (importa direto no GitHub Code Scanning). Gate de CI:
 
 Verifique um release você mesmo (extra `sigstore`; o bundle
 `.sigstore.json` acompanha cada wheel no release do GitHub):
-`pqcheck verify-release pqcheck-0.0.1-py3-none-any.whl`.
+`pqcheck verify-release pqcheck-0.1.0-py3-none-any.whl`.
 
 Cobertura: Python (hashlib, cryptography, pycryptodome) e Go (stdlib +
 x/crypto, união de análise semântica via `go/types` com um passe

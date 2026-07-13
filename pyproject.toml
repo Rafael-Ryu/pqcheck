@@ -1,6 +1,6 @@
 [project]
 name = "pqcheck"
-version = "0.0.1"
+version = "0.1.0"
 description = "Post-quantum cryptography risk scanner for source code and dependency graphs."
 readme = "README.md"
 requires-python = ">=3.12"
