@@ -97,18 +97,20 @@ does not exist.
 
 Every HIGH/CRITICAL finding across a 10-repo public corpus (pyjwt,
 paramiko, sigstore-python, age, go-jose, smallstep/crypto, …) was
-human-adjudicated by reading the flagged line: **255 findings, 0 false
-positives**. Recall on the same repos, against a ground truth of 527
+human-adjudicated by reading the flagged line: **260 findings, 0 false
+positives**. Recall on the same repos, against a ground truth of 584
 adjudicated call sites, is 1.00. The honest caveat: that corpus's miss
 list drove the catalog expansion, so it is a tuning set and says
 nothing about generalization. A held-out set of 6 unseen repos
 (authlib, borgbackup, certbot, cosign, wireguard-go, certmagic)
-measured recall 0.989 (273/276; the 3 misses are borgbackup's
-Cython/OpenSSL binding, outside the import-resolution model) and
-precision 0.99 (76/77). One round of fixes came from that miss list,
-so the held-out set is no longer strictly untouched either — future
-generalization claims need fresh repos. Protocols, pinned SHAs, and
-verdicts are in `tests/corpus/`.
+measures recall 0.9834 (296/301) and precision 0.99 (76/77). The 5
+remaining misses are all structural — authlib's dataflow-dependent
+digest calls and borgbackup's Cython/OpenSSL binding, the same gap
+classes documented under [Known limitations](#known-limitations)
+below. Three rounds of fixes came from the held-out miss list, so it
+is no longer strictly untouched either — future generalization claims
+need fresh repos. Protocols, pinned SHAs, and verdicts are in
+`tests/corpus/`.
 
 ## Known limitations
 

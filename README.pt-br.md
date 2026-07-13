@@ -47,11 +47,14 @@ x/crypto, união de análise semântica via `go/types` com um passe
 tree-sitter que cobre arquivos condicionados a GOOS/cgo); 6 formatos de
 lockfile. Java vem a seguir no roadmap.
 
-Precisão medida: 255 findings HIGH/CRITICAL em 10 repos públicos, todos
-adjudicados manualmente — 0 falsos positivos. Recall de 1.00 sobre 527
-call sites adjudicados nos mesmos repos (conjunto de tuning) e de 0.989
-em 6 repos held-out nunca vistos (protocolo e caveats em
-`tests/corpus/`).
+Precisão medida: 260 findings HIGH/CRITICAL em 10 repos públicos, todos
+adjudicados manualmente — 0 falsos positivos. Recall de 1.00 sobre 584
+call sites adjudicados nos mesmos repos (conjunto de tuning) e de
+0.9834 (296/301) em 6 repos held-out — os 5 misses restantes são todos
+estruturais, das classes descritas em "Limitações conhecidas" abaixo.
+Três rodadas de correções vieram da lista de misses do held-out, então
+ele já não é estritamente intocado; afirmações de generalização exigem
+repos frescos (protocolo e caveats em `tests/corpus/`).
 
 ## Limitações conhecidas
 
