@@ -46,6 +46,7 @@ _CATALOG: dict[tuple[str, str], tuple[str, ...]] = {
     ("pypi", "paramiko"): ("RSA", "DSA", "ECDSA", "AES", "SHA-1", "SHA-256"),
     ("pypi", "pyjwt"): ("RSA", "ECDSA", "SHA-256", "SHA-384", "SHA-512"),
     ("pypi", "python-jose"): ("RSA", "ECDSA", "AES", "SHA-256"),
+    ("pypi", "blake3"): ("BLAKE3",),
     # ---- PyPI: PQC (mirrors the PQC source-detector catalog, PR #216) ----
     ("pypi", "liboqs-python"): ("ML-KEM", "ML-DSA", "SLH-DSA", "FALCON", "HQC"),
     ("pypi", "kyber-py"): ("ML-KEM",),

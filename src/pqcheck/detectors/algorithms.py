@@ -268,6 +268,12 @@ _PYTHON_SYMBOLS: dict[str, AlgorithmHit] = {
     # without a new multi-emit path.
     "nacl.secret.SecretBox": AlgorithmHit("XSALSA20-POLY1305", _AEAD),
     "nacl.hash.blake2b": AlgorithmHit("BLAKE2B", _HASH),
+    # ---- blake3 (oconnor663/blake3-py, official bindings) ----
+    # The package exposes a single constructor covering plain, keyed, and
+    # key-derivation modes (key=/derive_key_context= kwargs); the catalog
+    # cannot see those kwargs without dataflow, so every call site is
+    # catalogued as the BLAKE3 hash primitive regardless of mode.
+    "blake3.blake3": AlgorithmHit("BLAKE3", _HASH),
     "nacl.pwhash.argon2id.str": AlgorithmHit("ARGON2", _KDF),
     "nacl.pwhash.argon2id.kdf": AlgorithmHit("ARGON2", _KDF),
     "nacl.pwhash.argon2i.str": AlgorithmHit("ARGON2", _KDF),
