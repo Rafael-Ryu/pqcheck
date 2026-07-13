@@ -47,6 +47,7 @@ _AEAD = AlgorithmFamily.AEAD
 _KDF = AlgorithmFamily.KDF
 _MAC = AlgorithmFamily.MAC
 _RNG = AlgorithmFamily.RNG
+_PROTO = AlgorithmFamily.PROTOCOL
 
 
 # Fully-qualified callee name → AlgorithmHit.
@@ -400,6 +401,21 @@ _PYTHON_SYMBOLS: dict[str, AlgorithmHit] = {
     # line the pynacl VerifyKey/PublicKey entries draw above — only
     # ECC.generate() is a keygen worth flagging.
     "Crypto.Protocol.DH.key_agreement": AlgorithmHit("DH", _KA),
+    # ---- stdlib ssl (B1: legacy TLS/SSL protocol constants) ----
+    # These are never called — they're referenced as plain module/class
+    # attributes (ssl.PROTOCOL_TLSv1, ssl.TLSVersion.TLSv1_1), the same shape
+    # as crypto/tls's Go constants. PythonDetector.visit_Attribute matches
+    # them against the small explicit _SSL_CONSTANT_ALLOWLIST, mirroring
+    # go_detector's _GO_CONSTANT_CATALOG_KEYS. ssl.PROTOCOL_SSLv3 is flagged
+    # by name even though CPython 3.12 no longer defines the attribute at
+    # runtime — a static scan reads source text, not a live interpreter, and
+    # the symbol appears in code written against older/vendored Python.
+    "ssl.PROTOCOL_TLSv1": AlgorithmHit("TLS-1.0", _PROTO),
+    "ssl.PROTOCOL_TLSv1_1": AlgorithmHit("TLS-1.1", _PROTO),
+    "ssl.PROTOCOL_SSLv3": AlgorithmHit("SSL-3.0", _PROTO),
+    "ssl.TLSVersion.TLSv1": AlgorithmHit("TLS-1.0", _PROTO),
+    "ssl.TLSVersion.TLSv1_1": AlgorithmHit("TLS-1.1", _PROTO),
+    "ssl.TLSVersion.SSLv3": AlgorithmHit("SSL-3.0", _PROTO),
 }
 
 

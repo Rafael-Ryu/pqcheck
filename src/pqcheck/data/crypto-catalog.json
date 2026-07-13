@@ -112,6 +112,46 @@
     "canonical": "X25519MLKEM768",
     "family": "key-encapsulation"
   },
+  "crypto/tls.VersionTLS10": {
+    "canonical": "TLS-1.0",
+    "family": "protocol"
+  },
+  "crypto/tls.VersionTLS11": {
+    "canonical": "TLS-1.1",
+    "family": "protocol"
+  },
+  "crypto/tls.VersionSSL30": {
+    "canonical": "SSL-3.0",
+    "family": "protocol"
+  },
+  "crypto/tls.TLS_RSA_WITH_RC4_128_SHA": {
+    "canonical": "TLS-RSA-KX",
+    "family": "protocol"
+  },
+  "crypto/tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA": {
+    "canonical": "TLS-RSA-KX",
+    "family": "protocol"
+  },
+  "crypto/tls.TLS_RSA_WITH_AES_128_CBC_SHA": {
+    "canonical": "TLS-RSA-KX",
+    "family": "protocol"
+  },
+  "crypto/tls.TLS_RSA_WITH_AES_256_CBC_SHA": {
+    "canonical": "TLS-RSA-KX",
+    "family": "protocol"
+  },
+  "crypto/tls.TLS_RSA_WITH_AES_128_CBC_SHA256": {
+    "canonical": "TLS-RSA-KX",
+    "family": "protocol"
+  },
+  "crypto/tls.TLS_RSA_WITH_AES_128_GCM_SHA256": {
+    "canonical": "TLS-RSA-KX",
+    "family": "protocol"
+  },
+  "crypto/tls.TLS_RSA_WITH_AES_256_GCM_SHA384": {
+    "canonical": "TLS-RSA-KX",
+    "family": "protocol"
+  },
   "crypto/rc4.NewCipher": {
     "canonical": "RC4",
     "family": "symmetric-cipher"

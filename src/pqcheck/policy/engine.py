@@ -35,6 +35,7 @@ _FAMILY_MAP: dict[AlgorithmFamily, PolicyFamily | None] = {
     AlgorithmFamily.KEY_AGREEMENT: PolicyFamily.KEY_AGREEMENT,
     AlgorithmFamily.ASYMMETRIC_ENCRYPTION: PolicyFamily.ASYMMETRIC_ENCRYPTION,
     AlgorithmFamily.RNG: PolicyFamily.RNG,
+    AlgorithmFamily.PROTOCOL: PolicyFamily.PROTOCOL,
 }
 
 

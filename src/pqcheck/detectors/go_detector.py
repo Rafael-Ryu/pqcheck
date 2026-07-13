@@ -84,8 +84,31 @@ _HPKE_KEM_CONSTANT_CATALOG_KEYS = (
     "github.com/cloudflare/circl/hpke.KEM_X25519_KYBER768_DRAFT00",
     "github.com/cloudflare/circl/hpke.KEM_XWING",
 )
+# B1 (TLS config analysis): legacy crypto/tls protocol-version constants and
+# the static-RSA-key-exchange cipher-suite family (no forward secrecy) —
+# never called, only referenced as plain selector expressions, same shape as
+# the hybrid-KEM constants above.
+_TLS_LEGACY_VERSION_CATALOG_KEYS = (
+    "crypto/tls.VersionTLS10",
+    "crypto/tls.VersionTLS11",
+    "crypto/tls.VersionSSL30",
+)
+_TLS_RSA_KX_CIPHER_SUITE_CATALOG_KEYS = (
+    "crypto/tls.TLS_RSA_WITH_RC4_128_SHA",
+    "crypto/tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA",
+    "crypto/tls.TLS_RSA_WITH_AES_128_CBC_SHA",
+    "crypto/tls.TLS_RSA_WITH_AES_256_CBC_SHA",
+    "crypto/tls.TLS_RSA_WITH_AES_128_CBC_SHA256",
+    "crypto/tls.TLS_RSA_WITH_AES_128_GCM_SHA256",
+    "crypto/tls.TLS_RSA_WITH_AES_256_GCM_SHA384",
+)
 _GO_CONSTANT_CATALOG_KEYS = frozenset(
-    ("crypto/tls.X25519MLKEM768", *_HPKE_KEM_CONSTANT_CATALOG_KEYS)
+    (
+        "crypto/tls.X25519MLKEM768",
+        *_HPKE_KEM_CONSTANT_CATALOG_KEYS,
+        *_TLS_LEGACY_VERSION_CATALOG_KEYS,
+        *_TLS_RSA_KX_CIPHER_SUITE_CATALOG_KEYS,
+    )
 )
 _METHOD_CONFIDENCE = 0.5
 _DOT_IMPORT_CONFIDENCE = 0.7

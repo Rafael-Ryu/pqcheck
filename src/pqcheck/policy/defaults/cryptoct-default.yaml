@@ -61,6 +61,10 @@ spec:
       action: warn
       severity: medium
     - { family: rng, algorithm: MATH-RAND, action: warn, severity: medium, reason: "math/rand (incl. rand/v2) is not cryptographically secure — use crypto/rand where randomness feeds key material, nonces, or tokens" }
+    - { family: protocol, algorithm: TLS-1.0, action: fail, severity: critical, reason: "Deprecated by RFC 8996 — no supported use remains" }
+    - { family: protocol, algorithm: TLS-1.1, action: fail, severity: critical, reason: "Deprecated by RFC 8996 — no supported use remains" }
+    - { family: protocol, algorithm: SSL-3.0, action: fail, severity: critical, reason: "Deprecated by RFC 8996 — no supported use remains" }
+    - { family: protocol, algorithm: TLS-RSA-KX, action: fail, severity: high, reason: "Static RSA key exchange — no forward secrecy" }
   exceptions:
     - id: EXC-001
       description: "GitHub App JWT requires RS256 per GitHub upstream limitation"

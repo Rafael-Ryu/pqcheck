@@ -571,6 +571,41 @@ def test_hpke_newsuite_with_classical_kem_constant_still_emits_generic_hpke() ->
     assert [f.algorithm for f in fs] == ["HPKE"]
 
 
+def test_tls_legacy_version_constants_resolve() -> None:
+    fs = _findings(
+        'package m\nimport "crypto/tls"\n'
+        "func f() {\n"
+        "    _ = &tls.Config{MinVersion: tls.VersionTLS10}\n"
+        "    _ = &tls.Config{MaxVersion: tls.VersionTLS11}\n"
+        "    _ = tls.VersionSSL30\n"
+        "}\n"
+    )
+    assert [f.algorithm for f in fs] == ["TLS-1.0", "TLS-1.1", "SSL-3.0"]
+    assert {f.family for f in fs} == {AlgorithmFamily.PROTOCOL}
+    assert [f.quantum_risk for f in fs] == [QuantumRisk.BROKEN] * 3
+
+
+def test_tls_rsa_kx_cipher_suite_constant_resolves() -> None:
+    fs = _findings(
+        'package m\nimport "crypto/tls"\n'
+        "func f() {\n"
+        "    _ = tls.TLS_RSA_WITH_AES_128_CBC_SHA\n"
+        "}\n"
+    )
+    assert [f.algorithm for f in fs] == ["TLS-RSA-KX"]
+    assert fs[0].family == AlgorithmFamily.PROTOCOL
+    assert fs[0].quantum_risk == QuantumRisk.VULNERABLE
+
+
+def test_tls_legacy_version_constant_gated_on_tls_import() -> None:
+    fs = _findings(
+        "package m\n"
+        "type tls struct{ VersionTLS10 int }\n"
+        "func f(t tls) int { return t.VersionTLS10 }\n"
+    )
+    assert fs == []
+
+
 def test_ecdh_method_on_locally_constructed_receiver_does_not_emit() -> None:
     # Regression: a package that both imports crypto/ecdh/ecdsa AND declares
     # its own `type ECDH struct{...}` with its own `ECDH()` method (real

@@ -31,6 +31,12 @@ class AlgorithmFamily(StrEnum):
     # ECDSA or ECDH — static analysis cannot tell which without following the
     # value into its consumer, so this family is deliberately neither.
     ELLIPTIC_CURVE = "elliptic-curve"
+    # TLS/SSL protocol-version and cipher-suite constants (crypto/tls, ssl) —
+    # a configuration choice rather than a primitive construction, but the
+    # constant-reference mechanism (PR #240) already resolves package-level
+    # symbols with no call site, so this family reuses it rather than adding
+    # a second detection path.
+    PROTOCOL = "protocol"
 
 
 class QuantumRisk(StrEnum):
@@ -221,6 +227,16 @@ _QUANTUM_MAP: dict[str, QuantumRisk] = {
     # the conservative (flagged) verdict rather than assuming the hybrid
     # case; a real hybrid deployment should be verified manually.
     "HPKE": QuantumRisk.VULNERABLE,
+    # B1 (TLS config analysis). RFC 8996 deprecates SSLv3/TLS 1.0/TLS 1.1
+    # outright — no known-good use remains, so BROKEN (same tier as
+    # MD5/RC4/DES above), not merely VULNERABLE.
+    "TLS-1.0": QuantumRisk.BROKEN,
+    "TLS-1.1": QuantumRisk.BROKEN,
+    "SSL-3.0": QuantumRisk.BROKEN,
+    # Grouped canonical for the tls.TLS_RSA_WITH_* cipher-suite family: static
+    # RSA key exchange with no forward secrecy. The RSA key exchange itself
+    # is Shor-breakable, same verdict as the standalone RSA entry above.
+    "TLS-RSA-KX": QuantumRisk.VULNERABLE,
 }
 
 

@@ -193,3 +193,21 @@ planted:
   - {path: python/pycryptodome_signatures.py, line: 18, algorithm: ECDSA}
   - {path: python/pycryptodome_signatures.py, line: 19, algorithm: EdDSA}
   - {path: python/pycryptodome_signatures.py, line: 21, algorithm: DH}
+
+  - {path: go/tls_config.go, line: 11, algorithm: TLS-1.0}
+  - {path: go/tls_config.go, line: 12, algorithm: TLS-1.1}
+  - {path: go/tls_config.go, line: 13, algorithm: SSL-3.0}
+  - {path: go/tls_config.go, line: 14, algorithm: TLS-RSA-KX}
+  - {path: go/tls_config.go, line: 15, algorithm: TLS-RSA-KX}
+  - {path: go/tls_config.go, line: 16, algorithm: TLS-RSA-KX}
+  - {path: go/tls_config.go, line: 17, algorithm: TLS-RSA-KX}
+  - {path: go/tls_config.go, line: 18, algorithm: TLS-RSA-KX}
+  - {path: go/tls_config.go, line: 19, algorithm: TLS-RSA-KX}
+  - {path: go/tls_config.go, line: 20, algorithm: TLS-RSA-KX}
+
+  - {path: python/tls_config.py, line: 9, algorithm: TLS-1.0}
+  - {path: python/tls_config.py, line: 10, algorithm: TLS-1.1}
+  - {path: python/tls_config.py, line: 11, algorithm: SSL-3.0}
+  - {path: python/tls_config.py, line: 12, algorithm: TLS-1.0}
+  - {path: python/tls_config.py, line: 13, algorithm: TLS-1.1}
+  - {path: python/tls_config.py, line: 14, algorithm: SSL-3.0}
