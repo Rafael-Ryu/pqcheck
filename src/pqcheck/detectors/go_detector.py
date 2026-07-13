@@ -340,9 +340,14 @@ class GoDetector:
     def _emit(self, node: Node, hit: AlgorithmHit, *, confidence: float) -> None:
         key_size = hit.key_size
         curve = hit.curve
-        if hit.canonical == "RSA":
+        # rsa.GenerateKey/ecdsa.GenerateKey carry no static key_size/curve in
+        # the catalog (it's a runtime call argument) -- extract it from the
+        # call site. Entries that DO carry one statically (tink-go's fixed-
+        # parameter key templates, e.g. ECDSAP256KeyTemplate() with no args)
+        # keep the catalog value rather than being blanked by a no-arg call.
+        if hit.canonical == "RSA" and key_size is None:
             key_size = self._second_arg_int(node)
-        elif hit.canonical == "ECDSA":
+        elif hit.canonical == "ECDSA" and curve is None:
             curve = self._first_arg_curve(node)
         location = SourceLocation(
             path=self._path,

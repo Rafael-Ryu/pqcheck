@@ -529,3 +529,107 @@ def test_ecdh_p256_generatekey_chain_still_does_not_double_count() -> None:
         "func f() { ecdh.P256().GenerateKey(rand.Reader) }\n"
     )
     assert [f.algorithm for f in fs] == ["ECDH"]
+
+
+# ---- Go catalog depth (W1) ----
+
+
+def test_argon2_and_bcrypt_kdfs_resolve() -> None:
+    fs = _findings(
+        'package m\nimport (\n "golang.org/x/crypto/argon2"\n "golang.org/x/crypto/bcrypt"\n)\n'
+        "func f() {\n"
+        '    argon2.IDKey([]byte("p"), []byte("s"), 1, 64*1024, 4, 32)\n'
+        '    bcrypt.GenerateFromPassword([]byte("p"), bcrypt.DefaultCost)\n'
+        "}\n"
+    )
+    assert [f.algorithm for f in fs] == ["ARGON2", "BCRYPT"]
+
+
+def test_stdlib_hkdf_and_pbkdf2_resolve() -> None:
+    # Go 1.24 moved hkdf/pbkdf2 into stdlib; real-world code (age, go-jose)
+    # has already migrated off golang.org/x/crypto for these (corpus v2).
+    fs = _findings(
+        'package m\nimport (\n "crypto/hkdf"\n "crypto/pbkdf2"\n "crypto/sha256"\n)\n'
+        "func f() {\n"
+        '    pbkdf2.Key(sha256.New, "p", []byte("s"), 4096, 32)\n'
+        '    hkdf.Key(sha256.New, []byte("s"), []byte("salt"), "info", 32)\n'
+        "}\n"
+    )
+    assert [f.algorithm for f in fs] == ["PBKDF2", "HKDF"]
+
+
+def test_nacl_secretbox_and_twofish_resolve() -> None:
+    fs = _findings(
+        'package m\nimport (\n "golang.org/x/crypto/nacl/secretbox"\n'
+        ' "golang.org/x/crypto/twofish"\n)\n'
+        "func f() {\n"
+        "    var key [32]byte\n"
+        "    var nonce [24]byte\n"
+        '    secretbox.Seal(nil, []byte("m"), &nonce, &key)\n'
+        '    twofish.NewCipher([]byte("0123456789abcdef"))\n'
+        "}\n"
+    )
+    assert {f.algorithm for f in fs} == {"XSALSA20-POLY1305", "Twofish"}
+
+
+def test_circl_mlkem_and_ed25519_resolve() -> None:
+    fs = _findings(
+        'package m\nimport (\n "crypto/rand"\n'
+        ' "github.com/cloudflare/circl/kem/mlkem/mlkem768"\n'
+        ' "github.com/cloudflare/circl/sign/ed25519"\n)\n'
+        "func f() {\n"
+        "    mlkem768.GenerateKeyPair(rand.Reader)\n"
+        "    ed25519.GenerateKey(rand.Reader)\n"
+        "}\n"
+    )
+    ml = [f for f in fs if f.algorithm == "ML-KEM"]
+    assert len(ml) == 1
+    assert ml[0].key_size == 768
+    ed = [f for f in fs if f.algorithm == "EdDSA"]
+    assert len(ed) == 1
+    assert ed[0].curve == "Ed25519"
+
+
+def test_tink_key_templates_resolve() -> None:
+    fs = _findings(
+        'package m\nimport (\n "github.com/tink-crypto/tink-go/v2/aead"\n'
+        ' "github.com/tink-crypto/tink-go/v2/signature"\n)\n'
+        "func f() {\n"
+        "    aead.AES256GCMKeyTemplate()\n"
+        "    signature.ECDSAP256KeyTemplate()\n"
+        "}\n"
+    )
+    assert [(f.algorithm, f.curve) for f in fs] == [("AES", None), ("ECDSA", "P-256")]
+
+
+def test_hmac_new_resolves() -> None:
+    fs = _findings(
+        'package m\nimport (\n "crypto/hmac"\n "crypto/sha256"\n)\n'
+        'func f() { hmac.New(sha256.New, []byte("k")) }\n'
+    )
+    assert [f.algorithm for f in fs] == ["HMAC"]
+
+
+def test_rsa_key_size_hex_literal_resolves() -> None:
+    # _int_literal parses with base 0, so a hex bit-size resolves like decimal.
+    fs = _findings(
+        'package m\nimport (\n "crypto/rsa"\n "crypto/rand"\n)\n'
+        "func f() { rsa.GenerateKey(rand.Reader, 0x800) }\n"
+    )
+    rsa = [f for f in fs if f.algorithm == "RSA"]
+    assert len(rsa) == 1
+    assert rsa[0].key_size == 0x800
+
+
+def test_rsa_key_size_const_identifier_does_not_resolve() -> None:
+    # A named constant requires tracking its declaration's value — beyond
+    # the tree-sitter floor's scope (no dataflow). key_size stays None rather
+    # than guessing; this documents the expected (non-bug) behavior.
+    fs = _findings(
+        'package m\nimport (\n "crypto/rsa"\n "crypto/rand"\n)\n'
+        "const bits = 2048\n"
+        "func f() { rsa.GenerateKey(rand.Reader, bits) }\n"
+    )
+    rsa = [f for f in fs if f.algorithm == "RSA"]
+    assert len(rsa) == 1
+    assert rsa[0].key_size is None

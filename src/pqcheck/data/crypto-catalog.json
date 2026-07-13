@@ -487,5 +487,270 @@
   "math/rand/v2.Rand.Uint64": {
     "canonical": "MATH-RAND",
     "family": "random"
+  },
+  "golang.org/x/crypto/argon2.IDKey": {
+    "canonical": "ARGON2",
+    "family": "key-derivation"
+  },
+  "golang.org/x/crypto/argon2.Key": {
+    "canonical": "ARGON2",
+    "family": "key-derivation"
+  },
+  "golang.org/x/crypto/bcrypt.GenerateFromPassword": {
+    "canonical": "BCRYPT",
+    "family": "key-derivation"
+  },
+  "golang.org/x/crypto/bcrypt.CompareHashAndPassword": {
+    "canonical": "BCRYPT",
+    "family": "key-derivation"
+  },
+  "golang.org/x/crypto/scrypt.Key": {
+    "canonical": "SCRYPT",
+    "family": "key-derivation"
+  },
+  "golang.org/x/crypto/pbkdf2.Key": {
+    "canonical": "PBKDF2",
+    "family": "key-derivation"
+  },
+  "golang.org/x/crypto/hkdf.New": {
+    "canonical": "HKDF",
+    "family": "key-derivation"
+  },
+  "golang.org/x/crypto/hkdf.Extract": {
+    "canonical": "HKDF",
+    "family": "key-derivation"
+  },
+  "golang.org/x/crypto/hkdf.Expand": {
+    "canonical": "HKDF",
+    "family": "key-derivation"
+  },
+  "golang.org/x/crypto/salsa20.XORKeyStream": {
+    "canonical": "SALSA20",
+    "family": "symmetric-cipher"
+  },
+  "golang.org/x/crypto/nacl/secretbox.Seal": {
+    "canonical": "XSALSA20-POLY1305",
+    "family": "authenticated-encryption"
+  },
+  "golang.org/x/crypto/nacl/secretbox.Open": {
+    "canonical": "XSALSA20-POLY1305",
+    "family": "authenticated-encryption"
+  },
+  "golang.org/x/crypto/nacl/box.GenerateKey": {
+    "canonical": "X25519",
+    "family": "key-agreement"
+  },
+  "golang.org/x/crypto/nacl/box.Seal": {
+    "canonical": "XSALSA20-POLY1305",
+    "family": "authenticated-encryption"
+  },
+  "golang.org/x/crypto/nacl/box.Open": {
+    "canonical": "XSALSA20-POLY1305",
+    "family": "authenticated-encryption"
+  },
+  "golang.org/x/crypto/nacl/sign.GenerateKey": {
+    "canonical": "EdDSA",
+    "family": "signature",
+    "curve": "Ed25519"
+  },
+  "golang.org/x/crypto/twofish.NewCipher": {
+    "canonical": "Twofish",
+    "family": "symmetric-cipher"
+  },
+  "golang.org/x/crypto/cast5.NewCipher": {
+    "canonical": "CAST5",
+    "family": "symmetric-cipher"
+  },
+  "golang.org/x/crypto/tea.NewCipher": {
+    "canonical": "TEA",
+    "family": "symmetric-cipher"
+  },
+  "golang.org/x/crypto/tea.NewCipherWithRounds": {
+    "canonical": "TEA",
+    "family": "symmetric-cipher"
+  },
+  "golang.org/x/crypto/md4.New": {
+    "canonical": "MD4",
+    "family": "hash"
+  },
+  "github.com/cloudflare/circl/kem/kyber/kyber512.GenerateKeyPair": {
+    "canonical": "KYBER",
+    "family": "key-encapsulation",
+    "key_size": 512
+  },
+  "github.com/cloudflare/circl/kem/kyber/kyber768.GenerateKeyPair": {
+    "canonical": "KYBER",
+    "family": "key-encapsulation",
+    "key_size": 768
+  },
+  "github.com/cloudflare/circl/kem/kyber/kyber1024.GenerateKeyPair": {
+    "canonical": "KYBER",
+    "family": "key-encapsulation",
+    "key_size": 1024
+  },
+  "github.com/cloudflare/circl/kem/mlkem/mlkem512.GenerateKeyPair": {
+    "canonical": "ML-KEM",
+    "family": "key-encapsulation",
+    "key_size": 512
+  },
+  "github.com/cloudflare/circl/kem/mlkem/mlkem768.GenerateKeyPair": {
+    "canonical": "ML-KEM",
+    "family": "key-encapsulation",
+    "key_size": 768
+  },
+  "github.com/cloudflare/circl/kem/mlkem/mlkem1024.GenerateKeyPair": {
+    "canonical": "ML-KEM",
+    "family": "key-encapsulation",
+    "key_size": 1024
+  },
+  "github.com/cloudflare/circl/sign/dilithium/mode2.GenerateKey": {
+    "canonical": "DILITHIUM",
+    "family": "signature",
+    "key_size": 2
+  },
+  "github.com/cloudflare/circl/sign/dilithium/mode3.GenerateKey": {
+    "canonical": "DILITHIUM",
+    "family": "signature",
+    "key_size": 3
+  },
+  "github.com/cloudflare/circl/sign/dilithium/mode5.GenerateKey": {
+    "canonical": "DILITHIUM",
+    "family": "signature",
+    "key_size": 5
+  },
+  "github.com/cloudflare/circl/sign/mldsa/mldsa44.GenerateKey": {
+    "canonical": "ML-DSA",
+    "family": "signature",
+    "key_size": 44
+  },
+  "github.com/cloudflare/circl/sign/mldsa/mldsa65.GenerateKey": {
+    "canonical": "ML-DSA",
+    "family": "signature",
+    "key_size": 65
+  },
+  "github.com/cloudflare/circl/sign/mldsa/mldsa87.GenerateKey": {
+    "canonical": "ML-DSA",
+    "family": "signature",
+    "key_size": 87
+  },
+  "github.com/cloudflare/circl/sign/ed25519.GenerateKey": {
+    "canonical": "EdDSA",
+    "family": "signature",
+    "curve": "Ed25519"
+  },
+  "github.com/cloudflare/circl/sign/ed448.GenerateKey": {
+    "canonical": "EdDSA",
+    "family": "signature",
+    "curve": "Ed448"
+  },
+  "github.com/cloudflare/circl/dh/x25519.KeyGen": {
+    "canonical": "X25519",
+    "family": "key-agreement"
+  },
+  "github.com/cloudflare/circl/dh/x448.KeyGen": {
+    "canonical": "X448",
+    "family": "key-agreement"
+  },
+  "github.com/cloudflare/circl/hpke.NewSuite": {
+    "canonical": "HPKE",
+    "family": "key-encapsulation"
+  },
+  "github.com/tink-crypto/tink-go/v2/aead.AES128GCMKeyTemplate": {
+    "canonical": "AES",
+    "family": "authenticated-encryption",
+    "key_size": 128
+  },
+  "github.com/tink-crypto/tink-go/v2/aead.AES256GCMKeyTemplate": {
+    "canonical": "AES",
+    "family": "authenticated-encryption",
+    "key_size": 256
+  },
+  "github.com/tink-crypto/tink-go/v2/aead.AES128CTRHMACSHA256KeyTemplate": {
+    "canonical": "AES",
+    "family": "authenticated-encryption",
+    "key_size": 128
+  },
+  "github.com/tink-crypto/tink-go/v2/aead.AES256CTRHMACSHA256KeyTemplate": {
+    "canonical": "AES",
+    "family": "authenticated-encryption",
+    "key_size": 256
+  },
+  "github.com/tink-crypto/tink-go/v2/aead.AES128GCMSIVKeyTemplate": {
+    "canonical": "AES",
+    "family": "authenticated-encryption",
+    "key_size": 128
+  },
+  "github.com/tink-crypto/tink-go/v2/aead.AES256GCMSIVKeyTemplate": {
+    "canonical": "AES",
+    "family": "authenticated-encryption",
+    "key_size": 256
+  },
+  "github.com/tink-crypto/tink-go/v2/aead.ChaCha20Poly1305KeyTemplate": {
+    "canonical": "CHACHA20",
+    "family": "authenticated-encryption"
+  },
+  "github.com/tink-crypto/tink-go/v2/aead.XChaCha20Poly1305KeyTemplate": {
+    "canonical": "CHACHA20",
+    "family": "authenticated-encryption"
+  },
+  "github.com/tink-crypto/tink-go/v2/signature.ECDSAP256KeyTemplate": {
+    "canonical": "ECDSA",
+    "family": "signature",
+    "curve": "P-256"
+  },
+  "github.com/tink-crypto/tink-go/v2/signature.ECDSAP384SHA384KeyTemplate": {
+    "canonical": "ECDSA",
+    "family": "signature",
+    "curve": "P-384"
+  },
+  "github.com/tink-crypto/tink-go/v2/signature.ECDSAP521KeyTemplate": {
+    "canonical": "ECDSA",
+    "family": "signature",
+    "curve": "P-521"
+  },
+  "github.com/tink-crypto/tink-go/v2/signature.ED25519KeyTemplate": {
+    "canonical": "EdDSA",
+    "family": "signature",
+    "curve": "Ed25519"
+  },
+  "github.com/tink-crypto/tink-go/v2/signature.RSA_SSA_PKCS1_3072_SHA256_F4_Key_Template": {
+    "canonical": "RSA",
+    "family": "signature",
+    "key_size": 3072
+  },
+  "github.com/tink-crypto/tink-go/v2/signature.RSA_SSA_PKCS1_4096_SHA512_F4_Key_Template": {
+    "canonical": "RSA",
+    "family": "signature",
+    "key_size": 4096
+  },
+  "github.com/tink-crypto/tink-go/v2/signature.RSA_SSA_PSS_3072_SHA256_32_F4_Key_Template": {
+    "canonical": "RSA",
+    "family": "signature",
+    "key_size": 3072
+  },
+  "github.com/tink-crypto/tink-go/v2/signature.RSA_SSA_PSS_4096_SHA512_64_F4_Key_Template": {
+    "canonical": "RSA",
+    "family": "signature",
+    "key_size": 4096
+  },
+  "crypto/hmac.New": {
+    "canonical": "HMAC",
+    "family": "message-authentication"
+  },
+  "crypto/pbkdf2.Key": {
+    "canonical": "PBKDF2",
+    "family": "key-derivation"
+  },
+  "crypto/hkdf.Extract": {
+    "canonical": "HKDF",
+    "family": "key-derivation"
+  },
+  "crypto/hkdf.Expand": {
+    "canonical": "HKDF",
+    "family": "key-derivation"
+  },
+  "crypto/hkdf.Key": {
+    "canonical": "HKDF",
+    "family": "key-derivation"
   }
 }

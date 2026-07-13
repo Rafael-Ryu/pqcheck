@@ -32,14 +32,15 @@ planted:
 
   - {path: python/star_import.py, line: 8, algorithm: MD5}
 
-  - {path: go/hashes_and_ciphers.go, line: 21, algorithm: MD5}
-  - {path: go/hashes_and_ciphers.go, line: 22, algorithm: SHA-1}
-  - {path: go/hashes_and_ciphers.go, line: 23, algorithm: DES}
-  - {path: go/hashes_and_ciphers.go, line: 24, algorithm: 3DES}
-  - {path: go/hashes_and_ciphers.go, line: 25, algorithm: RC4}
-  - {path: go/hashes_and_ciphers.go, line: 26, algorithm: Blowfish}
-  - {path: go/hashes_and_ciphers.go, line: 27, algorithm: RIPEMD-160}
-  - {path: go/hashes_and_ciphers.go, line: 28, algorithm: CHACHA20}
+  - {path: go/hashes_and_ciphers.go, line: 23, algorithm: MD5}
+  - {path: go/hashes_and_ciphers.go, line: 24, algorithm: SHA-1}
+  - {path: go/hashes_and_ciphers.go, line: 25, algorithm: DES}
+  - {path: go/hashes_and_ciphers.go, line: 26, algorithm: 3DES}
+  - {path: go/hashes_and_ciphers.go, line: 27, algorithm: RC4}
+  - {path: go/hashes_and_ciphers.go, line: 28, algorithm: Blowfish}
+  - {path: go/hashes_and_ciphers.go, line: 29, algorithm: RIPEMD-160}
+  - {path: go/hashes_and_ciphers.go, line: 30, algorithm: CHACHA20}
+  - {path: go/hashes_and_ciphers.go, line: 31, algorithm: HMAC}
 
   - {path: go/keys.go, line: 18, algorithm: RSA}
   - {path: go/keys.go, line: 19, algorithm: ECDSA}
@@ -48,6 +49,71 @@ planted:
   - {path: go/keys.go, line: 23, algorithm: X25519}
 
   - {path: go/dot_import.go, line: 12, algorithm: SHA-256}
+
+  - {path: go/kdfs.go, line: 20, algorithm: ARGON2}
+  - {path: go/kdfs.go, line: 21, algorithm: ARGON2}
+  - {path: go/kdfs.go, line: 22, algorithm: BCRYPT}
+  - {path: go/kdfs.go, line: 23, algorithm: BCRYPT}
+  - {path: go/kdfs.go, line: 24, algorithm: SCRYPT}
+  - {path: go/kdfs.go, line: 25, algorithm: PBKDF2}
+  - {path: go/kdfs.go, line: 26, algorithm: HKDF}
+  - {path: go/kdfs.go, line: 27, algorithm: HKDF}
+  - {path: go/kdfs.go, line: 28, algorithm: HKDF}
+
+  - {path: go/stdlib_kdfs.go, line: 18, algorithm: PBKDF2}
+  - {path: go/stdlib_kdfs.go, line: 19, algorithm: HKDF}
+  - {path: go/stdlib_kdfs.go, line: 20, algorithm: HKDF}
+  - {path: go/stdlib_kdfs.go, line: 21, algorithm: HKDF}
+
+  - {path: go/nacl_and_stream.go, line: 20, algorithm: SALSA20}
+  - {path: go/nacl_and_stream.go, line: 21, algorithm: XSALSA20-POLY1305}
+  - {path: go/nacl_and_stream.go, line: 22, algorithm: XSALSA20-POLY1305}
+  - {path: go/nacl_and_stream.go, line: 23, algorithm: X25519}
+  - {path: go/nacl_and_stream.go, line: 24, algorithm: XSALSA20-POLY1305}
+  - {path: go/nacl_and_stream.go, line: 25, algorithm: XSALSA20-POLY1305}
+  - {path: go/nacl_and_stream.go, line: 26, algorithm: EdDSA}
+
+  - {path: go/legacy_ciphers.go, line: 16, algorithm: Twofish}
+  - {path: go/legacy_ciphers.go, line: 17, algorithm: CAST5}
+  - {path: go/legacy_ciphers.go, line: 18, algorithm: TEA}
+  - {path: go/legacy_ciphers.go, line: 19, algorithm: TEA}
+  - {path: go/legacy_ciphers.go, line: 20, algorithm: MD4}
+
+  - {path: go/circl_pqc.go, line: 25, algorithm: KYBER}
+  - {path: go/circl_pqc.go, line: 26, algorithm: KYBER}
+  - {path: go/circl_pqc.go, line: 27, algorithm: KYBER}
+  - {path: go/circl_pqc.go, line: 28, algorithm: ML-KEM}
+  - {path: go/circl_pqc.go, line: 29, algorithm: ML-KEM}
+  - {path: go/circl_pqc.go, line: 30, algorithm: ML-KEM}
+  - {path: go/circl_pqc.go, line: 31, algorithm: DILITHIUM}
+  - {path: go/circl_pqc.go, line: 32, algorithm: DILITHIUM}
+  - {path: go/circl_pqc.go, line: 33, algorithm: DILITHIUM}
+  - {path: go/circl_pqc.go, line: 34, algorithm: ML-DSA}
+  - {path: go/circl_pqc.go, line: 35, algorithm: ML-DSA}
+  - {path: go/circl_pqc.go, line: 36, algorithm: ML-DSA}
+
+  - {path: go/circl_classical.go, line: 18, algorithm: EdDSA}
+  - {path: go/circl_classical.go, line: 19, algorithm: EdDSA}
+  - {path: go/circl_classical.go, line: 21, algorithm: X25519}
+  - {path: go/circl_classical.go, line: 23, algorithm: X448}
+  - {path: go/circl_classical.go, line: 24, algorithm: HPKE}
+
+  - {path: go/tink.go, line: 13, algorithm: AES}
+  - {path: go/tink.go, line: 14, algorithm: AES}
+  - {path: go/tink.go, line: 15, algorithm: AES}
+  - {path: go/tink.go, line: 16, algorithm: AES}
+  - {path: go/tink.go, line: 17, algorithm: AES}
+  - {path: go/tink.go, line: 18, algorithm: AES}
+  - {path: go/tink.go, line: 19, algorithm: CHACHA20}
+  - {path: go/tink.go, line: 20, algorithm: CHACHA20}
+  - {path: go/tink.go, line: 21, algorithm: ECDSA}
+  - {path: go/tink.go, line: 22, algorithm: ECDSA}
+  - {path: go/tink.go, line: 23, algorithm: ECDSA}
+  - {path: go/tink.go, line: 24, algorithm: EdDSA}
+  - {path: go/tink.go, line: 25, algorithm: RSA}
+  - {path: go/tink.go, line: 26, algorithm: RSA}
+  - {path: go/tink.go, line: 27, algorithm: RSA}
+  - {path: go/tink.go, line: 28, algorithm: RSA}
 
   - {path: python/pqc.py, line: 13, algorithm: ML-KEM}
   - {path: python/pqc.py, line: 14, algorithm: ML-DSA}
