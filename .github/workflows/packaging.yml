@@ -52,6 +52,9 @@ jobs:
         with:
           python-version: "3.12"
       - name: Smoke-test the bundled analyzer on the container-built wheel
+        # This runner is glibc: the wheelhouse now holds both the manylinux
+        # and musllinux x86_64 wheels. `head -1` relies on "manylinux"
+        # sorting before "musllinux" to pick the one this host can install.
         shell: bash
         run: |
           whl=$(ls wheelhouse/*.whl | head -1)

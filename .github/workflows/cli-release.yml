@@ -86,6 +86,11 @@ jobs:
       # `pqcheck --help` alone never enters the analyzer; this drives the bridge
       # through the real SHA-256 pin over a real module. `go` is on PATH (setup-go).
       - name: Smoke-test the bundled analyzer on its native wheel
+        # ubuntu-latest is glibc: with musllinux no longer skipped, this
+        # runner's wheelhouse holds both the manylinux and musllinux x86_64
+        # wheels. `head -1` relies on "manylinux" sorting before "musllinux"
+        # to land on the one this host can actually install; the musllinux
+        # wheel isn't smoke-tested here (no musl runner in this matrix).
         shell: bash
         run: |
           whl=$(ls wheelhouse/*.whl | head -1)
@@ -129,16 +134,24 @@ jobs:
               || { echo "missing SHA-256 pin (_constants.py) in $whl"; exit 1; }
           done
       - name: Smoke-test the linux wheel
-        # The ubuntu runner can only install the linux wheel; running the entry
-        # point catches a broken import or console-script before users do.
+        # The ubuntu runner is glibc, so it can only install the manylinux
+        # wheel; the musllinux one (same bundled binary, musl-tagged) would
+        # be rejected as an incompatible platform. Match on the tag itself
+        # rather than "first linux wheel found", now that both ship from the
+        # same job. Running the entry point catches a broken import or
+        # console-script before users do.
         run: |
           linux_whl=""
           for whl in dist/*.whl; do
-            if unzip -l "$whl" | grep -q 'pqcheck/bin/linux-amd64/crypto-analyzer'; then
-              linux_whl="$whl"; break
-            fi
+            case "$whl" in
+              *manylinux*)
+                if unzip -l "$whl" | grep -q 'pqcheck/bin/linux-amd64/crypto-analyzer'; then
+                  linux_whl="$whl"; break
+                fi
+                ;;
+            esac
           done
-          [ -n "$linux_whl" ] || { echo "no linux wheel to smoke-test"; exit 1; }
+          [ -n "$linux_whl" ] || { echo "no manylinux wheel to smoke-test"; exit 1; }
           uv run --no-project --with "$linux_whl" pqcheck --help
       # Publish first, while dist/ holds only wheels; signing adds .sigstore
       # bundles that PyPI must not receive.
