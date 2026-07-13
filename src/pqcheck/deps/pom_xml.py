@@ -116,13 +116,14 @@ def _child_text(element: etree._Element, local_name: str) -> str | None:
 
 
 def _collect_properties(root: etree._Element) -> dict[str, str]:
-    """Return name -> value for entries in the top-level <properties> block.
+    """Return name -> value for entries in the top-level <properties> block,
+    plus a minimal subset of Maven built-in properties.
 
     Nested property blocks inside profiles or build configs are ignored
     for v0.1 — covering them requires profile activation logic that
     belongs in the Phase 3 effective-pom resolver.
     """
-    properties: dict[str, str] = {}
+    properties: dict[str, str] = _collect_builtin_properties(root)
     for child in root:
         if _local(child.tag) != "properties":
             continue
@@ -134,6 +135,40 @@ def _collect_properties(root: etree._Element) -> dict[str, str]:
                 if stripped:
                     properties[name] = stripped
     return properties
+
+
+def _collect_builtin_properties(root: etree._Element) -> dict[str, str]:
+    """Resolve a minimal subset of Maven's built-in `project.*` properties
+    from the POM's own coordinates, falling back to <parent> per the
+    standard Maven inheritance rule (a module without its own <version>/
+    <groupId> inherits from its parent). Full effective-pom resolution
+    (multi-level parent chains, profiles, etc.) is Phase 3 per spec 03:422;
+    this only covers the direct parent, one level up.
+    """
+    parent: etree._Element | None = None
+    for child in root:
+        if _local(child.tag) == "parent":
+            parent = child
+            break
+
+    version = _child_text(root, "version")
+    if version is None and parent is not None:
+        version = _child_text(parent, "version")
+
+    group_id = _child_text(root, "groupId")
+    if group_id is None and parent is not None:
+        group_id = _child_text(parent, "groupId")
+
+    artifact_id = _child_text(root, "artifactId")
+
+    builtins: dict[str, str] = {}
+    if version is not None:
+        builtins["project.version"] = version
+    if group_id is not None:
+        builtins["project.groupId"] = group_id
+    if artifact_id is not None:
+        builtins["project.artifactId"] = artifact_id
+    return builtins
 
 
 def _iter_dependency_elements(root: etree._Element) -> list[etree._Element]:

@@ -380,6 +380,90 @@ def test_parse_rejects_billion_laughs_payload(tmp_path: Path) -> None:
         assert "lol" * 50 not in dep.name
 
 
+def test_parse_resolves_project_version_builtin(tmp_path: Path) -> None:
+    f = _write(tmp_path, """<?xml version="1.0"?>
+<project>
+  <groupId>com.example</groupId>
+  <artifactId>demo</artifactId>
+  <version>3.4.5</version>
+  <dependencies>
+    <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bcprov-jdk18on</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+  </dependencies>
+</project>
+""")
+    deps = parse(f)
+    assert deps[0].version == "3.4.5"
+
+
+def test_parse_resolves_project_version_from_parent(tmp_path: Path) -> None:
+    # A module POM without its own <version> inherits from <parent>, per
+    # standard Maven inheritance.
+    f = _write(tmp_path, """<?xml version="1.0"?>
+<project>
+  <parent>
+    <groupId>com.example</groupId>
+    <artifactId>demo-parent</artifactId>
+    <version>7.0.0</version>
+  </parent>
+  <artifactId>demo-module</artifactId>
+  <dependencies>
+    <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bcprov-jdk18on</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+  </dependencies>
+</project>
+""")
+    deps = parse(f)
+    assert deps[0].version == "7.0.0"
+
+
+def test_parse_resolves_project_group_id_builtin(tmp_path: Path) -> None:
+    # Only <version> text goes through property substitution (pre-existing
+    # scope); this confirms project.groupId is available in that map.
+    f = _write(tmp_path, """<?xml version="1.0"?>
+<project>
+  <groupId>com.example</groupId>
+  <artifactId>demo</artifactId>
+  <version>1.0.0</version>
+  <dependencies>
+    <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bcprov-jdk18on</artifactId>
+      <version>${project.groupId}-1.78</version>
+    </dependency>
+  </dependencies>
+</project>
+""")
+    deps = parse(f)
+    assert deps[0].version == "com.example-1.78"
+
+
+def test_parse_unresolvable_builtin_property_emits_none(tmp_path: Path) -> None:
+    # No <version> anywhere (own or parent) means ${project.version} stays
+    # unresolvable; fail closed rather than guess.
+    f = _write(tmp_path, """<?xml version="1.0"?>
+<project>
+  <groupId>com.example</groupId>
+  <artifactId>demo</artifactId>
+  <dependencies>
+    <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bcprov-jdk18on</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+  </dependencies>
+</project>
+""")
+    deps = parse(f)
+    assert deps[0].version is None
+
+
 def test_parse_oversized_file_returns_empty_list(tmp_path: Path) -> None:
     f = tmp_path / "huge.xml"
     # Build a payload that is just over the cap. The body doesn't need to
