@@ -56,15 +56,33 @@ def demote(severity: Severity, action: SeverityRuleAction) -> Severity:
     return _SEVERITY_ORDER[idx]
 
 
+def _parameter_sets_matches(rule: AlgorithmRule, finding: CryptoFinding) -> bool:
+    if rule.parameter_sets is None:
+        return True
+    token = str(finding.key_size) if finding.key_size is not None else None
+    return token in rule.parameter_sets
+
+
+def _parameter_sets_below_matches(rule: AlgorithmRule, finding: CryptoFinding) -> bool:
+    # Only a literal int key_size can be compared numerically. A str (PQC
+    # parameter-set identifier) or None (variable/computed argument, or a
+    # symbol the detector never extracts from) never matches — a threshold
+    # rule must not silently fire on data it cannot actually evaluate.
+    if rule.parameter_sets_below is None:
+        return True
+    key_size = finding.key_size
+    return isinstance(key_size, int) and key_size < rule.parameter_sets_below
+
+
 def rule_matches(rule: AlgorithmRule, finding: CryptoFinding) -> bool:
     if _FAMILY_MAP.get(finding.family) != rule.family:
         return False
     if rule.algorithm.upper() != finding.algorithm.upper():
         return False
-    if rule.parameter_sets is not None:
-        token = str(finding.key_size) if finding.key_size is not None else None
-        if token not in rule.parameter_sets:
-            return False
+    if not (
+        _parameter_sets_matches(rule, finding) and _parameter_sets_below_matches(rule, finding)
+    ):
+        return False
     if rule.curves is not None and finding.curve not in rule.curves:
         return False
     if rule.paddings is not None and finding.padding not in rule.paddings:

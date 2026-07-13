@@ -291,10 +291,13 @@ _PYTHON_SYMBOLS: dict[str, AlgorithmHit] = {
     # calls when decrypting bcrypt-encrypted private keys.
     "bcrypt.kdf": AlgorithmHit("BCRYPT", _KDF),
     # ---- python-bcrypt (password hashing entry points) ----
-    # gensalt() only mints a cost-factor salt, no hash/verify computation is
-    # performed at that call site, so it stays out of the catalog (same
-    # "construction site, not the primitive itself" reasoning as
-    # Fernet.generate_key and ECC.construct below).
+    # gensalt() performs no hash/verify computation itself, but it is the one
+    # call site that carries the work-factor literal (rounds=) — hashpw/checkpw
+    # never see it directly — so B2 (weak-KDF-parameter policy gating) needs it
+    # catalogued. This reverses the prior "construction site, not the primitive"
+    # exclusion for gensalt specifically; Fernet.generate_key/ECC.construct below
+    # stay excluded since neither carries a gateable parameter.
+    "bcrypt.gensalt": AlgorithmHit("BCRYPT", _KDF),
     "bcrypt.hashpw": AlgorithmHit("BCRYPT", _KDF),
     "bcrypt.checkpw": AlgorithmHit("BCRYPT", _KDF),
     # ---- stdlib hmac ----

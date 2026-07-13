@@ -59,11 +59,23 @@ planted:
   - {path: go/kdfs.go, line: 26, algorithm: HKDF}
   - {path: go/kdfs.go, line: 27, algorithm: HKDF}
   - {path: go/kdfs.go, line: 28, algorithm: HKDF}
+  - {path: go/kdfs.go, line: 34, algorithm: PBKDF2}
+  - {path: go/kdfs.go, line: 35, algorithm: PBKDF2}
+  - {path: go/kdfs.go, line: 36, algorithm: PBKDF2}
+  - {path: go/kdfs.go, line: 38, algorithm: SCRYPT}
+  - {path: go/kdfs.go, line: 39, algorithm: SCRYPT}
+  - {path: go/kdfs.go, line: 40, algorithm: SCRYPT}
+  - {path: go/kdfs.go, line: 42, algorithm: BCRYPT}
+  - {path: go/kdfs.go, line: 43, algorithm: BCRYPT}
+  - {path: go/kdfs.go, line: 44, algorithm: BCRYPT}
 
   - {path: go/stdlib_kdfs.go, line: 18, algorithm: PBKDF2}
   - {path: go/stdlib_kdfs.go, line: 19, algorithm: HKDF}
   - {path: go/stdlib_kdfs.go, line: 20, algorithm: HKDF}
   - {path: go/stdlib_kdfs.go, line: 21, algorithm: HKDF}
+  - {path: go/stdlib_kdfs.go, line: 28, algorithm: PBKDF2}
+  - {path: go/stdlib_kdfs.go, line: 29, algorithm: PBKDF2}
+  - {path: go/stdlib_kdfs.go, line: 30, algorithm: PBKDF2}
 
   - {path: go/nacl_and_stream.go, line: 20, algorithm: SALSA20}
   - {path: go/nacl_and_stream.go, line: 21, algorithm: XSALSA20-POLY1305}
@@ -168,6 +180,7 @@ planted:
   - {path: python/kdf_mac.py, line: 37, algorithm: ARGON2}
   - {path: python/kdf_mac.py, line: 38, algorithm: ARGON2}
   - {path: python/kdf_mac.py, line: 39, algorithm: ARGON2}
+  - {path: python/kdf_mac.py, line: 41, algorithm: BCRYPT}
   - {path: python/kdf_mac.py, line: 42, algorithm: BCRYPT}
   - {path: python/kdf_mac.py, line: 43, algorithm: BCRYPT}
   - {path: python/kdf_mac.py, line: 45, algorithm: PBKDF2}
@@ -177,6 +190,27 @@ planted:
   - {path: python/kdf_mac.py, line: 49, algorithm: BCRYPT}
   - {path: python/kdf_mac.py, line: 50, algorithm: BCRYPT}
   - {path: python/kdf_mac.py, line: 52, algorithm: HMAC}
+  - {path: python/kdf_mac.py, line: 56, algorithm: PBKDF2}
+  - {path: python/kdf_mac.py, line: 57, algorithm: PBKDF2}
+  - {path: python/kdf_mac.py, line: 58, algorithm: PBKDF2}
+  - {path: python/kdf_mac.py, line: 60, algorithm: PBKDF2}
+  - {path: python/kdf_mac.py, line: 61, algorithm: PBKDF2}
+  - {path: python/kdf_mac.py, line: 62, algorithm: PBKDF2}
+  - {path: python/kdf_mac.py, line: 64, algorithm: PBKDF2}
+  - {path: python/kdf_mac.py, line: 65, algorithm: PBKDF2}
+  - {path: python/kdf_mac.py, line: 66, algorithm: PBKDF2}
+  - {path: python/kdf_mac.py, line: 68, algorithm: SCRYPT}
+  - {path: python/kdf_mac.py, line: 69, algorithm: SCRYPT}
+  - {path: python/kdf_mac.py, line: 70, algorithm: SCRYPT}
+  - {path: python/kdf_mac.py, line: 72, algorithm: SCRYPT}
+  - {path: python/kdf_mac.py, line: 73, algorithm: SCRYPT}
+  - {path: python/kdf_mac.py, line: 74, algorithm: SCRYPT}
+  - {path: python/kdf_mac.py, line: 76, algorithm: SCRYPT}
+  - {path: python/kdf_mac.py, line: 77, algorithm: SCRYPT}
+  - {path: python/kdf_mac.py, line: 78, algorithm: SCRYPT}
+  - {path: python/kdf_mac.py, line: 80, algorithm: BCRYPT}
+  - {path: python/kdf_mac.py, line: 81, algorithm: BCRYPT}
+  - {path: python/kdf_mac.py, line: 82, algorithm: BCRYPT}
 
   - {path: python/aead_and_padding.py, line: 19, algorithm: AES-GCM}
   - {path: python/aead_and_padding.py, line: 20, algorithm: AES-GCM-SIV}

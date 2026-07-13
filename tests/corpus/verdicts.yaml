@@ -261,3 +261,6 @@ f971dcee15732930: {verdict: tp, note: "signer_test.go pub.ECDH() — crypto/ecds
 365bb9be8452ec88: {verdict: tp, note: "RSA-PSS construction, test file, real RSA use"}
 781b5796a0ba1127: {verdict: tp, note: "RSA-PSS construction, test file, real RSA use"}
 52ebfae438522fe3: {verdict: tp, note: "RSA-PSS construction, test file, real RSA use"}
+# B2 (weak-KDF-parameter thresholds): new banned-rule finding from
+# parameter-sets-below gating, adjudicated 2026-07-13.
+5075d1cfb69cec13: {verdict: tp, note: "sio ncrypt CLI: real scrypt.Key(N=32768) call, below OWASP N>=131072"}

@@ -113,6 +113,18 @@
           "default": null,
           "title": "Parameter-Sets"
         },
+        "parameter-sets-below": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parameter-Sets-Below"
+        },
         "params": {
           "anyOf": [
             {

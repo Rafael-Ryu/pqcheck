@@ -144,12 +144,21 @@ def _merge_findings(
     # Tests:true type-checks a production file once per package variant.
     # Dedupe both sides on the call site, semantic entries winning.
     merged: list[CryptoFinding] = []
-    seen: set[tuple[str, int, str]] = set()
+    index: dict[tuple[str, int, str], int] = {}
     for finding in (*semantic, *syntactic):
         key = call_site(finding)
-        if key not in seen:
-            seen.add(key)
+        pos = index.get(key)
+        if pos is None:
+            index[key] = len(merged)
             merged.append(finding)
+        elif merged[pos].key_size is None and finding.key_size is not None:
+            # The winning (semantic, or first-seen) finding at this call site
+            # carries no key_size -- e.g. a KDF cost parameter the go/types
+            # side did not extract but tree-sitter did (or vice versa).
+            # Backfill it from the duplicate rather than losing a real
+            # extracted value to dedup (B2: weak-KDF-parameter policy gating
+            # needs it).
+            merged[pos] = merged[pos].model_copy(update={"key_size": finding.key_size})
     return merged
 
 

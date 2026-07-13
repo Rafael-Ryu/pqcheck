@@ -318,7 +318,7 @@ class GoDetector:
                     return
                 hit = lookup_go_symbol(key)
                 if hit is not None:
-                    self._emit(node, hit, confidence=1.0)
+                    self._emit(node, hit, confidence=1.0, qualified=key)
                     return
             # Not a package-qualified call (or no catalog hit): may be a
             # method call on a variable of a catalogued receiver type --
@@ -428,7 +428,9 @@ class GoDetector:
         confidence = _DOT_IMPORT_CONFIDENCE if len(hits) == 1 else _AMBIGUOUS_DOT_IMPORT_CONFIDENCE
         self._emit(node, hits[0], confidence=confidence)
 
-    def _emit(self, node: Node, hit: AlgorithmHit, *, confidence: float) -> None:
+    def _emit(
+        self, node: Node, hit: AlgorithmHit, *, confidence: float, qualified: str | None = None
+    ) -> None:
         key_size = hit.key_size
         curve = hit.curve
         # rsa.GenerateKey/ecdsa.GenerateKey carry no static key_size/curve in
@@ -440,6 +442,12 @@ class GoDetector:
             key_size = self._second_arg_int(node)
         elif hit.canonical == "ECDSA" and curve is None:
             curve = self._first_arg_curve(node)
+        elif hit.canonical == "PBKDF2" and key_size is None:
+            key_size = self._pbkdf2_iterations(node, qualified)
+        elif hit.canonical == "SCRYPT" and key_size is None:
+            key_size = self._nth_arg_int(node, 2)
+        elif hit.canonical == "BCRYPT" and key_size is None:
+            key_size = self._nth_arg_int(node, 1)
         location = SourceLocation(
             path=self._path,
             line=node.start_point.row + 1,
@@ -474,6 +482,20 @@ class GoDetector:
         if len(args) < 2:  # need at least (rand, bits)  # noqa: PLR2004
             return None
         return _int_literal(args[1], self._source)
+
+    def _nth_arg_int(self, call: Node, index: int) -> int | None:
+        args = self._named_args(call)
+        if len(args) <= index:
+            return None
+        return _int_literal(args[index], self._source)
+
+    def _pbkdf2_iterations(self, call: Node, qualified: str | None) -> int | None:
+        # golang.org/x/crypto/pbkdf2.Key(password, salt, iter, keyLen, h): iter
+        # is arg 2. Go 1.24's stdlib crypto/pbkdf2.Key(h, password, salt, iter,
+        # keyLen) leads with the hash constructor, shifting iter to arg 3 —
+        # same canonical, different signature, distinguished by import path.
+        index = 3 if qualified == "crypto/pbkdf2.Key" else 2
+        return self._nth_arg_int(call, index)
 
     def _first_arg_curve(self, call: Node) -> str | None:
         # ecdsa.GenerateKey(elliptic.P256(), ...): arg 0 is a call_expression

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import ast
 from pathlib import Path
+from typing import ClassVar
 
 from pqcheck.detectors._source_read import read_source_bytes
 from pqcheck.detectors.algorithms import (
@@ -162,7 +163,11 @@ class PythonDetector(ast.NodeVisitor):
                         hit.canonical,
                         hit.family,
                         confidence=1.0,
-                        key_size=self._extract_key_size(node, qualified) or hit.key_size,
+                        key_size=(
+                            self._extract_key_size(node, qualified)
+                            or self._extract_kdf_param(node, qualified)
+                            or hit.key_size
+                        ),
                         curve=hit.curve
                         or (self._extract_curve(node) if hit.canonical == "ECDSA" else None),
                         mode=self._extract_pycrypto_mode(node, qualified),
@@ -400,6 +405,48 @@ class PythonDetector(ast.NodeVisitor):
             if type(value) is int:
                 return value
         return None
+
+    @staticmethod
+    def _positional_or_kw_int(node: ast.Call, *, position: int, keyword: str) -> int | None:
+        """Literal int at `position` (skipped when negative — keyword-only
+        params like hashlib.scrypt's `n=`) or the `keyword` kwarg. bool is an
+        int subclass — excluded so a stray True/False never reads as 1/0.
+        """
+        candidate: ast.expr | None = None
+        if position >= 0 and position < len(node.args):
+            candidate = node.args[position]
+        for kw in node.keywords:
+            if kw.arg == keyword:
+                candidate = kw.value
+                break
+        if isinstance(candidate, ast.Constant) and type(candidate.value) is int:
+            return candidate.value
+        return None
+
+    # KDF cost-parameter arg position (or -1 for keyword-only) + keyword name,
+    # per B2 (OWASP-threshold policy gating). Variable/computed arguments (a
+    # name, a `2**14` BinOp, ...) are not ast.Constant and yield None by
+    # design — "literals only" per the policy engine's parameter-sets-below
+    # contract; the finding itself still fires, just without a gateable value.
+    _KDF_PARAM_SPECS: ClassVar[dict[str, tuple[int, str]]] = {
+        "hashlib.pbkdf2_hmac": (3, "iterations"),
+        "cryptography.hazmat.primitives.kdf.pbkdf2.PBKDF2HMAC": (3, "iterations"),
+        "Crypto.Protocol.KDF.PBKDF2": (3, "count"),
+        "hashlib.scrypt": (-1, "n"),
+        "cryptography.hazmat.primitives.kdf.scrypt.Scrypt": (2, "n"),
+        "Crypto.Protocol.KDF.scrypt": (3, "N"),
+        "bcrypt.gensalt": (0, "rounds"),
+    }
+
+    @staticmethod
+    def _extract_kdf_param(node: ast.Call, qualified: str | None) -> int | None:
+        if qualified is None:
+            return None
+        spec = PythonDetector._KDF_PARAM_SPECS.get(qualified)
+        if spec is None:
+            return None
+        position, keyword = spec
+        return PythonDetector._positional_or_kw_int(node, position=position, keyword=keyword)
 
     def _extract_pycrypto_mode(self, node: ast.Call, qualified: str) -> str | None:
         """Return the mode for `Crypto.Cipher.<X>.new(key, X.MODE_Y, ...)`.

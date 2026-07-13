@@ -53,6 +53,12 @@ class AlgorithmRule(BaseModel):
     family: PolicyFamily
     algorithm: str
     parameter_sets: list[str] | None = None
+    # Weak-KDF-parameter gate (B2): matches only when the finding's key_size is
+    # a literal int strictly below this value (e.g. PBKDF2 iterations, scrypt
+    # N, bcrypt cost). A non-int key_size (unresolved/variable argument, or a
+    # PQC parameter-set string) never matches — see policy/engine.py
+    # rule_matches. Composes with the other optional filters below.
+    parameter_sets_below: int | None = None
     curves: list[str] | None = None
     modes: list[str] | None = None
     paddings: list[str] | None = None
