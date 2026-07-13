@@ -1,14 +1,20 @@
-"""Precision benchmark over the pinned public-repo corpus.
+"""Precision benchmark over a pinned public-repo corpus.
 
 Usage:
     uv run python tests/corpus/run_bench.py [--repo NAME] [--check]
+    uv run python tests/corpus/run_bench.py --corpus tests/corpus/holdout.yaml [--check]
 
 Clones each corpus repo shallow at its pinned SHA, scans it with the
 cryptoct-default policy, and reports every HIGH/CRITICAL decision with a
 stable fingerprint. Precision is computed only over findings a human has
-adjudicated in verdicts.yaml — pending findings are listed, never
+adjudicated in the verdicts file — pending findings are listed, never
 guessed. --check exits 1 when adjudicated precision < 0.85 or anything
 is still pending (the ship-gate mode).
+
+--corpus points at an alternate corpus (e.g. holdout.yaml); the verdicts
+file and output file default to that corpus's stem (holdout_verdicts.yaml,
+last_bench_holdout.json) so the held-out precision is gated exactly like
+the tuning corpus instead of living as an un-checkable README figure.
 """
 
 from __future__ import annotations
@@ -47,6 +53,23 @@ def _clone_pinned(name: str, url: str, sha: str) -> Path:
     return dest
 
 
+def _clone_root(entry: dict[str, str]) -> Path:
+    """Clone root, narrowed to entry['path'] when a corpus entry restricts scope."""
+    root = _clone_pinned(entry["name"], entry["url"], entry["sha"])
+    subdir = entry.get("path")
+    return root / subdir if subdir else root
+
+
+def _verdicts_path(corpus_path: Path) -> Path:
+    stem = corpus_path.stem
+    return corpus_path.parent / ("verdicts.yaml" if stem == "corpus" else f"{stem}_verdicts.yaml")
+
+
+def _output_path(corpus_path: Path) -> Path:
+    stem = corpus_path.stem
+    return CORPUS_DIR / ("last_bench.json" if stem == "corpus" else f"last_bench_{stem}.json")
+
+
 def _fingerprint(repo: str, result: ScanResult, index: int) -> str:
     decision = result.policy_decisions[index]
     finding = decision.finding
@@ -72,10 +95,15 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo", help="bench a single corpus repo by name")
     parser.add_argument("--check", action="store_true", help="ship-gate mode")
+    parser.add_argument(
+        "--corpus", type=Path, default=CORPUS_DIR / "corpus.yaml",
+        help="corpus YAML to bench (default: corpus.yaml)",
+    )
     args = parser.parse_args(argv)
 
-    corpus = yaml.safe_load((CORPUS_DIR / "corpus.yaml").read_text(encoding="utf-8"))
-    verdicts_path = CORPUS_DIR / "verdicts.yaml"
+    corpus_path = args.corpus
+    corpus = yaml.safe_load(corpus_path.read_text(encoding="utf-8"))
+    verdicts_path = _verdicts_path(corpus_path)
     verdicts: dict[str, dict[str, str]] = {}
     if verdicts_path.is_file():
         loaded = yaml.safe_load(verdicts_path.read_text(encoding="utf-8")) or {}
@@ -92,7 +120,7 @@ def main(argv: list[str] | None = None) -> int:
         name = entry["name"]
         if args.repo and name != args.repo:
             continue
-        root = _clone_pinned(name, entry["url"], entry["sha"])
+        root = _clone_root(entry)
         result = scan(root, policy)
         counts = {"gated": 0, "tp": 0, "fp": 0, "pending": 0}
         for i, decision in enumerate(result.policy_decisions):
@@ -123,7 +151,7 @@ def main(argv: list[str] | None = None) -> int:
 
     adjudicated = tp + fp
     precision = tp / adjudicated if adjudicated else 0.0
-    (CORPUS_DIR / "last_bench.json").write_text(
+    _output_path(corpus_path).write_text(
         json.dumps(
             {"tp": tp, "fp": fp, "pending": len(pending),
              "precision": round(precision, 4), "per_repo": per_repo},

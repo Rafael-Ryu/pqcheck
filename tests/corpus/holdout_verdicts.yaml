@@ -1,0 +1,82 @@
+# Human-adjudicated verdicts for held-out corpus findings (protocol: README.md).
+# Adjudicated 2026-07-13 via per-line source review of the cached clones.
+# One FP: cosign inspect.go pub.ECDH() is an *ecdsa.PublicKey type accessor
+# used to serialize the key for display, not an ECDH key-agreement operation.
+226fc83c44dae289: {verdict: tp, note: "ecdh key exchange"}
+5cf7cbc3cc984719: {verdict: tp, note: "ecdsa key generation"}
+bc03c8a37039975f: {verdict: tp, note: "rsa padding"}
+93c4fddf8cdf7d22: {verdict: tp, note: "sha1 use"}
+3ac1af7dc5160ed8: {verdict: tp, note: "sha1 use"}
+654c471d31550144: {verdict: tp, note: "rsa padding"}
+980289900827f2b0: {verdict: tp, note: "rsa padding"}
+a507aed32e41e2c3: {verdict: tp, note: "rsa padding"}
+98cf33c83ebd2317: {verdict: tp, note: "rsa padding"}
+f009f7d9f31d8ff0: {verdict: tp, note: "rsa key generation"}
+6a9453aad425210e: {verdict: tp, note: "sha1 use"}
+f51a4f10f66d5854: {verdict: tp, note: "sha1 use"}
+2c006204bb1582f8: {verdict: tp, note: "sha1 use"}
+455b9bfb1c5fed1b: {verdict: tp, note: "sha1 use"}
+cc7c6ce624b01609: {verdict: tp, note: "sha1 use"}
+a8582eff7c66e686: {verdict: tp, note: "md5 digest"}
+7407936858fdde65: {verdict: tp, note: "rsa key generation"}
+c35cb8bacc482395: {verdict: tp, note: "rsa key generation"}
+4f304559a5f98c21: {verdict: tp, note: "ecdsa key generation"}
+eae9ada49eb4ccf8: {verdict: tp, note: "rsa key generation"}
+d2de8d83e8cddf3f: {verdict: tp, note: "rsa key generation"}
+44b697ac445aa302: {verdict: tp, note: "ecdsa key generation"}
+d582b17f61eb7c49: {verdict: fp, note: "ecdsa.PublicKey.ECDH() type accessor for pretty-print, not key agreement"}
+0bf1598195999500: {verdict: tp, note: "ecdsa key generation"}
+40febb7b33c8c1da: {verdict: tp, note: "eddsa key generation"}
+a901a8ebbb551142: {verdict: tp, note: "rsa key generation"}
+e8db5ef01fe007be: {verdict: tp, note: "ecdsa key generation"}
+8750f55b53a38e3c: {verdict: tp, note: "ecdsa key generation"}
+b57b0be13d6919f9: {verdict: tp, note: "ecdsa key generation"}
+aede312121bb0026: {verdict: tp, note: "rsa key generation"}
+5884f80d6600f798: {verdict: tp, note: "eddsa key generation"}
+e65f061c422db2e7: {verdict: tp, note: "rsa key generation"}
+14ad96e011611772: {verdict: tp, note: "eddsa key generation"}
+4d27adebca45daca: {verdict: tp, note: "eddsa key generation"}
+b5a070c6d89fd591: {verdict: tp, note: "ecdsa key generation"}
+88240415451201c2: {verdict: tp, note: "ecdsa key generation"}
+903bfa8c2ff1d9ba: {verdict: tp, note: "ecdsa key generation"}
+f7bcdabd90f5d815: {verdict: tp, note: "eddsa key generation"}
+74dde2e9531e86f4: {verdict: tp, note: "ecdsa key generation"}
+935037f24bdf8140: {verdict: tp, note: "ecdsa key generation"}
+3ce54b67f3719780: {verdict: tp, note: "ecdsa key generation"}
+125bb0f2e2d82389: {verdict: tp, note: "ecdsa key generation"}
+c082364bdd961589: {verdict: tp, note: "ecdsa key generation"}
+69d8e46aad2b82a6: {verdict: tp, note: "ecdsa key generation"}
+3ec17f54751746d0: {verdict: tp, note: "rsa key generation"}
+1ab5d8475d90fa9f: {verdict: tp, note: "eddsa key generation"}
+87415a3764e14223: {verdict: tp, note: "ecdsa key generation"}
+678a3890cbc3d0d0: {verdict: tp, note: "eddsa key generation"}
+07057cde8e25120a: {verdict: tp, note: "ecdsa key generation"}
+aafcaa69bd5fdedd: {verdict: tp, note: "ecdsa key generation"}
+708070131f843b0d: {verdict: tp, note: "ecdsa key generation"}
+0689a35247da3448: {verdict: tp, note: "ecdsa key generation"}
+892623b60b3f58e5: {verdict: tp, note: "ecdsa key generation"}
+33739843826e5c5c: {verdict: tp, note: "ecdsa key generation"}
+ae40a5724e5f01e6: {verdict: tp, note: "rsa key generation"}
+219dc24310fffff4: {verdict: tp, note: "eddsa key generation"}
+309bc0e0ff797a79: {verdict: tp, note: "rsa key generation"}
+2e21c4ddd96b356d: {verdict: tp, note: "ecdsa key generation"}
+6d060de2f1d07e7c: {verdict: tp, note: "ecdsa key generation"}
+59996541a43f9e73: {verdict: tp, note: "rsa key generation"}
+1e1402ff1c5023e8: {verdict: tp, note: "ecdsa key generation"}
+deb77bb175e12eee: {verdict: tp, note: "ecdsa key generation"}
+ceca6db65365ce2f: {verdict: tp, note: "ecdsa key generation"}
+63c7dd0e6fa60797: {verdict: tp, note: "eddsa key generation"}
+be04958f1b99f049: {verdict: tp, note: "ecdsa key generation"}
+ef4144b9d623f762: {verdict: tp, note: "rsa key generation"}
+2e617510641d7b57: {verdict: tp, note: "rsa key generation"}
+c24e1e4a91e42728: {verdict: tp, note: "rsa key generation"}
+7a326f8a1727c12d: {verdict: tp, note: "ecdsa key generation"}
+780201d1636b34fc: {verdict: tp, note: "eddsa key generation"}
+8a4a020c97a3f9fc: {verdict: tp, note: "ecdsa key generation"}
+37f6ef11c18104a3: {verdict: tp, note: "ecdsa key generation"}
+5c33ace95b7ec703: {verdict: tp, note: "rsa key generation"}
+57ae8789210c7113: {verdict: tp, note: "rsa key generation"}
+677e6b13f66f2497: {verdict: tp, note: "rsa key generation"}
+ef91821e90f41317: {verdict: tp, note: "rsa key generation"}
+6a759ebaa6733fe5: {verdict: tp, note: "ecdsa key generation"}
+2538d20a3416ea91: {verdict: tp, note: "ecdsa key generation"}

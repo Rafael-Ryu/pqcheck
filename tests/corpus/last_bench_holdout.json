@@ -1,0 +1,44 @@
+{
+  "tp": 78,
+  "fp": 1,
+  "pending": 0,
+  "precision": 0.9873,
+  "per_repo": {
+    "authlib": {
+      "gated": 16,
+      "tp": 16,
+      "fp": 0,
+      "pending": 0
+    },
+    "borgbackup": {
+      "gated": 1,
+      "tp": 1,
+      "fp": 0,
+      "pending": 0
+    },
+    "certbot": {
+      "gated": 5,
+      "tp": 5,
+      "fp": 0,
+      "pending": 0
+    },
+    "cosign": {
+      "gated": 47,
+      "tp": 46,
+      "fp": 1,
+      "pending": 0
+    },
+    "wireguard-go": {
+      "gated": 0,
+      "tp": 0,
+      "fp": 0,
+      "pending": 0
+    },
+    "certmagic": {
+      "gated": 10,
+      "tp": 10,
+      "fp": 0,
+      "pending": 0
+    }
+  }
+}

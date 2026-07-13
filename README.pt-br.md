@@ -51,11 +51,11 @@ lockfile. Java vem a seguir no roadmap.
 Precisão medida: 261 findings HIGH/CRITICAL em 10 repos públicos, todos
 adjudicados manualmente — 0 falsos positivos. Recall de 1.00 sobre 584
 call sites adjudicados nos mesmos repos (conjunto de tuning) e de
-0.9834 (296/301) em 6 repos held-out. A precisão no held-out foi uma
-adjudicação manual única (76/77 medida em 2026-07-12) e, ao contrário da
-precisão do corpus de tuning, não é re-checada a cada mudança — leia como
-indicativa, não como gate ao vivo. Os 5 misses restantes são todos
-estruturais, das classes descritas em "Limitações conhecidas" abaixo.
+0.9834 (296/301) em 6 repos held-out, com precisão de 0.9873 (78/79). A
+precisão do held-out é adjudicada em `holdout_verdicts.yaml` e re-checada
+pelo mesmo gate `run_bench.py --check` do corpus de tuning (apontado para
+`holdout.yaml`), então não drifta em silêncio. Os 5 misses restantes são
+todos estruturais, das classes descritas em "Limitações conhecidas" abaixo.
 Três rodadas de correções vieram da lista de misses do held-out, então
 ele já não é estritamente intocado; afirmações de generalização exigem
 repos frescos (protocolo e caveats em `tests/corpus/`).

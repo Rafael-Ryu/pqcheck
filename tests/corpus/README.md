@@ -20,6 +20,12 @@ HIGH/CRITICAL severity buckets over 10 pinned public repos
    findings**; pending ones are listed, never guessed. Results land in
    `last_bench.json`.
 
+The same gate runs over the held-out set with `--corpus`, which switches
+the verdicts and output files to that corpus's stem
+(`holdout_verdicts.yaml`, `last_bench_holdout.json`):
+
+    uv run python tests/corpus/run_bench.py --corpus tests/corpus/holdout.yaml --check
+
 Recall (fn) is out of scope for the 0.85 gate — it is measured separately
 by the corpus v2 below.
 
@@ -130,9 +136,13 @@ recall **0.95** (261/276). The 15 misses: go-containerregistry `v1.SHA256`
 resolved by either Go engine even though the catalog has the symbol),
 `rng.Uint32()` on a `*rand.Rand` (1, mechanism — local-variable receiver),
 and borgbackup's in-repo Cython OpenSSL binding (3, outside the
-import-resolution model by construction). Held-out precision over all 77
-HIGH/CRITICAL findings on the same repos: 0.99 (76 tp / 1 fp — `pub.ECDH()`
-called for key-format conversion, not key agreement).
+import-resolution model by construction). Held-out precision over all
+HIGH/CRITICAL findings on the same repos is 0.9873 (78 tp / 1 fp —
+`pub.ECDH()` called for key-format conversion, not key agreement),
+adjudicated in `holdout_verdicts.yaml` and gated by
+`run_bench.py --corpus holdout.yaml --check` exactly like the tuning
+corpus. (The first pass measured 76/77; two later general-detector fixes
+added findings, and the re-adjudicated set is now committed and gated.)
 
 **Note (2026-07-12, second pass):** the 12 in-scope misses above were fixed
 directly from this held-out miss list — the `/vN` versioned-import bug (both

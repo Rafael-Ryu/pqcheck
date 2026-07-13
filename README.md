@@ -103,10 +103,10 @@ adjudicated call sites, is 1.00. The honest caveat: that corpus's miss
 list drove the catalog expansion, so it is a tuning set and says
 nothing about generalization. A held-out set of 6 unseen repos
 (authlib, borgbackup, certbot, cosign, wireguard-go, certmagic)
-measures recall 0.9834 (296/301). Precision on that set was a one-time
-manual adjudication (76/77 when measured on 2026-07-12); unlike the
-tuning-corpus precision it is not re-checked on every change, so read it
-as indicative rather than a live gate. The 5
+measures recall 0.9834 (296/301) and precision 0.9873 (78/79). That
+precision is adjudicated in `holdout_verdicts.yaml` and re-checked by the
+same `run_bench.py --check` gate as the tuning corpus (point it at
+`holdout.yaml`), so it no longer drifts silently. The 5
 remaining misses are all structural — authlib's dataflow-dependent
 digest calls and borgbackup's Cython/OpenSSL binding, the same gap
 classes documented under [Known limitations](#known-limitations)
