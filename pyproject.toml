@@ -120,7 +120,10 @@ include = [
 # more interpreters would only re-emit byte-identical wheels that collide on
 # upload.
 build = "cp312-*"
-skip = "*-musllinux_*"
+# musllinux wheels are in scope: the bundled Go binary is static
+# (CGO_ENABLED=0), so it runs unmodified on musl. Without a musllinux wheel,
+# Alpine hosts fell back to the sdist and silently lost the bundled analyzer,
+# downgrading to the tree-sitter floor.
 # Runs per wheel under the CIBW_ENVIRONMENT the release matrix sets (GOOS/GOARCH).
 # go:generate syncs the single-source catalog for //go:embed, then the binary is
 # compiled into the platform dir the wheel artifact picks up. Only crypto-analyzer
@@ -175,7 +178,7 @@ before-build = 'copy /Y src\pqcheck\data\crypto-catalog.json tools\crypto-analyz
 target-version = "py312"
 line-length = 100
 src = ["src", "tests"]
-extend-exclude = ["tests/fixtures"]
+extend-exclude = ["tests/fixtures", "tests/corpus/planted", "tests/corpus/.cache"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF", "S", "PL", "PTH"]
@@ -206,7 +209,6 @@ markers = [
 branch = true
 source = ["pqcheck"]
 omit = [
-    "src/pqcheck/grammars/*",
     "src/pqcheck/bin/*",
     "tests/fixtures/*",
 ]

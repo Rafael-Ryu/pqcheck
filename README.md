@@ -55,6 +55,14 @@ decisions as failures. A finding's displayed severity is demoted by
 detection confidence, but gating always reads the base severity — low
 confidence never lets RSA through.
 
+Verify a release yourself (needs the `sigstore` extra; the `.sigstore.json`
+bundle ships next to each wheel on the GitHub release):
+
+```console
+$ pqcheck verify-release pqcheck-0.0.1-py3-none-any.whl
+OK: pqcheck-0.0.1-py3-none-any.whl verified against pqcheck-0.0.1-py3-none-any.whl.sigstore.json
+```
+
 ## What it detects
 
 | Surface | Coverage |

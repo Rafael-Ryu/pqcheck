@@ -38,6 +38,10 @@ CBOM e SARIF: `--format cbom -o cbom.cdx.json` / `--format sarif -o
 pqcheck.sarif` (importa direto no GitHub Code Scanning). Gate de CI:
 `--fail-on policy` (exit 1 ao reprovar) ou `pqcheck self-audit`.
 
+Verifique um release você mesmo (extra `sigstore`; o bundle
+`.sigstore.json` acompanha cada wheel no release do GitHub):
+`pqcheck verify-release pqcheck-0.0.1-py3-none-any.whl`.
+
 Cobertura: Python (hashlib, cryptography, pycryptodome) e Go (stdlib +
 x/crypto, com análise semântica via `go/types`); 6 formatos de lockfile.
 Java vem a seguir no roadmap.

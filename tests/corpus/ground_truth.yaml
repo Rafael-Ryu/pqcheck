@@ -1,0 +1,4413 @@
+# Ground truth for the real-world recall benchmark (corpus v2).
+# Keyed by run_recall_v2 fingerprint sha256(repo|path|line)[:16].
+# Protocol in README.md; adjudicated 2026-07-12 over the pinned SHAs.
+"00cb176966fefbb1":
+  repo: sigstore-python
+  path: test/unit/internal/test_key_details.py
+  line: 49
+  token: "rsa.generate_private_key"
+  verdict: site
+  note: "cryptography rsa.generate_private_key, test file"
+"0119613c33242d2e":
+  repo: smallstep-crypto
+  path: kms/yubikey/yubikey_test.go
+  line: 196
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call, test file"
+"02140cb63c99f496":
+  repo: smallstep-crypto
+  path: x25519/x25519_test.go
+  line: 582
+  token: "GenerateKey"
+  verdict: not_site
+  note: "same-package GenerateKey wrapper"
+"021a6dfb68c5b0bc":
+  repo: sigstore-python
+  path: test/unit/test_utils.py
+  line: 71
+  token: "hashlib.sha256"
+  verdict: site
+  note: "hashlib.sha256(buf).digest(), test file"
+"0266c59243ae2bd2":
+  repo: smallstep-crypto
+  path: kms/azurekms/utils.go
+  line: 145
+  token: "P521"
+  verdict: site
+  note: "stdlib crypto/elliptic.P521"
+"02ab884802e23712":
+  repo: smallstep-crypto
+  path: jose/x25519_test.go
+  line: 69
+  token: "ed25519.GenerateKey"
+  verdict: site
+  note: "stdlib crypto/ed25519, test file"
+"02eab71f0c7bd6f6":
+  repo: smallstep-crypto
+  path: keyutil/key.go
+  line: 78
+  token: "GenerateKey"
+  verdict: not_site
+  note: "GenerateDefaultKey calling local package function GenerateKey"
+"032306b15612c482":
+  repo: smallstep-crypto
+  path: x25519/x25519_test.go
+  line: 323
+  token: "GenerateKey"
+  verdict: not_site
+  note: "same-package GenerateKey wrapper"
+"051db5ba189044b9":
+  repo: smallstep-crypto
+  path: jose/parse_test.go
+  line: 765
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "stdlib crypto/ecdsa, test file"
+"05f342ff98d6e2de":
+  repo: oauthlib
+  path: oauthlib/oauth2/rfc6749/grant_types/authorization_code.py
+  line: 48
+  token: "hashlib.sha256"
+  verdict: site
+  note: "hashlib.sha256(verifier.encode()).digest() real call"
+"06110da08b09f2a3":
+  repo: smallstep-crypto
+  path: kms/mackms/mackms_test.go
+  line: 582
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call, test file"
+"06c6b929fe8eddcb":
+  repo: smallstep-crypto
+  path: kms/azurekms/utils_test.go
+  line: 125
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "stdlib crypto/rsa, test file"
+"06ccbb700750f2b9":
+  repo: go-jose
+  path: cryptosigner/cryptosigner_test.go
+  line: 133
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call in test"
+"07224bd144a7347b":
+  repo: smallstep-crypto
+  path: kms/mackms/mackms_test.go
+  line: 1631
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call, test file"
+"07721ae3b39113e5":
+  repo: python-jose
+  path: jose/backends/cryptography_backend.py
+  line: 316
+  token: "padding.PKCS1v15"
+  verdict: site
+  note: "verify(sig, msg, padding.PKCS1v15(), ...)"
+"07a4a432b278f37f":
+  repo: paramiko
+  path: tests/test_packetizer.py
+  line: 78
+  token: "Cipher"
+  verdict: site
+  note: "cryptography Cipher() construction, test file"
+"0851db31cab010a3":
+  repo: go-jose
+  path: jose-util/generator/generate.go
+  line: 67
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call"
+"0900bac219078391":
+  repo: sigstore-python
+  path: test/unit/internal/test_key_details.py
+  line: 33
+  token: "ec.generate_private_key"
+  verdict: site
+  note: "cryptography ec.generate_private_key, test file"
+"0992c243752ad217":
+  repo: go-jose
+  path: cryptosigner/cryptosigner_test.go
+  line: 178
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call in test"
+"099661890d05e2a0":
+  repo: smallstep-crypto
+  path: jose/parse_test.go
+  line: 775
+  token: "GenerateKey"
+  verdict: not_site
+  note: "x25519.GenerateKey is repo-internal package"
+"099d3135f7bbd333":
+  repo: smallstep-crypto
+  path: keyutil/key_test.go
+  line: 459
+  token: "GenerateKey"
+  verdict: not_site
+  note: "inside t.Errorf string literal, not a call"
+"0a060667a378ed59":
+  repo: smallstep-crypto
+  path: kms/capi/ncrypt_windows.go
+  line: 123
+  token: "P384"
+  verdict: site
+  note: "stdlib crypto/elliptic.P384"
+"0a61e573e1768c4d":
+  repo: age
+  path: cmd/age-keygen/keygen.go
+  line: 122
+  token: "Perm"
+  verdict: not_site
+  note: "os.FileMode.Perm(), not a crypto API"
+"0a7bb7276d786b33":
+  repo: sio
+  path: dare.go
+  line: 139
+  token: "Cipher"
+  verdict: not_site
+  note: "header.Cipher() calls local getter method, not a crypto library primitive"
+"0aac470a64edc726":
+  repo: pyjwt
+  path: tests/test_advisory.py
+  line: 30
+  token: "Ed25519PrivateKey.generate"
+  verdict: not_site
+  note: "line is inside a comment block, not executed"
+"0b0ba21042736ea8":
+  repo: age
+  path: internal/stream/stream_test.go
+  line: 633
+  token: "rand.Read"
+  verdict: site
+  note: "crypto/rand.Read, test file"
+"0ba3e4063d8a12ab":
+  repo: smallstep-crypto
+  path: kms/mackms/signer_test.go
+  line: 166
+  token: "ecdh.P256"
+  verdict: site
+  note: "ecdh.P256() constructor call, test file"
+"0c24a239eb3621e4":
+  repo: go-jose
+  path: shared.go
+  line: 130
+  token: "SHA384"
+  verdict: not_site
+  note: "appears in trailing comment, not a call"
+"0e2253403aca21f1":
+  repo: age
+  path: internal/stream/stream_test.go
+  line: 716
+  token: "rand.Read"
+  verdict: site
+  note: "crypto/rand.Read, test file"
+"0ffe3ecf64a87d3f":
+  repo: sigstore-python
+  path: sigstore/sign.py
+  line: 115
+  token: "ec.generate_private_key"
+  verdict: site
+  note: "cryptography ec.generate_private_key(ec.SECP256R1())"
+"1031e51a77257623":
+  repo: smallstep-crypto
+  path: kms/mackms/mackms.go
+  line: 1427
+  token: "ecdh.P384"
+  verdict: site
+  note: "stdlib crypto/ecdh"
+"10cbad50ab1e8e44":
+  repo: smallstep-crypto
+  path: jose/x25519_test.go
+  line: 222
+  token: "GenerateKey"
+  verdict: not_site
+  note: "x25519.GenerateKey is repo-internal package"
+"10f55c61f2182c04":
+  repo: smallstep-crypto
+  path: x509util/certificate_test.go
+  line: 80
+  token: "ed25519.GenerateKey"
+  verdict: site
+  note: "crypto/ed25519 GenerateKey, test file"
+"1169a05556fac138":
+  repo: smallstep-crypto
+  path: tpm/tss2/signer_test.go
+  line: 290
+  token: "P521"
+  verdict: site
+  note: "crypto/elliptic P521(), test file"
+"13938ea220a8bdcc":
+  repo: go-jose
+  path: jose-util/generator/generate.go
+  line: 107
+  token: "P384"
+  verdict: site
+  note: "crypto/elliptic.P384() call"
+"148196d674cc7245":
+  repo: smallstep-crypto
+  path: kms/azurekms/utils.go
+  line: 141
+  token: "P384"
+  verdict: site
+  note: "stdlib crypto/elliptic.P384"
+"1536212f3eba6e38":
+  repo: paramiko
+  path: paramiko/rsakey.py
+  line: 167
+  token: "padding.PKCS1v15"
+  verdict: site
+  note: "cryptography padding scheme construction for RSA verify"
+"1565dc0244858f0e":
+  repo: go-jose
+  path: cipher/ecdh_es_test.go
+  line: 31
+  token: "P256"
+  verdict: site
+  note: "crypto/elliptic.P256() call in test"
+"15b3fceef257b625":
+  repo: smallstep-crypto
+  path: kms/mackms/mackms.go
+  line: 1423
+  token: "P256"
+  verdict: site
+  note: "stdlib crypto/elliptic.P256"
+"15c54d99a9a9e753":
+  repo: age
+  path: plugin/encode.go
+  line: 89
+  token: "ecdh.X25519"
+  verdict: site
+  note: "crypto/ecdh.X25519() curve constructor call"
+"167148cfe35453ef":
+  repo: sigstore-python
+  path: sigstore/_utils.py
+  line: 199
+  token: "hashlib.sha256"
+  verdict: site
+  note: "hashlib.sha256() streaming digest"
+"167fb673e5a18acf":
+  repo: age
+  path: internal/stream/stream_test.go
+  line: 535
+  token: "rand.Read"
+  verdict: site
+  note: "crypto/rand.Read, test file"
+"168d3e0f4d0b1364":
+  repo: age
+  path: internal/stream/stream_test.go
+  line: 477
+  token: "rand.Read"
+  verdict: site
+  note: "crypto/rand.Read, test file"
+"171feadb6f1ee862":
+  repo: smallstep-crypto
+  path: kms/yubikey/yubikey_test.go
+  line: 232
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "crypto/rsa call, test file"
+"17358f2f479bee86":
+  repo: go-jose
+  path: jwk_test.go
+  line: 86
+  token: "P384"
+  verdict: site
+  note: "crypto/elliptic.P384() call in test"
+"17980ff0e6beef16":
+  repo: smallstep-crypto
+  path: kms/cloudkms/attestation_test.go
+  line: 464
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "stdlib crypto/rsa, test file"
+"1806138d30cbece8":
+  repo: paramiko
+  path: paramiko/ecdsakey.py
+  line: 268
+  token: "ec.generate_private_key"
+  verdict: site
+  note: "cryptography ec key generation"
+"181706c5043f7788":
+  repo: smallstep-crypto
+  path: pemutil/pem_test.go
+  line: 1170
+  token: "P256"
+  verdict: site
+  note: "crypto/elliptic P256() in struct literal, test file"
+"186b4e24e86e22f6":
+  repo: go-jose
+  path: cryptosigner/cryptosigner_test.go
+  line: 119
+  token: "ed25519.GenerateKey"
+  verdict: site
+  note: "crypto/ed25519 call in test"
+"18ba1abba44ccb9f":
+  repo: smallstep-crypto
+  path: tpm/ek.go
+  line: 67
+  token: "sha256.Sum256"
+  verdict: site
+  note: "crypto/sha256 Sum256"
+"197f5433cb1f010e":
+  repo: smallstep-crypto
+  path: kms/mackms/mackms.go
+  line: 1377
+  token: "ecdh.P384"
+  verdict: site
+  note: "stdlib crypto/ecdh"
+"1a0c33e10c68522b":
+  repo: smallstep-crypto
+  path: pemutil/pem_test.go
+  line: 583
+  token: "GenerateKey"
+  verdict: not_site
+  note: "keyutil.GenerateKey repo-local wrapper"
+"1a96320c77d3f3d2":
+  repo: smallstep-crypto
+  path: minica/minica_test.go
+  line: 100
+  token: "ed25519.GenerateKey"
+  verdict: site
+  note: "crypto/ed25519 GenerateKey call, test file"
+"1bad6c764404f397":
+  repo: sigstore-python
+  path: test/unit/internal/test_key_details.py
+  line: 163
+  token: "hashes.SHA256"
+  verdict: site
+  note: "cryptography hashes.SHA256() in padding.MGF1, test file"
+"1c87a2d81e960133":
+  repo: paramiko
+  path: paramiko/hostkeys.py
+  line: 299
+  token: "sha1"
+  verdict: site
+  note: "hashlib.sha1() call used with HMAC"
+"1c923f32d07dedfd":
+  repo: pyjwt
+  path: tests/test_algorithms.py
+  line: 1568
+  token: "generate_private_key"
+  verdict: site
+  note: "cryptography rsa.generate_private_key call in test file"
+"1cdd1c9c3f54f721":
+  repo: smallstep-crypto
+  path: kms/mackms/signer_test.go
+  line: 57
+  token: "ecdh.P384"
+  verdict: site
+  note: "ecdh.P384().GenerateKey(), test file"
+"1cf6e671fe037616":
+  repo: go-jose
+  path: crypter_test.go
+  line: 37
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "crypto/rsa call in test"
+"1d2e86712f75cc13":
+  repo: go-jose
+  path: cryptosigner/cryptosigner_test.go
+  line: 153
+  token: "ed25519.GenerateKey"
+  verdict: site
+  note: "crypto/ed25519 call in test"
+"1d3b921656f4cf80":
+  repo: smallstep-crypto
+  path: pemutil/pem_test.go
+  line: 617
+  token: "GenerateKey"
+  verdict: not_site
+  note: "keyutil.GenerateKey repo-local wrapper"
+"1da2ed90df4c7eef":
+  repo: smallstep-crypto
+  path: pemutil/pem.go
+  line: 754
+  token: "ecdh.P521"
+  verdict: site
+  note: "crypto/ecdh P521()"
+"1ece7405a275d66b":
+  repo: go-jose
+  path: jwk.go
+  line: 719
+  token: "P384"
+  verdict: site
+  note: "crypto/elliptic.P384() call"
+"1eecded9997c03a6":
+  repo: smallstep-crypto
+  path: jose/types_test.go
+  line: 122
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "stdlib crypto/ecdsa, test file"
+"1f29408a9d6ceef9":
+  repo: go-jose
+  path: jwk_test.go
+  line: 87
+  token: "P521"
+  verdict: site
+  note: "crypto/elliptic.P521() call in test"
+"1f9c00785f3efd00":
+  repo: smallstep-crypto
+  path: jose/generate_test.go
+  line: 154
+  token: "P384"
+  verdict: site
+  note: "stdlib crypto/elliptic.P384, test file"
+"1fcb86cc4848580e":
+  repo: smallstep-crypto
+  path: tpm/ek_test.go
+  line: 31
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "crypto/rsa GenerateKey, test file"
+"210baf58b189ba69":
+  repo: smallstep-crypto
+  path: x509util/utils.go
+  line: 145
+  token: "sha1.Sum"
+  verdict: site
+  note: "crypto/sha1 Sum"
+"21ca4c623564f522":
+  repo: go-jose
+  path: signing_test.go
+  line: 421
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call in test"
+"2226b6076ae9b954":
+  repo: sigstore-python
+  path: test/unit/test_utils.py
+  line: 58
+  token: "hashlib.sha256"
+  verdict: site
+  note: "hashlib.sha256(public_key).digest(), test file"
+"222ab07bf8b2efb4":
+  repo: smallstep-crypto
+  path: kms/mackms/mackms_test.go
+  line: 584
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call, test file"
+"226e2b926cd5fe8b":
+  repo: smallstep-crypto
+  path: kms/mackms/mackms.go
+  line: 1421
+  token: "ecdh.P256"
+  verdict: site
+  note: "stdlib crypto/ecdh"
+"229faf1fa048cf36":
+  repo: smallstep-crypto
+  path: pemutil/pem.go
+  line: 850
+  token: "sha256.Sum224"
+  verdict: site
+  note: "crypto/sha256 Sum224"
+"22e826f34312e116":
+  repo: smallstep-crypto
+  path: kms/sshagentkms/sshagentkms_test.go
+  line: 513
+  token: "ed25519.GenerateKey"
+  verdict: site
+  note: "crypto/ed25519 call, test file"
+"22ff154eb9fd0fb9":
+  repo: go-jose
+  path: shared.go
+  line: 535
+  token: "P256"
+  verdict: site
+  note: "crypto/elliptic.P256() call in switch case"
+"23223d2f47b1ecc6":
+  repo: smallstep-crypto
+  path: pemutil/pem.go
+  line: 770
+  token: "P256"
+  verdict: site
+  note: "crypto/elliptic P256()"
+"23888bab221c406e":
+  repo: smallstep-crypto
+  path: tpm/tss2/signer.go
+  line: 252
+  token: "P384"
+  verdict: site
+  note: "crypto/elliptic P384() switch case"
+"24371e243375946d":
+  repo: smallstep-crypto
+  path: sshutil/certificate_test.go
+  line: 54
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "crypto/rsa GenerateKey, test file"
+"254ed1ff21706a55":
+  repo: python-jose
+  path: jose/backends/cryptography_backend.py
+  line: 525
+  token: "hashes.SHA256"
+  verdict: site
+  note: "ALG_MAP entry constructs hashes.SHA256()"
+"259da7f0d515c04c":
+  repo: smallstep-crypto
+  path: jose/parse_test.go
+  line: 767
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "stdlib crypto/ecdsa, test file"
+"262f1b71bf313655":
+  repo: go-jose
+  path: cipher/key_wrap_test.go
+  line: 170
+  token: "aes.NewCipher"
+  verdict: site
+  note: "crypto/aes call in test"
+"26440441c4b64ca6":
+  repo: smallstep-crypto
+  path: kms/softkms/softkms_test.go
+  line: 228
+  token: "GenerateKey"
+  verdict: not_site
+  note: "string literal inside t.Errorf format message"
+"268dc138bf111149":
+  repo: go-jose
+  path: jwt/builder_test.go
+  line: 82
+  token: "Float64"
+  verdict: not_site
+  note: "json.Number.Float64() non-crypto API call"
+"26f57ad34fb2cf8b":
+  repo: go-jose
+  path: signing_test.go
+  line: 312
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call in test"
+"27150395a957d44f":
+  repo: paramiko
+  path: tests/test_packetizer.py
+  line: 103
+  token: "algorithms.AES"
+  verdict: site
+  note: "cryptography AES algorithm construction, test file"
+"271bbad192ff9b8c":
+  repo: smallstep-crypto
+  path: kms/pkcs11/pkcs11_test.go
+  line: 739
+  token: "ed25519.GenerateKey"
+  verdict: site
+  note: "crypto/ed25519 call, test file"
+"276e09614db50ab0":
+  repo: sigstore-python
+  path: test/unit/internal/test_key_details.py
+  line: 38
+  token: "ec.generate_private_key"
+  verdict: site
+  note: "cryptography ec.generate_private_key, test file"
+"27bcbd002edf8c2c":
+  repo: go-jose
+  path: asymmetric.go
+  line: 256
+  token: "sha256.New"
+  verdict: site
+  note: "rsa.DecryptOAEP(sha256.New(), ...) real call"
+"27fda1a0b251fb0e":
+  repo: go-jose
+  path: jwk.go
+  line: 538
+  token: "P256"
+  verdict: site
+  note: "crypto/elliptic.P256() call"
+"2808a0253eda7441":
+  repo: smallstep-crypto
+  path: tpm/tpm_simulator_test.go
+  line: 971
+  token: "rand.Read"
+  verdict: site
+  note: "crypto/rand Read, test file"
+"283d11711ffb56d8":
+  repo: smallstep-crypto
+  path: kms/mackms/signer.go
+  line: 190
+  token: "ecdh.P384"
+  verdict: site
+  note: "return ecdh.P384() call"
+"2854dbd6680e9d64":
+  repo: smallstep-crypto
+  path: jose/generate_test.go
+  line: 152
+  token: "P256"
+  verdict: site
+  note: "stdlib crypto/elliptic.P256, test file"
+"28a406a70e10700c":
+  repo: age
+  path: internal/stream/stream_test.go
+  line: 748
+  token: "rand.Read"
+  verdict: site
+  note: "crypto/rand.Read, test file"
+"297ac6ada9598290":
+  repo: smallstep-crypto
+  path: kms/mackms/mackms_test.go
+  line: 634
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call, test file"
+"2982791e77a204f9":
+  repo: smallstep-crypto
+  path: kms/mackms/mackms_test.go
+  line: 703
+  token: "P384"
+  verdict: site
+  note: "case elliptic.P384(): call"
+"2a5877993fbf74d2":
+  repo: age
+  path: age.go
+  line: 167
+  token: "rand.Read"
+  verdict: site
+  note: "crypto/rand.Read filling nonce"
+"2aaa05d66480cb4c":
+  repo: age
+  path: primitives.go
+  line: 41
+  token: "chacha20poly1305.New"
+  verdict: site
+  note: "x/crypto/chacha20poly1305.New AEAD construction"
+"2b0fbce596df2ba9":
+  repo: age
+  path: agessh/agessh.go
+  line: 390
+  token: "chacha20poly1305.New"
+  verdict: site
+  note: "x/crypto/chacha20poly1305.New AEAD construction"
+"2b8ab92ad9257abc":
+  repo: go-jose
+  path: asymmetric.go
+  line: 253
+  token: "sha1.New"
+  verdict: site
+  note: "rsa.DecryptOAEP(sha1.New(), ...) real call"
+"2bb64caee4827188":
+  repo: smallstep-crypto
+  path: keyutil/key_test.go
+  line: 362
+  token: "GenerateKey"
+  verdict: not_site
+  note: "inside t.Errorf string literal, not a call"
+"2bca517c43bd9442":
+  repo: age
+  path: extra/age-plugin-pq/plugin-pq.go
+  line: 82
+  token: "Perm"
+  verdict: not_site
+  note: "os.FileMode.Perm(), not a crypto API"
+"2be5e6db11e4b621":
+  repo: smallstep-crypto
+  path: jose/validate_test.go
+  line: 190
+  token: "sha1.Sum"
+  verdict: site
+  note: "stdlib crypto/sha1, test file"
+"2bf9654011908469":
+  repo: smallstep-crypto
+  path: kms/mackms/signer_test.go
+  line: 111
+  token: "ECDH"
+  verdict: site
+  note: "goP521.ECDH(ecdhPub) crypto/ecdh PrivateKey method"
+"2c0b7dc62d3c3ffe":
+  repo: pyjwt
+  path: tests/test_algorithms.py
+  line: 1532
+  token: "generate_private_key"
+  verdict: site
+  note: "cryptography rsa.generate_private_key call in test file"
+"2c2766731d6b9d41":
+  repo: go-jose
+  path: jwk_test.go
+  line: 423
+  token: "sha256.Sum256"
+  verdict: site
+  note: "crypto/sha256 call in test"
+"2d3b1fa1c9a4b305":
+  repo: python-jose
+  path: tests/algorithms/test_EC.py
+  line: 247
+  token: "hashes.SHA256"
+  verdict: site
+  note: "hmac.HMAC(PUBKEY, hashes.SHA256()) in test"
+"2e14a85d22192d53":
+  repo: sigstore-python
+  path: test/unit/test_utils.py
+  line: 60
+  token: "hashlib.sha256"
+  verdict: site
+  note: "hashlib.sha256(public_key).hexdigest(), test file"
+"2e234a63fa8f4ba5":
+  repo: age
+  path: internal/stream/stream_test.go
+  line: 214
+  token: "rand.Read"
+  verdict: site
+  note: "crypto/rand.Read, test file"
+"2e35d481320959e4":
+  repo: age
+  path: plugin/client.go
+  line: 501
+  token: "IntN"
+  verdict: site
+  note: "math/rand/v2 IntN call"
+"2e9faf0f53a1a825":
+  repo: paramiko
+  path: tests/test_packetizer.py
+  line: 49
+  token: "algorithms.AES"
+  verdict: site
+  note: "cryptography AES algorithm construction, test file"
+"2f5526ae8f147c52":
+  repo: paramiko
+  path: paramiko/transport.py
+  line: 1903
+  token: "Cipher"
+  verdict: site
+  note: "cryptography Cipher() construction"
+"2f83442e00f43ae1":
+  repo: go-jose
+  path: cipher/key_wrap_test.go
+  line: 85
+  token: "aes.NewCipher"
+  verdict: site
+  note: "crypto/aes call in test"
+"2fd5c6fbaed7b088":
+  repo: smallstep-crypto
+  path: kms/mackms/mackms_test.go
+  line: 685
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call, test file"
+"301ac4d9eed45fe8":
+  repo: smallstep-crypto
+  path: kms/yubikey/yubikey_test.go
+  line: 208
+  token: "ed25519.GenerateKey"
+  verdict: site
+  note: "crypto/ed25519 call, test file"
+"302ae40753591076":
+  repo: smallstep-crypto
+  path: x25519/x25519_test.go
+  line: 260
+  token: "GenerateKey"
+  verdict: not_site
+  note: "same-package GenerateKey wrapper"
+"305554670047434d":
+  repo: smallstep-crypto
+  path: jose/types_test.go
+  line: 125
+  token: "GenerateKey"
+  verdict: not_site
+  note: "x25519.GenerateKey is repo-internal package"
+"306e404c0c81991d":
+  repo: go-jose
+  path: asymmetric.go
+  line: 371
+  token: "aes.NewCipher"
+  verdict: site
+  note: "crypto/aes call"
+"30919e6ede8a4729":
+  repo: smallstep-crypto
+  path: x25519/x25519.go
+  line: 102
+  token: "X25519"
+  verdict: site
+  note: "curve25519.X25519 call"
+"311f1e2ad556ca6f":
+  repo: smallstep-crypto
+  path: kms/capi/ncrypt_windows.go
+  line: 791
+  token: "sha1.Sum"
+  verdict: site
+  note: "stdlib crypto/sha1"
+"32d021ff36e8b743":
+  repo: paramiko
+  path: paramiko/pkey.py
+  line: 654
+  token: "Cipher"
+  verdict: site
+  note: "cryptography Cipher() construction"
+"32d6815f4dff4f96":
+  repo: smallstep-crypto
+  path: kms/cloudkms/attestation_test.go
+  line: 189
+  token: "sha256.Sum256"
+  verdict: site
+  note: "stdlib crypto/sha256, test file"
+"33269f1104caaec8":
+  repo: go-jose
+  path: cipher/cbc_hmac_test.go
+  line: 318
+  token: "aes.NewCipher"
+  verdict: site
+  note: "crypto/aes call in test"
+"33890ddf214201be":
+  repo: smallstep-crypto
+  path: pemutil/pkcs8_test.go
+  line: 179
+  token: "ed25519.GenerateKey"
+  verdict: site
+  note: "crypto/ed25519 GenerateKey, test file"
+"347d0737924d6354":
+  repo: sigstore-python
+  path: test/unit/verify/test_verifier.py
+  line: 208
+  token: "hashlib.sha256"
+  verdict: site
+  note: "hashlib.sha256(b'').hexdigest(), test file"
+"34d69003732559ce":
+  repo: smallstep-crypto
+  path: randutil/random.go
+  line: 52
+  token: "rand.Int"
+  verdict: site
+  note: "crypto/rand Int"
+"357b323fac1218e9":
+  repo: smallstep-crypto
+  path: x25519/x25519.go
+  line: 157
+  token: "sha512.Sum512"
+  verdict: not_site
+  note: "in a comment block, not executed code"
+"35a0e9dc0e6fccf0":
+  repo: smallstep-crypto
+  path: keyutil/key.go
+  line: 244
+  token: "GenerateKey"
+  verdict: not_site
+  note: "x25519.GenerateKey is repo-internal package"
+"363b62ce5c90ead3":
+  repo: golang-jwt
+  path: types.go
+  line: 90
+  token: "Float64"
+  verdict: not_site
+  note: "json.Number.Float64() call, unrelated to crypto"
+"365bd785880a894e":
+  repo: sigstore-python
+  path: test/unit/test_sign.py
+  line: 39
+  token: "ec.generate_private_key"
+  verdict: site
+  note: "cryptography ec.generate_private_key, test file"
+"367b073e86f2cbf9":
+  repo: age
+  path: recipients_test.go
+  line: 128
+  token: "rand.Read"
+  verdict: site
+  note: "crypto/rand.Read, test file"
+"37d27e00cae03993":
+  repo: sigstore-python
+  path: sigstore/_internal/rekor/client_v2.py
+  line: 153
+  token: "Signature"
+  verdict: not_site
+  note: "rekor_v2.verifier.Signature schema constructor"
+"37ec85242aab83b6":
+  repo: smallstep-crypto
+  path: kms/awskms/decrypter_test.go
+  line: 61
+  token: "sha1.New"
+  verdict: site
+  note: "stdlib crypto/sha1, test file"
+"392faff9e2177598":
+  repo: smallstep-crypto
+  path: kms/mackms/mackms_test.go
+  line: 786
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call, test file"
+"3984af6f2349f93e":
+  repo: smallstep-crypto
+  path: kms/mackms/signer_test.go
+  line: 93
+  token: "ECDH"
+  verdict: site
+  note: "goP256.ECDH(ecdhPub) crypto/ecdh PrivateKey method"
+"398de01056d9ef2b":
+  repo: smallstep-crypto
+  path: kms/object_test.go
+  line: 22
+  token: "ed25519.GenerateKey"
+  verdict: site
+  note: "crypto/ed25519 call, test file"
+"3998cc7d122b521b":
+  repo: smallstep-crypto
+  path: kms/cloudkms/attestation_test.go
+  line: 443
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "stdlib crypto/rsa, test file"
+"39a49c4876815e41":
+  repo: sio
+  path: dare.go
+  line: 27
+  token: "Cipher"
+  verdict: not_site
+  note: "method definition headerV10.Cipher(), local getter not crypto call"
+"3a02910a7950e44c":
+  repo: age
+  path: agessh/agessh.go
+  line: 212
+  token: "X25519"
+  verdict: site
+  note: "curve25519.X25519 call"
+"3a2c03a1bd9e1432":
+  repo: go-jose
+  path: jwk_test.go
+  line: 485
+  token: "sha256.Sum256"
+  verdict: site
+  note: "crypto/sha256 call in test"
+"3a508e0e85455f8c":
+  repo: smallstep-crypto
+  path: pemutil/pkcs8.go
+  line: 241
+  token: "des.NewCipher"
+  verdict: site
+  note: "crypto/des NewCipher"
+"3a723108a80a66e6":
+  repo: go-jose
+  path: jwk_test.go
+  line: 1001
+  token: "P256"
+  verdict: site
+  note: "crypto/elliptic.P256() call in test"
+"3a84b546f80ec575":
+  repo: smallstep-crypto
+  path: kms/azurekms/utils.go
+  line: 138
+  token: "ecdh.P256"
+  verdict: site
+  note: "stdlib crypto/ecdh"
+"3a9730ae3c86e2ca":
+  repo: smallstep-crypto
+  path: tpm/tss2/signer.go
+  line: 250
+  token: "P256"
+  verdict: site
+  note: "crypto/elliptic P256() switch case"
+"3b2a4258fb8c6582":
+  repo: smallstep-crypto
+  path: keyutil/key_test.go
+  line: 671
+  token: "GenerateKey"
+  verdict: not_site
+  note: "calls local package function GenerateKey under test"
+"3b2d0343e5fee684":
+  repo: smallstep-crypto
+  path: pemutil/pkcs8.go
+  line: 231
+  token: "aes.NewCipher"
+  verdict: site
+  note: "crypto/aes NewCipher"
+"3b454e699cb151c3":
+  repo: oauthlib
+  path: oauthlib/oauth1/rfc5849/__init__.py
+  line: 223
+  token: "hashlib.sha1"
+  verdict: site
+  note: "hashlib.sha1(...).digest() real call, hashlib imported"
+"3d14af96487a6307":
+  repo: smallstep-crypto
+  path: sshutil/certificate_test.go
+  line: 37
+  token: "ed25519.GenerateKey"
+  verdict: site
+  note: "crypto/ed25519 GenerateKey, test file"
+"3d2ddaeb19d82b2d":
+  repo: go-jose
+  path: symmetric.go
+  line: 300
+  token: "aes.NewCipher"
+  verdict: site
+  note: "crypto/aes call"
+"3d50f96daef0e486":
+  repo: python-jose
+  path: jose/backends/cryptography_backend.py
+  line: 493
+  token: "Cipher"
+  verdict: site
+  note: "cryptography Cipher(...) constructed in decrypt"
+"3e5ba6244abcc47d":
+  repo: smallstep-crypto
+  path: jose/parse_test.go
+  line: 771
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "stdlib crypto/rsa, test file"
+"3e973959d7f2b845":
+  repo: smallstep-crypto
+  path: kms/pkcs11/other_test.go
+  line: 141
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "crypto/rsa call, test file"
+"3ec20bd8c6c42d9e":
+  repo: smallstep-crypto
+  path: kms/mackms/mackms_test.go
+  line: 699
+  token: "P256"
+  verdict: site
+  note: "case elliptic.P256(): call"
+"3f7c1435978b3284":
+  repo: smallstep-crypto
+  path: keyutil/key_test.go
+  line: 148
+  token: "GenerateKey"
+  verdict: not_site
+  note: "x25519.GenerateKey is repo-internal package"
+"3fc5d934905b1e2f":
+  repo: smallstep-crypto
+  path: x25519/x25519_test.go
+  line: 58
+  token: "GenerateKey"
+  verdict: not_site
+  note: "same-package GenerateKey wrapper"
+"3fbe3b928ac25021":
+  repo: smallstep-crypto
+  path: x25519/x25519.go
+  line: 283
+  token: "ScalarBaseMult"
+  verdict: not_site
+  note: "filippo.io/edwards25519 Point.ScalarBaseMult method, not x/crypto/curve25519"
+"3fcc7be70ff2d66e":
+  repo: python-jose
+  path: jose/backends/cryptography_backend.py
+  line: 467
+  token: "Cipher"
+  verdict: site
+  note: "cryptography.hazmat.primitives.ciphers.Cipher(...) constructed"
+"410850859f4a1c04":
+  repo: sigstore-python
+  path: sigstore/verify/verifier.py
+  line: 649
+  token: "Signature"
+  verdict: not_site
+  note: "v2.verifier.Signature schema constructor"
+"416ad8585f372723":
+  repo: smallstep-crypto
+  path: kms/tpmkms/tpmkms.go
+  line: 1524
+  token: "sha256.Sum256"
+  verdict: site
+  note: "crypto/sha256 call"
+"41c830b71aa707f8":
+  repo: age
+  path: primitives.go
+  line: 20
+  token: "chacha20poly1305.New"
+  verdict: site
+  note: "x/crypto/chacha20poly1305.New AEAD construction"
+"41dc992de4d76fc3":
+  repo: smallstep-crypto
+  path: kms/awskms/decrypter_test.go
+  line: 59
+  token: "sha256.New"
+  verdict: site
+  note: "stdlib crypto/sha256, test file"
+"422654f756829f06":
+  repo: sigstore-python
+  path: sigstore/sign.py
+  line: 106
+  token: "ec.generate_private_key"
+  verdict: site
+  note: "cryptography ec.generate_private_key(ec.SECP256R1())"
+"42388845c93addda":
+  repo: age
+  path: plugin/client.go
+  line: 499
+  token: "IntN"
+  verdict: site
+  note: "math/rand/v2 IntN call"
+"42779805ecd5dfae":
+  repo: smallstep-crypto
+  path: kms/mackms/mackms_test.go
+  line: 683
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call, test file"
+"428fde19348586a6":
+  repo: python-jose
+  path: jose/backends/cryptography_backend.py
+  line: 306
+  token: "padding.PKCS1v15"
+  verdict: site
+  note: "prepared_key.sign(msg, padding.PKCS1v15(), ...)"
+"4337eeda0cef871e":
+  repo: smallstep-crypto
+  path: jose/types.go
+  line: 180
+  token: "SHA256"
+  verdict: not_site
+  note: "const declaration for ContentEncryption string label, not a call"
+"43dd54a9f0dad2dd":
+  repo: smallstep-crypto
+  path: kms/mackms/signer_test.go
+  line: 132
+  token: "ECDH"
+  verdict: not_site
+  note: "e.ECDH(...) calls package-local wrapper method, not stdlib directly"
+"44286c06587b7c80":
+  repo: go-jose
+  path: jose-util/generator/generate.go
+  line: 105
+  token: "P256"
+  verdict: site
+  note: "crypto/elliptic.P256() call"
+"442f555ecf67b612":
+  repo: smallstep-crypto
+  path: nssdb/keys.go
+  line: 182
+  token: "P256"
+  verdict: site
+  note: "crypto/elliptic P256() comparison"
+"445dae0e354d9ca9":
+  repo: sigstore-python
+  path: test/unit/internal/test_key_details.py
+  line: 74
+  token: "Ed25519PrivateKey.generate"
+  verdict: site
+  note: "cryptography ed25519.Ed25519PrivateKey.generate(), test file"
+"45078c912d071e71":
+  repo: sigstore-python
+  path: test/unit/internal/test_key_details.py
+  line: 158
+  token: "rsa.generate_private_key"
+  verdict: site
+  note: "cryptography rsa.generate_private_key, test file"
+"45295b7a54531b48":
+  repo: smallstep-crypto
+  path: keyutil/key.go
+  line: 238
+  token: "ed25519.GenerateKey"
+  verdict: site
+  note: "stdlib crypto/ed25519"
+"458706a9f458b7c1":
+  repo: age
+  path: agessh/agessh.go
+  line: 288
+  token: "sha512.New"
+  verdict: site
+  note: "crypto/sha512.New call"
+"462501d5a3ca2256":
+  repo: smallstep-crypto
+  path: kms/mackms/mackms_test.go
+  line: 1355
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call, test file"
+"47356a9fc290e2bc":
+  repo: go-jose
+  path: jose-util/generator/generate.go
+  line: 73
+  token: "ed25519.GenerateKey"
+  verdict: site
+  note: "crypto/ed25519 call"
+"476fc2817aae57b4":
+  repo: smallstep-crypto
+  path: kms/softkms/softkms_test.go
+  line: 361
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call, test file"
+"47af7511b7ee3537":
+  repo: smallstep-crypto
+  path: kms/mackms/mackms_test.go
+  line: 1217
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call, test file"
+"483c88382cc5372d":
+  repo: go-jose
+  path: signing_test.go
+  line: 308
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call in test"
+"484de2c048c6fa5e":
+  repo: go-jose
+  path: symmetric.go
+  line: 338
+  token: "aes.NewCipher"
+  verdict: site
+  note: "crypto/aes call"
+"4885652989eb8de5":
+  repo: go-jose
+  path: jose-util/generator/generate.go
+  line: 55
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call"
+"49fa06e4c1c82e81":
+  repo: smallstep-crypto
+  path: kms/mackms/mackms.go
+  line: 1433
+  token: "ecdh.P521"
+  verdict: site
+  note: "case ecdh.P521(): calls crypto/ecdh constructor"
+"4a23e1228ab49473":
+  repo: go-jose
+  path: cipher/ecdh_es_test.go
+  line: 80
+  token: "P256"
+  verdict: site
+  note: "crypto/elliptic.P256() call in test"
+"4a874dd7d5bc2331":
+  repo: age
+  path: internal/stream/stream_test.go
+  line: 915
+  token: "rand.Read"
+  verdict: site
+  note: "crypto/rand.Read, test file"
+"4b14ddd7815048bd":
+  repo: smallstep-crypto
+  path: kms/yubikey/yubikey_test.go
+  line: 214
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "crypto/rsa call, test file"
+"4b38a72a41a812f6":
+  repo: smallstep-crypto
+  path: jose/generate_test.go
+  line: 373
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "stdlib crypto/ecdsa, test file"
+"4bf88160b2303509":
+  repo: sigstore-python
+  path: test/unit/internal/test_key_details.py
+  line: 53
+  token: "padding.PKCS1v15"
+  verdict: site
+  note: "cryptography padding.PKCS1v15(), test file"
+"4c105689f30ab39e":
+  repo: go-jose
+  path: jose-util/generator/generate.go
+  line: 109
+  token: "P521"
+  verdict: site
+  note: "crypto/elliptic.P521() call"
+"4d2a320ac414a96e":
+  repo: smallstep-crypto
+  path: nssdb/keys.go
+  line: 216
+  token: "P256"
+  verdict: site
+  note: "crypto/elliptic P256() comparison"
+"4d73748dc8ed2088":
+  repo: smallstep-crypto
+  path: kms/platform/kms_windows_test.go
+  line: 116
+  token: "P256"
+  verdict: site
+  note: "elliptic.P256() call in assert.Equal, test file"
+"4dfba0fbbcff231a":
+  repo: go-jose
+  path: jwk.go
+  line: 159
+  token: "sha1.Sum"
+  verdict: site
+  note: "crypto/sha1 call"
+"4e23898161b2cad1":
+  repo: smallstep-crypto
+  path: kms/mackms/signer_test.go
+  line: 167
+  token: "ecdh.P384"
+  verdict: site
+  note: "ecdh.P384() constructor call, test file"
+"4e273fd794a87d76":
+  repo: smallstep-crypto
+  path: kms/softkms/softkms_test.go
+  line: 231
+  token: "GenerateKey"
+  verdict: not_site
+  note: "string literal inside t.Errorf format message"
+"4e5ced0f35f86fde":
+  repo: sigstore-python
+  path: sigstore/_utils.py
+  line: 171
+  token: "hashlib.sha256"
+  verdict: site
+  note: "hashlib.sha256(input_).digest()"
+"4e770e81efa28e98":
+  repo: smallstep-crypto
+  path: kms/yubikey/yubikey_test.go
+  line: 515
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call, test file"
+"4fc45febdbf8dacc":
+  repo: smallstep-crypto
+  path: kms/mackms/mackms_test.go
+  line: 688
+  token: "ecdh.X25519"
+  verdict: site
+  note: "ecdh.X25519().GenerateKey(), test file"
+"50340623c79bc493":
+  repo: go-jose
+  path: signing_test.go
+  line: 644
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call in test"
+"50c84b0867ae75e9":
+  repo: go-jose
+  path: signing_test.go
+  line: 417
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call in test"
+"50f1a08c24ffa2e4":
+  repo: go-jose
+  path: jwk.go
+  line: 540
+  token: "P384"
+  verdict: site
+  note: "crypto/elliptic.P384() call"
+"5103a017ea0cc57d":
+  repo: go-jose
+  path: jose-util/generator/generate.go
+  line: 76
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "crypto/rsa call"
+"5119dc825d9a01e6":
+  repo: paramiko
+  path: paramiko/pkey.py
+  line: 390
+  token: "md5"
+  verdict: site
+  note: "hashlib.md5() call for fingerprint"
+"51604649204abd6f":
+  repo: smallstep-crypto
+  path: kms/cloudkms/attestation.go
+  line: 515
+  token: "Uint32"
+  verdict: not_site
+  note: "binary.BigEndian.Uint32, encoding/binary is not a crypto primitive"
+"521731b9dda16457":
+  repo: smallstep-crypto
+  path: kms/mackms/mackms_test.go
+  line: 638
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call, test file"
+"53754cc1502b632a":
+  repo: smallstep-crypto
+  path: kms/azurekms/utils_test.go
+  line: 121
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "stdlib crypto/ecdsa, test file"
+"53bfeeb3044270b2":
+  repo: sigstore-python
+  path: test/unit/internal/test_key_details.py
+  line: 121
+  token: "ec.generate_private_key"
+  verdict: site
+  note: "cryptography ec.generate_private_key, test file"
+"540003100c2ad549":
+  repo: smallstep-crypto
+  path: jose/generate.go
+  line: 105
+  token: "GenerateKey"
+  verdict: not_site
+  note: "calls repo-internal keyutil.GenerateKey wrapper"
+"542861002cc53696":
+  repo: age
+  path: x25519.go
+  line: 67
+  token: "rand.Read"
+  verdict: site
+  note: "crypto/rand.Read for ephemeral key"
+"54ef38cc8b3e0e4f":
+  repo: go-jose
+  path: asymmetric.go
+  line: 473
+  token: "aes.NewCipher"
+  verdict: site
+  note: "crypto/aes call"
+"554b4d593e399ba4":
+  repo: age
+  path: x25519.go
+  line: 70
+  token: "X25519"
+  verdict: site
+  note: "curve25519.X25519 call"
+"559468c7f16d66ed":
+  repo: smallstep-crypto
+  path: pemutil/pem.go
+  line: 750
+  token: "ecdh.P256"
+  verdict: site
+  note: "crypto/ecdh P256()"
+"559e1957a4bfb7f1":
+  repo: smallstep-crypto
+  path: kms/mackms/signer_test.go
+  line: 204
+  token: "ECDH"
+  verdict: site
+  note: "pub.ECDH() on *ecdsa.PublicKey, test file"
+"55c4fb7724bc9c20":
+  repo: smallstep-crypto
+  path: kms/azurekms/utils.go
+  line: 142
+  token: "ecdh.P384"
+  verdict: site
+  note: "stdlib crypto/ecdh"
+"560beea7a0fe3a12":
+  repo: age
+  path: internal/stream/stream_test.go
+  line: 602
+  token: "rand.Read"
+  verdict: site
+  note: "crypto/rand.Read, test file"
+"5664f5b82a227f64":
+  repo: pyjwt
+  path: tests/test_algorithms.py
+  line: 1551
+  token: "generate_private_key"
+  verdict: site
+  note: "cryptography rsa.generate_private_key call in test file"
+"567cf81bd447ea31":
+  repo: smallstep-crypto
+  path: keyutil/key_test.go
+  line: 271
+  token: "GenerateKey"
+  verdict: not_site
+  note: "inside t.Errorf string literal, not a call"
+"585b9d5d06133cb1":
+  repo: smallstep-crypto
+  path: nssdb/encrypt.go
+  line: 324
+  token: "aes.NewCipher"
+  verdict: site
+  note: "crypto/aes NewCipher"
+"58b4257478f6ccac":
+  repo: smallstep-crypto
+  path: tpm/tss2/signer_test.go
+  line: 284
+  token: "P256"
+  verdict: site
+  note: "crypto/elliptic P256(), test file"
+"59379dbaa5ec6a88":
+  repo: go-jose
+  path: doc_test.go
+  line: 79
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "crypto/rsa call in test"
+"593924e6013ccecd":
+  repo: smallstep-crypto
+  path: kms/azurekms/utils_test.go
+  line: 113
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "stdlib crypto/ecdsa, test file"
+"5998b1c5d66f7262":
+  repo: go-jose
+  path: asymmetric.go
+  line: 194
+  token: "OAEP"
+  verdict: not_site
+  note: "comment text, not a call"
+"5a906424627e395d":
+  repo: age
+  path: cmd/age/wordlist.go
+  line: 20
+  token: "rand.Read"
+  verdict: site
+  note: "crypto/rand.Read filling word index buffer"
+"5b1aa149576f6b0a":
+  repo: age
+  path: agessh/agessh.go
+  line: 207
+  token: "X25519"
+  verdict: site
+  note: "golang.org/x/crypto/curve25519.X25519 call"
+"5b1cf940c37569a9":
+  repo: smallstep-crypto
+  path: x25519/x25519_test.go
+  line: 586
+  token: "GenerateKey"
+  verdict: not_site
+  note: "same-package GenerateKey wrapper"
+"5b1f52bfc9793aa8":
+  repo: smallstep-crypto
+  path: jose/parse_test.go
+  line: 539
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "stdlib crypto/ecdsa, test file"
+"5b699243d4cd1151":
+  repo: smallstep-crypto
+  path: x509util/extensions_test.go
+  line: 1781
+  token: "ed25519.GenerateKey"
+  verdict: site
+  note: "crypto/ed25519 GenerateKey, test file"
+"5b8066b76d110e50":
+  repo: go-jose
+  path: shared.go
+  line: 129
+  token: "SHA256"
+  verdict: not_site
+  note: "appears in trailing comment, not a call"
+"5bfd25bd409fe39f":
+  repo: smallstep-crypto
+  path: keyutil/fingerprint.go
+  line: 68
+  token: "sha256.Sum256"
+  verdict: site
+  note: "stdlib crypto/sha256"
+"5c4a001fe5bdad13":
+  repo: paramiko
+  path: paramiko/hostkeys.py
+  line: 294
+  token: "sha1"
+  verdict: site
+  note: "hashlib.sha1() call for hashed hostname"
+"5c559fcb87738092":
+  repo: smallstep-crypto
+  path: keyutil/key.go
+  line: 209
+  token: "P521"
+  verdict: site
+  note: "stdlib crypto/elliptic.P521"
+"5c5845403d24e3bb":
+  repo: age
+  path: internal/stream/stream_test.go
+  line: 910
+  token: "rand.Read"
+  verdict: site
+  note: "crypto/rand.Read, test file"
+"5c5cf299a64f25aa":
+  repo: smallstep-crypto
+  path: kms/mackms/mackms_test.go
+  line: 586
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call, test file"
+"5d268b5ebf2f604e":
+  repo: smallstep-crypto
+  path: pemutil/pem_test.go
+  line: 630
+  token: "GenerateKey"
+  verdict: not_site
+  note: "keyutil.GenerateKey repo-local wrapper"
+"5dcaf941a6f2aa08":
+  repo: go-jose
+  path: json/decode.go
+  line: 179
+  token: "Float64"
+  verdict: not_site
+  note: "method definition, not a crypto call"
+"5e3ef6fa90b1676a":
+  repo: smallstep-crypto
+  path: kms/capi/ncrypt_windows.go
+  line: 127
+  token: "P521"
+  verdict: site
+  note: "stdlib crypto/elliptic.P521"
+"5f82d996b637e690":
+  repo: smallstep-crypto
+  path: kms/mackms/signer_test.go
+  line: 100
+  token: "ECDH"
+  verdict: site
+  note: "pub.ECDH() on *ecdsa.PublicKey, test file"
+"6061a23bac6edb19":
+  repo: smallstep-crypto
+  path: kms/mackms/signer.go
+  line: 189
+  token: "P384"
+  verdict: site
+  note: "case elliptic.P384(): call"
+"60697ddcc96b9170":
+  repo: sigstore-python
+  path: sigstore/sign.py
+  line: 142
+  token: "hashes.SHA256"
+  verdict: site
+  note: "builder.sign(self._private_key, hashes.SHA256())"
+"609d44a65b408ad6":
+  repo: smallstep-crypto
+  path: jose/parse_test.go
+  line: 543
+  token: "ed25519.GenerateKey"
+  verdict: site
+  note: "stdlib crypto/ed25519, test file"
+"60f31791e5259b9a":
+  repo: go-jose
+  path: jose-util/generator/generate.go
+  line: 61
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call"
+"61020063eb82bae1":
+  repo: sigstore-python
+  path: test/unit/test_hashes.py
+  line: 30
+  token: "hashlib.sha3_384"
+  verdict: site
+  note: "hashlib.sha3_384(b'').hexdigest(), test file"
+"61f2cc6dc6af207e":
+  repo: age
+  path: x25519.go
+  line: 127
+  token: "X25519"
+  verdict: site
+  note: "curve25519.X25519 call"
+"622126314d654af1":
+  repo: smallstep-crypto
+  path: kms/capi/capi.go
+  line: 236
+  token: "Uint64"
+  verdict: not_site
+  note: "binary.BigEndian.Uint64, encoding/binary is not a crypto primitive"
+"6221cecbce39e048":
+  repo: age
+  path: agessh/agessh.go
+  line: 204
+  token: "rand.Read"
+  verdict: site
+  note: "crypto/rand.Read for ephemeral key"
+"6229b0a4ae7ff7f0":
+  repo: go-jose
+  path: asymmetric_test.go
+  line: 230
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "crypto/rsa call in test"
+"627bad6458113fac":
+  repo: go-jose
+  path: cryptosigner/cryptosigner.go
+  line: 60
+  token: "P256"
+  verdict: site
+  note: "crypto/elliptic.P256() call in switch case"
+"6281f14624cb6ce9":
+  repo: sigstore-python
+  path: test/unit/internal/test_key_details.py
+  line: 135
+  token: "hashes.SHA256"
+  verdict: site
+  note: "cryptography hashes.SHA256() in padding.MGF1, test file"
+"62917d38d62d252b":
+  repo: age
+  path: scrypt.go
+  line: 106
+  token: "rand.Read"
+  verdict: site
+  note: "crypto/rand.Read filling random label bytes"
+"62a1e736bd483c5f":
+  repo: age
+  path: armor/armor_test.go
+  line: 101
+  token: "rand.Read"
+  verdict: site
+  note: "crypto/rand.Read, test file"
+"63794e4898588bca":
+  repo: age
+  path: age.go
+  line: 194
+  token: "rand.Read"
+  verdict: site
+  note: "crypto/rand.Read filling nonce"
+"63879c173d3250fb":
+  repo: paramiko
+  path: paramiko/ed25519key.py
+  line: 128
+  token: "Cipher"
+  verdict: site
+  note: "cryptography Cipher() construction"
+"6451e167c2016d3e":
+  repo: smallstep-crypto
+  path: kms/yubikey/yubikey.go
+  line: 136
+  token: "GenerateKey"
+  verdict: not_site
+  note: "interface method declaration (pivKey interface), not a call"
+"647d89c0f16d503f":
+  repo: smallstep-crypto
+  path: kms/pkcs11/pkcs11.go
+  line: 405
+  token: "P256"
+  verdict: site
+  note: "elliptic.P256() call"
+"64f977459c2c8f16":
+  repo: oauthlib
+  path: oauthlib/oauth2/rfc6749/clients/base.py
+  line: 538
+  token: "hashlib.sha256"
+  verdict: site
+  note: "hashlib.sha256() real call"
+"64fb2d855718a102":
+  repo: go-jose
+  path: asymmetric_test.go
+  line: 200
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "crypto/rsa call in test"
+"65b155ee631d6533":
+  repo: smallstep-crypto
+  path: kms/yubikey/yubikey_test.go
+  line: 90
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call, test file"
+"6662029b73160b84":
+  repo: smallstep-crypto
+  path: minica/minica_test.go
+  line: 63
+  token: "ed25519.GenerateKey"
+  verdict: site
+  note: "crypto/ed25519 call, test file"
+"6691eabe8f5144e5":
+  repo: age
+  path: internal/stream/stream.go
+  line: 271
+  token: "chacha20poly1305.New"
+  verdict: site
+  note: "x/crypto/chacha20poly1305.New AEAD construction"
+"6803e57459001d0e":
+  repo: smallstep-crypto
+  path: kms/yubikey/yubikey.go
+  line: 358
+  token: "GenerateKey"
+  verdict: site
+  note: "k.yk.GenerateKey() calls go-piv/piv-go hardware key generation"
+"69b0fbb3973e6c3f":
+  repo: smallstep-crypto
+  path: x25519/x25519_test.go
+  line: 35
+  token: "GenerateKey"
+  verdict: not_site
+  note: "same-package GenerateKey wrapper"
+"6a78a55f0f1b5561":
+  repo: go-jose
+  path: cipher/key_wrap_test.go
+  line: 156
+  token: "aes.NewCipher"
+  verdict: site
+  note: "crypto/aes call in test"
+"6b2337c68f2d5434":
+  repo: age
+  path: age.go
+  line: 182
+  token: "rand.Read"
+  verdict: site
+  note: "crypto/rand.Read filling file key"
+"6b3db4fd1ff9dfca":
+  repo: age
+  path: internal/stream/stream_test.go
+  line: 678
+  token: "rand.Read"
+  verdict: site
+  note: "crypto/rand.Read, test file"
+"6b5d64fbc7b6ec28":
+  repo: sigstore-python
+  path: sigstore/_internal/rekor/__init__.py
+  line: 108
+  token: "Signature"
+  verdict: not_site
+  note: "rekor_types.hashedrekord.Signature schema constructor, not crypto primitive"
+"6c8b23e87548afa1":
+  repo: paramiko
+  path: tests/test_packetizer.py
+  line: 48
+  token: "Cipher"
+  verdict: site
+  note: "cryptography Cipher() construction, test file"
+"6cc89be5a87fd306":
+  repo: smallstep-crypto
+  path: x509util/extensions_test.go
+  line: 1727
+  token: "ed25519.GenerateKey"
+  verdict: site
+  note: "crypto/ed25519 GenerateKey, test file"
+"6d0b41733aeb4b9e":
+  repo: smallstep-crypto
+  path: x25519/x25519.go
+  line: 166
+  token: "sha512.New"
+  verdict: site
+  note: "crypto/sha512 New()"
+"6d5500137a8e8e07":
+  repo: smallstep-crypto
+  path: tpm/names.go
+  line: 17
+  token: "rand.Read"
+  verdict: site
+  note: "crypto/rand Read"
+"6d6c3e7b2366bbfc":
+  repo: smallstep-crypto
+  path: nssdb/nssdb.go
+  line: 121
+  token: "sha1.New"
+  verdict: site
+  note: "crypto/sha1 New()"
+"6dc743c5c76a461d":
+  repo: age
+  path: agessh/agessh.go
+  line: 264
+  token: "X25519"
+  verdict: site
+  note: "curve25519.X25519 call"
+"6dfaa58f2b9ca4a1":
+  repo: sio
+  path: dare.go
+  line: 142
+  token: "Cipher"
+  verdict: not_site
+  note: "header.Cipher() calls local getter method, not a crypto library primitive"
+"6e5cc2764f222a3e":
+  repo: smallstep-crypto
+  path: pemutil/pem_test.go
+  line: 596
+  token: "GenerateKey"
+  verdict: not_site
+  note: "keyutil.GenerateKeyPair repo-local wrapper"
+"6f2406d8ff4a3b3f":
+  repo: go-jose
+  path: cryptosigner/cryptosigner_test.go
+  line: 158
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "crypto/rsa call in test"
+"6f5dc519700e6368":
+  repo: python-jose
+  path: tests/algorithms/test_EC.py
+  line: 111
+  token: "generate_private_key"
+  verdict: site
+  note: "cryptography ec.generate_private_key call in test"
+"6fc3a7dc6ccc5efb":
+  repo: smallstep-crypto
+  path: kms/yubikey/yubikey_test.go
+  line: 86
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call, test file"
+"7064f3e102028f90":
+  repo: go-jose
+  path: cipher/key_wrap_test.go
+  line: 86
+  token: "aes.NewCipher"
+  verdict: site
+  note: "crypto/aes call in test"
+"71717fd145c65a06":
+  repo: smallstep-crypto
+  path: jose/parse_test.go
+  line: 545
+  token: "GenerateKey"
+  verdict: not_site
+  note: "x25519.GenerateKey is repo-internal package (go.step.sm/crypto/x25519), wraps golang.org/x/crypto/curve25519"
+"71cd1145ab2f0956":
+  repo: age
+  path: agessh/agessh.go
+  line: 381
+  token: "chacha20poly1305.New"
+  verdict: site
+  note: "x/crypto/chacha20poly1305.New AEAD construction"
+"720a631bed49b7a9":
+  repo: go-jose
+  path: json/scanner_test.go
+  line: 264
+  token: "rand.Intn"
+  verdict: site
+  note: "math/rand call in test"
+"72abbfae193970b6":
+  repo: sigstore-python
+  path: sigstore/_internal/merkle.py
+  line: 91
+  token: "hashlib.sha256"
+  verdict: site
+  note: "hashlib.sha256(data).digest() Merkle leaf hash"
+"72c76525f89c18c4":
+  repo: smallstep-crypto
+  path: kms/mackms/mackms.go
+  line: 1435
+  token: "P521"
+  verdict: site
+  note: "elliptic.P521() call"
+"72f6e4c3fc9b0de1":
+  repo: sigstore-python
+  path: test/unit/internal/test_key_details.py
+  line: 177
+  token: "padding.PKCS1v15"
+  verdict: site
+  note: "cryptography padding.PKCS1v15(), test file"
+"73d519479f64d216":
+  repo: smallstep-crypto
+  path: kms/mackms/mackms.go
+  line: 1402
+  token: "ecdh.P384"
+  verdict: site
+  note: "stdlib crypto/ecdh"
+"740338801129779f":
+  repo: smallstep-crypto
+  path: kms/capi/ncrypt_windows.go
+  line: 124
+  token: "P521"
+  verdict: site
+  note: "stdlib crypto/elliptic.P521"
+"743862b223ce8b80":
+  repo: smallstep-crypto
+  path: sshutil/sshutil.go
+  line: 60
+  token: "P256"
+  verdict: site
+  note: "crypto/elliptic P256() in struct literal"
+"744f1a5265b76362":
+  repo: go-jose
+  path: cipher/key_wrap_test.go
+  line: 84
+  token: "aes.NewCipher"
+  verdict: site
+  note: "crypto/aes call in test"
+"7468ebf0e6c9e99c":
+  repo: go-jose
+  path: jwk_test.go
+  line: 85
+  token: "P256"
+  verdict: site
+  note: "crypto/elliptic.P256() call in test"
+"749d2769cb3a0825":
+  repo: oauthlib
+  path: oauthlib/oauth2/rfc6749/clients/base.py
+  line: 513
+  token: "SHA256"
+  verdict: not_site
+  note: "line is inside a docstring describing PKCE, not executable code"
+"7563c70e2513b90b":
+  repo: smallstep-crypto
+  path: jose/validate.go
+  line: 101
+  token: "sha1.Sum"
+  verdict: site
+  note: "stdlib crypto/sha1"
+"76313b7079450494":
+  repo: smallstep-crypto
+  path: pemutil/pem.go
+  line: 825
+  token: "sha256.Sum224"
+  verdict: site
+  note: "crypto/sha256 Sum224"
+"76a367b557670bfb":
+  repo: go-jose
+  path: signing_test.go
+  line: 361
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call in test"
+"76fcc8b7fdb4c3bc":
+  repo: go-jose
+  path: jwe_test.go
+  line: 647
+  token: "P256"
+  verdict: site
+  note: "crypto/elliptic.P256() call in test"
+"7705ad1aad58634c":
+  repo: go-jose
+  path: jwk.go
+  line: 339
+  token: "sha1.Sum"
+  verdict: site
+  note: "crypto/sha1 call"
+"77d958bba8c634e0":
+  repo: sigstore-python
+  path: test/unit/internal/test_key_details.py
+  line: 69
+  token: "padding.PKCS1v15"
+  verdict: site
+  note: "cryptography padding.PKCS1v15(), test file"
+"77ff00164ea65a62":
+  repo: age
+  path: x25519.go
+  line: 134
+  token: "rand.Read"
+  verdict: site
+  note: "crypto/rand.Read filling secret key"
+"780f8eaf59e10178":
+  repo: go-jose
+  path: asymmetric.go
+  line: 214
+  token: "OAEP"
+  verdict: not_site
+  note: "comment text, not a call"
+"7848b8ad999f7e7e":
+  repo: go-jose
+  path: shared.go
+  line: 131
+  token: "SHA512"
+  verdict: not_site
+  note: "appears in trailing comment, not a call"
+"788810ccbe600e7e":
+  repo: pyjwt
+  path: tests/test_algorithms.py
+  line: 1518
+  token: "generate_private_key"
+  verdict: site
+  note: "cryptography rsa.generate_private_key call in test file"
+"7936767ca1be094e":
+  repo: smallstep-crypto
+  path: kms/mackms/mackms_test.go
+  line: 707
+  token: "P521"
+  verdict: site
+  note: "case elliptic.P521(): call"
+"793ba28a31e950f8":
+  repo: sigstore-python
+  path: test/unit/internal/rekor/test_client_v2.py
+  line: 36
+  token: "hashlib.sha256"
+  verdict: site
+  note: "hashlib.sha256(b'').hexdigest(), test file"
+"797286c752761430":
+  repo: sigstore-python
+  path: sigstore/dsse/__init__.py
+  line: 304
+  token: "hashes.SHA256"
+  verdict: site
+  note: "key.verify(signature, pae, ec.ECDSA(hashes.SHA256()))"
+"7985873a79e1a32d":
+  repo: smallstep-crypto
+  path: pemutil/pem_test.go
+  line: 572
+  token: "GenerateKey"
+  verdict: not_site
+  note: "keyutil.GenerateKeyPair repo-local wrapper"
+"799946a035e94741":
+  repo: sigstore-python
+  path: sigstore/_internal/trust.py
+  line: 92
+  token: "hashes.SHA256"
+  verdict: site
+  note: "cryptography hashes.SHA256() instantiation"
+"7a793273e1cb1f52":
+  repo: age
+  path: testkit_test.go
+  line: 203
+  token: "sha256.Sum256"
+  verdict: site
+  note: "crypto/sha256.Sum256, test file"
+"7abda887b00e0a59":
+  repo: go-jose
+  path: symmetric.go
+  line: 453
+  token: "aes.NewCipher"
+  verdict: site
+  note: "crypto/aes call"
+"7afd921651a0ad73":
+  repo: smallstep-crypto
+  path: kms/mackms/signer.go
+  line: 210
+  token: "ECDH"
+  verdict: site
+  note: "pub.ECDH() crypto/ecdsa PublicKey method"
+"7bdfd8fa601e0998":
+  repo: smallstep-crypto
+  path: kms/softkms/softkms_test.go
+  line: 349
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "crypto/rsa call, test file"
+"7bf80258034f9bee":
+  repo: smallstep-crypto
+  path: jose/validate_test.go
+  line: 170
+  token: "sha1.Sum"
+  verdict: site
+  note: "stdlib crypto/sha1, test file"
+"7c9beafc362c5504":
+  repo: age
+  path: agessh/agessh.go
+  line: 78
+  token: "sha256.New"
+  verdict: site
+  note: "crypto/sha256.New used in rsa.EncryptOAEP"
+"7d57637027c1c165":
+  repo: smallstep-crypto
+  path: jose/parse_test.go
+  line: 537
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "stdlib crypto/ecdsa, test file"
+"7d718b32d4699c6b":
+  repo: age
+  path: internal/stream/stream_test.go
+  line: 755
+  token: "rand.Read"
+  verdict: site
+  note: "crypto/rand.Read, test file"
+"7d82213f9dde07f4":
+  repo: age
+  path: internal/stream/stream_test.go
+  line: 638
+  token: "rand.Read"
+  verdict: site
+  note: "crypto/rand.Read, test file"
+"7e2908f0336f48d6":
+  repo: smallstep-crypto
+  path: kms/mackms/mackms_test.go
+  line: 681
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call, test file"
+"7e7e888ca5cc58b3":
+  repo: age
+  path: testkit_test.go
+  line: 259
+  token: "sha256.Sum256"
+  verdict: site
+  note: "crypto/sha256.Sum256, test file"
+"7e9c8f420024856d":
+  repo: smallstep-crypto
+  path: jose/parse_test.go
+  line: 773
+  token: "ed25519.GenerateKey"
+  verdict: site
+  note: "stdlib crypto/ed25519, test file"
+"7ef2173aa9fd1e96":
+  repo: smallstep-crypto
+  path: kms/yubikey/yubikey_test.go
+  line: 188
+  token: "GenerateKey"
+  verdict: not_site
+  note: "stubPivKey.GenerateKey method definition (test double), not a call"
+"7f59c158f2ab2769":
+  repo: smallstep-crypto
+  path: keyutil/key_test.go
+  line: 319
+  token: "GenerateKey"
+  verdict: not_site
+  note: "inside t.Errorf string literal, not a call"
+"8003e86e9e5547d5":
+  repo: smallstep-crypto
+  path: sshutil/fingerprint.go
+  line: 49
+  token: "sha256.Sum256"
+  verdict: site
+  note: "crypto/sha256 Sum256"
+"802f0b7b90738811":
+  repo: go-jose
+  path: cipher/ecdh_es_test.go
+  line: 40
+  token: "P256"
+  verdict: site
+  note: "crypto/elliptic.P256() call in test"
+"80c93927e99adefb":
+  repo: smallstep-crypto
+  path: x509util/certificate_request_test.go
+  line: 812
+  token: "ed25519.GenerateKey"
+  verdict: site
+  note: "crypto/ed25519 GenerateKey, test file"
+"81156a036f612c46":
+  repo: smallstep-crypto
+  path: kms/mackms/signer_test.go
+  line: 91
+  token: "ECDH"
+  verdict: site
+  note: "pub.ECDH() on *ecdsa.PublicKey, test file"
+"81e9f331b89d574e":
+  repo: sigstore-python
+  path: test/unit/internal/test_key_details.py
+  line: 173
+  token: "rsa.generate_private_key"
+  verdict: site
+  note: "cryptography rsa.generate_private_key, test file"
+"828de804dfc714e9":
+  repo: age
+  path: plugin/client.go
+  line: 503
+  token: "rand.Read"
+  verdict: site
+  note: "crypto/rand.Read call"
+"82b17397facb572d":
+  repo: go-jose
+  path: cryptosigner/cryptosigner_test.go
+  line: 129
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call in test"
+"82b36bf653c8f574":
+  repo: smallstep-crypto
+  path: nssdb/keys_test.go
+  line: 58
+  token: "P256"
+  verdict: site
+  note: "crypto/elliptic P256(), test file"
+"82c7cb8d63c7f90b":
+  repo: age
+  path: tag/tag.go
+  line: 78
+  token: "ecdh.P256"
+  verdict: site
+  note: "crypto/ecdh.P256() curve constructor used in hpke.DHKEM"
+"8381317396f007f0":
+  repo: smallstep-crypto
+  path: x509util/extensions_test.go
+  line: 1676
+  token: "ed25519.GenerateKey"
+  verdict: site
+  note: "crypto/ed25519 GenerateKey, test file"
+"839973d6bdfd49b8":
+  repo: smallstep-crypto
+  path: kms/platform/kms_test.go
+  line: 512
+  token: "P256"
+  verdict: site
+  note: "elliptic.P256() call in assert.Equal, test file"
+"83a1c7938b961d91":
+  repo: go-jose
+  path: crypter_test.go
+  line: 43
+  token: "ed25519.GenerateKey"
+  verdict: site
+  note: "crypto/ed25519 call in test"
+"83c586e360400b53":
+  repo: smallstep-crypto
+  path: kms/pkcs11/pkcs11_test.go
+  line: 866
+  token: "ed25519.GenerateKey"
+  verdict: site
+  note: "crypto/ed25519 call, test file"
+"842ff326d8e32d0f":
+  repo: smallstep-crypto
+  path: kms/mackms/mackms_test.go
+  line: 636
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call, test file"
+"84a8e76558d0493a":
+  repo: sigstore-python
+  path: sigstore/verify/verifier.py
+  line: 615
+  token: "Signature"
+  verdict: not_site
+  note: "v2.verifier.Signature schema constructor"
+"84b5c404ef2ef5c7":
+  repo: go-jose
+  path: cryptosigner/cryptosigner.go
+  line: 62
+  token: "P384"
+  verdict: site
+  note: "crypto/elliptic.P384() call in switch case"
+"852c83a40e9dd289":
+  repo: smallstep-crypto
+  path: internal/bcrypt_pbkdf/bcrypt_pbkdf.go
+  line: 80
+  token: "blowfish.NewSaltedCipher"
+  verdict: site
+  note: "golang.org/x/crypto/blowfish"
+"8571fcedd2aa1bb1":
+  repo: smallstep-crypto
+  path: kms/mackms/signer_test.go
+  line: 168
+  token: "ecdh.P521"
+  verdict: site
+  note: "ecdh.P521() constructor call, test file"
+"85a69bab1f3afc78":
+  repo: smallstep-crypto
+  path: pemutil/pkcs8.go
+  line: 244
+  token: "des.NewTripleDESCipher"
+  verdict: site
+  note: "crypto/des NewTripleDESCipher"
+"85e649b75e5229fa":
+  repo: smallstep-crypto
+  path: pemutil/pem_test.go
+  line: 624
+  token: "GenerateKey"
+  verdict: not_site
+  note: "keyutil.GenerateKey repo-local wrapper"
+"86c2256a12f8f7e2":
+  repo: sigstore-python
+  path: sigstore/_internal/trust.py
+  line: 120
+  token: "padding.PKCS1v15"
+  verdict: site
+  note: "cryptography padding.PKCS1v15() used in RSA key.verify"
+"86f2df31da24bf08":
+  repo: smallstep-crypto
+  path: kms/capi/ncrypt_windows.go
+  line: 125
+  token: "P256"
+  verdict: site
+  note: "stdlib crypto/elliptic.P256"
+"87233ec1de081283":
+  repo: age
+  path: internal/stream/stream_test.go
+  line: 597
+  token: "rand.Read"
+  verdict: site
+  note: "crypto/rand.Read, test file"
+"87be1bda5dc90661":
+  repo: smallstep-crypto
+  path: kms/mackms/mackms.go
+  line: 1371
+  token: "ecdh.P256"
+  verdict: site
+  note: "stdlib crypto/ecdh"
+"87d5600ad9692e69":
+  repo: go-jose
+  path: jwk_test.go
+  line: 255
+  token: "sha256.Sum256"
+  verdict: site
+  note: "crypto/sha256 call in test"
+"87f05ad2a9bff6bf":
+  repo: smallstep-crypto
+  path: keyutil/key.go
+  line: 214
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "stdlib crypto/ecdsa"
+"8844730f63a34fdf":
+  repo: smallstep-crypto
+  path: kms/platform/kms_windows_test.go
+  line: 135
+  token: "P384"
+  verdict: site
+  note: "elliptic.P384() call in assert.Equal, test file"
+"885c9da9a152f8e3":
+  repo: smallstep-crypto
+  path: x25519/x25519_test.go
+  line: 332
+  token: "GenerateKey"
+  verdict: not_site
+  note: "inside t.Errorf format string literal, not a call"
+"889a71d442c8460f":
+  repo: sigstore-python
+  path: sigstore/_utils.py
+  line: 154
+  token: "hashlib.sha256"
+  verdict: site
+  note: "hashlib.sha256(public_bytes).digest() for key ID"
+"88ea76e4fa29406b":
+  repo: age
+  path: internal/stream/stream_test.go
+  line: 204
+  token: "rand.Read"
+  verdict: site
+  note: "crypto/rand.Read, test file"
+"8963238782b02f3e":
+  repo: smallstep-crypto
+  path: kms/yubikey/yubikey_test.go
+  line: 226
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "crypto/rsa call, test file"
+"89f01015e47e5658":
+  repo: smallstep-crypto
+  path: kms/mackms/mackms_test.go
+  line: 708
+  token: "ecdh.P521"
+  verdict: site
+  note: "ecdh.P521().NewPublicKey() call"
+"8a36876418d6769c":
+  repo: go-jose
+  path: asymmetric.go
+  line: 200
+  token: "sha1.New"
+  verdict: site
+  note: "rsa.EncryptOAEP(sha1.New(), ...) real call"
+"8ab6f21a53c9012d":
+  repo: smallstep-crypto
+  path: sshutil/fingerprint_test.go
+  line: 149
+  token: "dsa.GenerateParameters"
+  verdict: site
+  note: "crypto/dsa GenerateParameters, test file"
+"8af1bb23f13d5566":
+  repo: sigstore-python
+  path: sigstore/_internal/rekor/client.py
+  line: 284
+  token: "Signature"
+  verdict: not_site
+  note: "rekor_types.hashedrekord.Signature schema constructor"
+"8b36b900548c368c":
+  repo: python-jose
+  path: jose/backends/cryptography_backend.py
+  line: 208
+  token: "padding.PKCS1v15"
+  verdict: site
+  note: "cryptography.hazmat padding.PKCS1v15() constructed, class attr"
+"8b52652ea40c9c8e":
+  repo: smallstep-crypto
+  path: kms/mackms/signer.go
+  line: 188
+  token: "ecdh.P256"
+  verdict: site
+  note: "return ecdh.P256() call"
+"8c377026f0540281":
+  repo: age
+  path: internal/stream/stream.go
+  line: 188
+  token: "chacha20poly1305.New"
+  verdict: site
+  note: "x/crypto/chacha20poly1305.New AEAD construction"
+"8c5a073a711f150c":
+  repo: age
+  path: recipients_test.go
+  line: 72
+  token: "rand.Read"
+  verdict: site
+  note: "crypto/rand.Read, test file"
+"8d1011e32469986e":
+  repo: go-jose
+  path: asymmetric_test.go
+  line: 375
+  token: "P256"
+  verdict: site
+  note: "crypto/elliptic.P256() call in test"
+"8d2381b9d3ca2a24":
+  repo: age
+  path: plugin/client.go
+  line: 502
+  token: "IntN"
+  verdict: site
+  note: "math/rand/v2 IntN call"
+"8d65a7d1b5f16e38":
+  repo: smallstep-crypto
+  path: jose/parse_test.go
+  line: 806
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "stdlib crypto/ecdsa with elliptic.P224, test file"
+"8db02ffde664ed78":
+  repo: smallstep-crypto
+  path: x509util/certificate_request_test.go
+  line: 27
+  token: "ed25519.GenerateKey"
+  verdict: site
+  note: "crypto/ed25519 GenerateKey, test file"
+"8dc3b4cc24408ac3":
+  repo: python-jose
+  path: jose/backends/cryptography_backend.py
+  line: 210
+  token: "padding.OAEP"
+  verdict: site
+  note: "cryptography padding.OAEP() constructed"
+"8e34225dc42c897e":
+  repo: go-jose
+  path: jose-util/generator/generate.go
+  line: 113
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call"
+"8e555632460ad026":
+  repo: go-jose
+  path: jwk.go
+  line: 717
+  token: "P256"
+  verdict: site
+  note: "crypto/elliptic.P256() call"
+"8e852c5d91cbd7d7":
+  repo: smallstep-crypto
+  path: kms/mackms/mackms_test.go
+  line: 588
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call, test file"
+"8e8cba89b6fb14a5":
+  repo: smallstep-crypto
+  path: kms/yubikey/yubikey_test.go
+  line: 1377
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "crypto/rsa call, test file"
+"8ea07ef176e440c2":
+  repo: smallstep-crypto
+  path: kms/yubikey/yubikey_test.go
+  line: 1365
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call, test file"
+"8ecafec20a5b3fd4":
+  repo: smallstep-crypto
+  path: nssdb/encrypt.go
+  line: 91
+  token: "keygen"
+  verdict: not_site
+  note: "comment text, not a call"
+"8ee9f11989fbcbf6":
+  repo: go-jose
+  path: json/scanner_test.go
+  line: 266
+  token: "rand.Intn"
+  verdict: site
+  note: "math/rand call in test"
+"8ff33165488b0390":
+  repo: age
+  path: agessh/agessh.go
+  line: 222
+  token: "X25519"
+  verdict: site
+  note: "curve25519.X25519 call"
+"90406ebf7cc90559":
+  repo: smallstep-crypto
+  path: kms/mackms/mackms_test.go
+  line: 704
+  token: "ecdh.P384"
+  verdict: site
+  note: "ecdh.P384().NewPublicKey() call"
+"9045c6625ecf3b2f":
+  repo: sigstore-python
+  path: test/unit/test_hashes.py
+  line: 27
+  token: "hashlib.sha384"
+  verdict: site
+  note: "hashlib.sha384(b'').hexdigest(), test file"
+"92336c2d0009ac2b":
+  repo: paramiko
+  path: paramiko/rsakey.py
+  line: 139
+  token: "padding.PKCS1v15"
+  verdict: site
+  note: "cryptography padding scheme construction for RSA sign"
+"9484a5517a531e87":
+  repo: paramiko
+  path: paramiko/pkey.py
+  line: 726
+  token: "Cipher"
+  verdict: site
+  note: "cryptography Cipher() construction"
+"94c6bd7bb6f49cab":
+  repo: smallstep-crypto
+  path: tpm/rand/rand_simulator_test.go
+  line: 40
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa GenerateKey, test file"
+"95d2719cf135f543":
+  repo: smallstep-crypto
+  path: jose/parse_test.go
+  line: 535
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "stdlib crypto/ecdsa, test file"
+"963e457844e52722":
+  repo: smallstep-crypto
+  path: pemutil/ssh.go
+  line: 277
+  token: "aes.NewCipher"
+  verdict: site
+  note: "crypto/aes NewCipher"
+"96a9b7c495d0c12a":
+  repo: smallstep-crypto
+  path: kms/yubikey/yubikey_test.go
+  line: 220
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "crypto/rsa call, test file"
+"976642dd89b471b3":
+  repo: smallstep-crypto
+  path: nssdb/keys.go
+  line: 53
+  token: "P256"
+  verdict: site
+  note: "crypto/elliptic P256() in struct literal"
+"97766134cd5849f1":
+  repo: smallstep-crypto
+  path: kms/mackms/mackms_test.go
+  line: 632
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call, test file"
+"97ba92045ca60c3a":
+  repo: smallstep-crypto
+  path: nssdb/encrypt.go
+  line: 305
+  token: "aes.NewCipher"
+  verdict: site
+  note: "crypto/aes NewCipher"
+"98054525709ba891":
+  repo: smallstep-crypto
+  path: kms/mackms/signer_test.go
+  line: 55
+  token: "ecdh.P256"
+  verdict: site
+  note: "ecdh.P256().GenerateKey(), test file"
+"9818c718ca267dde":
+  repo: smallstep-crypto
+  path: kms/yubikey/yubikey_test.go
+  line: 202
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call, test file"
+"981f9d87271f1daf":
+  repo: go-jose
+  path: asymmetric_test.go
+  line: 260
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "crypto/rsa call in test"
+"982b61480bde7d30":
+  repo: smallstep-crypto
+  path: jose/x25519_test.go
+  line: 200
+  token: "GenerateKey"
+  verdict: not_site
+  note: "x25519.GenerateKey is repo-internal package"
+"9918c6d196b0cab9":
+  repo: smallstep-crypto
+  path: keyutil/key_test.go
+  line: 471
+  token: "GenerateKey"
+  verdict: not_site
+  note: "inside t.Errorf string literal, not a call"
+"994be42c0f829d93":
+  repo: smallstep-crypto
+  path: kms/mackms/signer.go
+  line: 191
+  token: "P521"
+  verdict: site
+  note: "case elliptic.P521(): call"
+"99a4b1922b3b26e2":
+  repo: go-jose
+  path: shared.go
+  line: 539
+  token: "P521"
+  verdict: site
+  note: "crypto/elliptic.P521() call in switch case"
+"99a701ef697171c6":
+  repo: smallstep-crypto
+  path: tpm/tss2/signer_test.go
+  line: 287
+  token: "P384"
+  verdict: site
+  note: "crypto/elliptic P384(), test file"
+"99bcf5a4f201bb07":
+  repo: smallstep-crypto
+  path: nssdb/keys.go
+  line: 46
+  token: "ecdh.P256"
+  verdict: site
+  note: "crypto/ecdh P256() call"
+"99d8b3169e5ffc7b":
+  repo: smallstep-crypto
+  path: kms/mackms/signer_test.go
+  line: 109
+  token: "ECDH"
+  verdict: site
+  note: "pub.ECDH() on *ecdsa.PublicKey, test file"
+"9a7cf143e4fa27a4":
+  repo: go-jose
+  path: json/scanner_test.go
+  line: 257
+  token: "rand.Intn"
+  verdict: site
+  note: "math/rand call in test"
+"9b9e5d7090cd1c95":
+  repo: go-jose
+  path: symmetric.go
+  line: 409
+  token: "aes.NewCipher"
+  verdict: site
+  note: "crypto/aes call"
+"9ba7a183055d504d":
+  repo: smallstep-crypto
+  path: kms/softkms/softkms_test.go
+  line: 79
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call, test file"
+"9c067c111b35f533":
+  repo: smallstep-crypto
+  path: pemutil/pem_test.go
+  line: 208
+  token: "sha256.Sum256"
+  verdict: site
+  note: "crypto/sha256 Sum256, test file"
+"9d2ef9290423ef26":
+  repo: smallstep-crypto
+  path: pemutil/pem_test.go
+  line: 577
+  token: "GenerateKey"
+  verdict: not_site
+  note: "keyutil.GenerateKey repo-local wrapper"
+"9d3462f179c1c39a":
+  repo: go-jose
+  path: cipher/key_wrap_test.go
+  line: 127
+  token: "aes.NewCipher"
+  verdict: site
+  note: "crypto/aes call in test"
+"9db62e385317c83e":
+  repo: go-jose
+  path: signing_test.go
+  line: 491
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call in test"
+"9dba2648b62a1fcd":
+  repo: smallstep-crypto
+  path: jose/types_test.go
+  line: 121
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "stdlib crypto/ecdsa, test file"
+"9e3adac6d9635e16":
+  repo: go-jose
+  path: jwk.go
+  line: 340
+  token: "sha256.Sum256"
+  verdict: site
+  note: "crypto/sha256 call"
+"9e67341afc5d02b2":
+  repo: sio
+  path: dare.go
+  line: 204
+  token: "Uint32"
+  verdict: not_site
+  note: "binary.LittleEndian.PutUint32/Uint32, encoding/binary not crypto"
+"9e99461ec23d84d5":
+  repo: age
+  path: agessh/agessh_test.go
+  line: 87
+  token: "rand.Read"
+  verdict: site
+  note: "crypto/rand.Read, test file"
+"9ef91f384c4a064b":
+  repo: smallstep-crypto
+  path: kms/mackms/mackms_test.go
+  line: 1629
+  token: "ed25519.GenerateKey"
+  verdict: site
+  note: "crypto/ed25519 call, test file"
+"a030e94b8e62dce5":
+  repo: go-jose
+  path: signing_test.go
+  line: 556
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call in test"
+"a0a197b0e8a1f659":
+  repo: smallstep-crypto
+  path: nssdb/attributes.go
+  line: 104
+  token: "Uint32"
+  verdict: not_site
+  note: "encoding/binary Uint32, not crypto"
+"a302f8e2fadea317":
+  repo: go-jose
+  path: cryptosigner/cryptosigner_test.go
+  line: 121
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "crypto/rsa call in test"
+"a370b1a5c4d6f501":
+  repo: smallstep-crypto
+  path: sshutil/fingerprint_test.go
+  line: 152
+  token: "dsa.GenerateKey"
+  verdict: site
+  note: "crypto/dsa GenerateKey, test file"
+"a4554cc41a094565":
+  repo: go-jose
+  path: json/decode_test.go
+  line: 625
+  token: "Float64"
+  verdict: not_site
+  note: "occurs inside string literal in Errorf format"
+"a459f481e5c818b7":
+  repo: go-jose
+  path: jwk.go
+  line: 721
+  token: "P521"
+  verdict: site
+  note: "crypto/elliptic.P521() call"
+"a5e93021dec0e2a7":
+  repo: smallstep-crypto
+  path: kms/yubikey/yubikey_test.go
+  line: 100
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "crypto/rsa call, test file"
+"a6210a809bc77f8b":
+  repo: smallstep-crypto
+  path: keyutil/key.go
+  line: 227
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "stdlib crypto/rsa"
+"a6cbc3f60a761059":
+  repo: go-jose
+  path: asymmetric_test.go
+  line: 299
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "crypto/rsa call in test"
+"a6e28bf65c0cb1a2":
+  repo: age
+  path: agessh/agessh.go
+  line: 324
+  token: "X25519"
+  verdict: site
+  note: "curve25519.X25519 call"
+"a75ab1b20d05b9f0":
+  repo: smallstep-crypto
+  path: kms/cloudkms/attestation_test.go
+  line: 131
+  token: "sha256.Sum256"
+  verdict: site
+  note: "stdlib crypto/sha256, test file"
+"a77e00b9d9f5d948":
+  repo: age
+  path: plugin/client.go
+  line: 498
+  token: "IntN"
+  verdict: site
+  note: "math/rand/v2 IntN call"
+"a7df29f631fc9d8f":
+  repo: smallstep-crypto
+  path: keyutil/key_test.go
+  line: 675
+  token: "GenerateKey"
+  verdict: not_site
+  note: "calls local package function GenerateKey under test"
+"a874d317d5cb07d8":
+  repo: go-jose
+  path: crypter_test.go
+  line: 40
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call in test"
+"a94af46c1d8a43b5":
+  repo: smallstep-crypto
+  path: keyutil/key_test.go
+  line: 317
+  token: "GenerateKey"
+  verdict: not_site
+  note: "calls local package function GenerateKey under test"
+"aafe862b73a8c9a4":
+  repo: smallstep-crypto
+  path: keyutil/key_test.go
+  line: 687
+  token: "GenerateKey"
+  verdict: not_site
+  note: "calls local package function GenerateKey under test"
+"ab6ec88c26c83330":
+  repo: age
+  path: internal/stream/stream_test.go
+  line: 38
+  token: "rand.Read"
+  verdict: site
+  note: "crypto/rand.Read, test file"
+"ab7739800888bdf6":
+  repo: sigstore-python
+  path: sigstore/_internal/merkle.py
+  line: 85
+  token: "hashlib.sha256"
+  verdict: site
+  note: "hashlib.sha256(data).digest() Merkle node hash"
+"abc1b12076a622e1":
+  repo: smallstep-crypto
+  path: tpm/tpm_simulator_test.go
+  line: 726
+  token: "P256"
+  verdict: site
+  note: "crypto/elliptic P256(), test file"
+"abe2975a88a31386":
+  repo: smallstep-crypto
+  path: kms/awskms/decrypter_test.go
+  line: 145
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "stdlib crypto/rsa, test file"
+"ac2fff74d8fb0d2e":
+  repo: go-jose
+  path: crypter_test.go
+  line: 39
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call in test"
+"ac5a0e64fbf8b40b":
+  repo: smallstep-crypto
+  path: kms/mackms/signer_test.go
+  line: 198
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call, test file"
+"ac9817b5797af29a":
+  repo: age
+  path: plugin/client.go
+  line: 494
+  token: "IntN"
+  verdict: site
+  note: "math/rand/v2 IntN (aliased mathrand), GREASE randomness"
+"ad6ccfeea22e3e93":
+  repo: go-jose
+  path: jwk_test.go
+  line: 1026
+  token: "P256"
+  verdict: site
+  note: "crypto/elliptic.P256() call in test"
+"ad8640bde3ea3976":
+  repo: go-jose
+  path: json/decode_test.go
+  line: 627
+  token: "Float64"
+  verdict: not_site
+  note: "occurs inside string literal in Errorf format"
+"aea5555832dc696e":
+  repo: oauthlib
+  path: oauthlib/oauth1/rfc5849/signature.py
+  line: 376
+  token: "SHA256"
+  verdict: not_site
+  note: "line is inside a docstring (RFC pseudocode), not executable code"
+"af5457349b3d428d":
+  repo: paramiko
+  path: paramiko/pkey.py
+  line: 713
+  token: "kdf"
+  verdict: site
+  note: "bcrypt.kdf() key derivation call"
+"af7d3cc74abc30e3":
+  repo: smallstep-crypto
+  path: tpm/tss2/signer_test.go
+  line: 329
+  token: "P256"
+  verdict: site
+  note: "crypto/elliptic P256(), test file"
+"af7e5058eaf4e397":
+  repo: smallstep-crypto
+  path: kms/platform/kms_test.go
+  line: 531
+  token: "P384"
+  verdict: site
+  note: "elliptic.P384() call in assert.Equal, test file"
+"b0507c300338833d":
+  repo: paramiko
+  path: paramiko/ed25519key.py
+  line: 119
+  token: "kdf"
+  verdict: site
+  note: "bcrypt.kdf() key derivation call"
+"b0b1b7529666aca8":
+  repo: smallstep-crypto
+  path: x25519/x25519_test.go
+  line: 28
+  token: "GenerateKey"
+  verdict: not_site
+  note: "calls same-package x25519.GenerateKey wrapper, not direct crypto-lib API"
+"b115f825145827d3":
+  repo: smallstep-crypto
+  path: keyutil/key.go
+  line: 207
+  token: "P384"
+  verdict: site
+  note: "stdlib crypto/elliptic.P384"
+"b1b927b75bb26da2":
+  repo: paramiko
+  path: tests/test_packetizer.py
+  line: 79
+  token: "algorithms.AES"
+  verdict: site
+  note: "cryptography AES algorithm construction, test file"
+"b221e3e6ec73d788":
+  repo: smallstep-crypto
+  path: kms/mackms/mackms_test.go
+  line: 873
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call, test file"
+"b232f65f89d1152a":
+  repo: smallstep-crypto
+  path: jose/types_test.go
+  line: 119
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "stdlib crypto/ecdsa, test file"
+"b2ce8c114af2b40d":
+  repo: smallstep-crypto
+  path: pemutil/ssh.go
+  line: 191
+  token: "ECDH"
+  verdict: site
+  note: "k.PublicKey.ECDH() crypto/ecdsa method"
+"b3513a2ef725c17d":
+  repo: sio
+  path: sio.go
+  line: 81
+  token: "aes.NewCipher"
+  verdict: site
+  note: "crypto/aes.NewCipher real call"
+"b3a14ceac0452cf9":
+  repo: smallstep-crypto
+  path: kms/pkcs11/other_test.go
+  line: 172
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call, test file"
+"b3dbd4049651c389":
+  repo: smallstep-crypto
+  path: kms/mackms/mackms.go
+  line: 1383
+  token: "ecdh.P521"
+  verdict: site
+  note: "stdlib crypto/ecdh"
+"b454526d8d4610ad":
+  repo: smallstep-crypto
+  path: x509util/options_test.go
+  line: 22
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "crypto/rsa GenerateKey, test file"
+"b4d378bf314696d7":
+  repo: sio
+  path: dare.go
+  line: 250
+  token: "Cipher"
+  verdict: not_site
+  note: "header.Cipher() / refHeader.Cipher() local getter calls, not crypto primitive"
+"b4ed4922bdb430e3":
+  repo: sigstore-python
+  path: test/assets/x509/build-testcases.py
+  line: 86
+  token: "hashes.SHA256"
+  verdict: site
+  note: "builder.sign(private_key=privkey, algorithm=hashes.SHA256()); test asset generator"
+"b5aea43809058ad1":
+  repo: smallstep-crypto
+  path: keyutil/key.go
+  line: 205
+  token: "P256"
+  verdict: site
+  note: "stdlib crypto/elliptic.P256"
+"b641359d8052b3d9":
+  repo: smallstep-crypto
+  path: jose/generate_test.go
+  line: 156
+  token: "P521"
+  verdict: site
+  note: "stdlib crypto/elliptic.P521, test file"
+"b6ae9bf509030a0a":
+  repo: age
+  path: agessh/agessh.go
+  line: 334
+  token: "X25519"
+  verdict: site
+  note: "curve25519.X25519 call"
+"b7751dc87b84ee00":
+  repo: age
+  path: internal/stream/stream_test.go
+  line: 42
+  token: "rand.Read"
+  verdict: site
+  note: "crypto/rand.Read, test file"
+"b7efa17d081fecdf":
+  repo: pyjwt
+  path: jwt/algorithms.py
+  line: 597
+  token: "padding.PKCS1v15"
+  verdict: site
+  note: "real cryptography RSA sign() with PKCS1v15 padding"
+"b82feb7437284c2a":
+  repo: pyjwt
+  path: jwt/algorithms.py
+  line: 602
+  token: "padding.PKCS1v15"
+  verdict: site
+  note: "real cryptography RSA verify() with PKCS1v15 padding"
+"b86963b658d99e2f":
+  repo: smallstep-crypto
+  path: tlsutil/renewer.go
+  line: 226
+  token: "rand.Int63n"
+  verdict: site
+  note: "math/rand Int63n"
+"b89a9e44ec17d17e":
+  repo: smallstep-crypto
+  path: kms/capi/ncrypt_windows.go
+  line: 126
+  token: "P384"
+  verdict: site
+  note: "stdlib crypto/elliptic.P384"
+"b89ee2f27155dfc7":
+  repo: smallstep-crypto
+  path: pemutil/pem.go
+  line: 782
+  token: "P521"
+  verdict: site
+  note: "crypto/elliptic P521()"
+"b8f918da8a820471":
+  repo: go-jose
+  path: symmetric.go
+  line: 97
+  token: "aes.NewCipher"
+  verdict: site
+  note: "crypto/aes call"
+"b9a3feab1a7f152e":
+  repo: sigstore-python
+  path: test/unit/internal/test_key_details.py
+  line: 144
+  token: "rsa.generate_private_key"
+  verdict: site
+  note: "cryptography rsa.generate_private_key, test file"
+"b9a4e6335d72cf1b":
+  repo: sigstore-python
+  path: test/unit/internal/test_key_details.py
+  line: 65
+  token: "rsa.generate_private_key"
+  verdict: site
+  note: "cryptography rsa.generate_private_key, test file"
+"b9df58509009ce91":
+  repo: smallstep-crypto
+  path: kms/mackms/mackms.go
+  line: 1408
+  token: "ecdh.P521"
+  verdict: site
+  note: "stdlib crypto/ecdh"
+"ba2c8251f6747573":
+  repo: python-jose
+  path: jose/backends/cryptography_backend.py
+  line: 209
+  token: "padding.OAEP"
+  verdict: site
+  note: "cryptography padding.OAEP() constructed"
+"ba8cb26fd38ab5bf":
+  repo: smallstep-crypto
+  path: kms/mackms/signer_test.go
+  line: 61
+  token: "ecdh.X25519"
+  verdict: site
+  note: "ecdh.X25519().GenerateKey(), test file"
+"ba9621e621d74889":
+  repo: paramiko
+  path: paramiko/kex_ecdh_nist.py
+  line: 59
+  token: "ec.generate_private_key"
+  verdict: site
+  note: "cryptography ec key generation"
+"bb74d044771377da":
+  repo: smallstep-crypto
+  path: keyutil/key.go
+  line: 88
+  token: "GenerateKey"
+  verdict: not_site
+  note: "function definition line"
+"bb910aa45f9629b5":
+  repo: smallstep-crypto
+  path: x25519/x25519_test.go
+  line: 325
+  token: "GenerateKey"
+  verdict: not_site
+  note: "inside t.Errorf format string literal, not a call"
+"bbf1b78555c52731":
+  repo: smallstep-crypto
+  path: tpm/ek_test.go
+  line: 35
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa GenerateKey, test file"
+"bbf5b508ab3d8a3c":
+  repo: paramiko
+  path: paramiko/pkey.py
+  line: 401
+  token: "sha256"
+  verdict: site
+  note: "hashlib.sha256() call for fingerprint"
+"bbf89ba49b660ce1":
+  repo: age
+  path: pq.go
+  line: 115
+  token: "GenerateKey"
+  verdict: site
+  note: "filippo.io/hpke MLKEM768X25519().GenerateKey() call"
+"bc36ebe3e3b06836":
+  repo: sigstore-python
+  path: test/unit/internal/test_key_details.py
+  line: 61
+  token: "padding.PKCS1v15"
+  verdict: site
+  note: "cryptography padding.PKCS1v15(), test file"
+"bc578a0ed65dbb0d":
+  repo: age
+  path: agessh/agessh_test.go
+  line: 44
+  token: "rand.Read"
+  verdict: site
+  note: "crypto/rand.Read, test file"
+"bc8a1485cd56c6f5":
+  repo: smallstep-crypto
+  path: kms/mackms/mackms_test.go
+  line: 481
+  token: "sha256.Sum256"
+  verdict: site
+  note: "crypto/sha256 call, test file"
+"bc980b9064c0b3b6":
+  repo: age
+  path: agessh/agessh_test.go
+  line: 20
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "crypto/rsa.GenerateKey, test file"
+"bd18fbc52699fd30":
+  repo: smallstep-crypto
+  path: kms/azurekms/utils_test.go
+  line: 117
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "stdlib crypto/ecdsa, test file"
+"bd605ee44e6c57df":
+  repo: smallstep-crypto
+  path: kms/mackms/mackms.go
+  line: 1451
+  token: "ECDH"
+  verdict: site
+  note: "k.ECDH() crypto/ecdsa PublicKey method"
+"bd614cd4eaee3769":
+  repo: smallstep-crypto
+  path: jose/types_test.go
+  line: 123
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "stdlib crypto/rsa, test file"
+"bdb62011b749e7ac":
+  repo: smallstep-crypto
+  path: jose/x25519_test.go
+  line: 64
+  token: "GenerateKey"
+  verdict: not_site
+  note: "x25519.GenerateKey is repo-internal package"
+"bddb9d45aa108cf0":
+  repo: smallstep-crypto
+  path: sshutil/sshutil.go
+  line: 54
+  token: "ecdh.P256"
+  verdict: site
+  note: "crypto/ecdh P256()"
+"bdef47ca2b90ef6b":
+  repo: smallstep-crypto
+  path: pemutil/pkcs8.go
+  line: 234
+  token: "aes.NewCipher"
+  verdict: site
+  note: "crypto/aes NewCipher"
+"be6e001c9d8d5dce":
+  repo: smallstep-crypto
+  path: jose/types.go
+  line: 182
+  token: "SHA512"
+  verdict: not_site
+  note: "const declaration, not a call"
+"bf987756fdb9feb1":
+  repo: sigstore-python
+  path: sigstore/verify/verifier.py
+  line: 548
+  token: "Signature"
+  verdict: not_site
+  note: "rekor_types.dsse.Signature schema constructor, not crypto primitive"
+"c1f9b284154d2212":
+  repo: smallstep-crypto
+  path: x25519/x25519.go
+  line: 240
+  token: "sha512.New"
+  verdict: site
+  note: "crypto/sha512 New()"
+"c26889fa5bbb3b75":
+  repo: go-jose
+  path: jwk_test.go
+  line: 421
+  token: "sha1.Sum"
+  verdict: site
+  note: "crypto/sha1 call in test"
+"c4aca3c4afbe784b":
+  repo: sio
+  path: sio.go
+  line: 124
+  token: "chacha20poly1305.New"
+  verdict: site
+  note: "x/crypto/chacha20poly1305.New real call"
+"c4ccd64494799c3e":
+  repo: smallstep-crypto
+  path: kms/awskms/decrypter_test.go
+  line: 168
+  token: "sha1.New"
+  verdict: site
+  note: "stdlib crypto/sha1, test file"
+"c4f0b3e5d858c1e0":
+  repo: sigstore-python
+  path: sigstore/_internal/rekor/client_v2.py
+  line: 118
+  token: "Signature"
+  verdict: not_site
+  note: "rekor_v2.verifier.Signature schema constructor"
+"c5a6ed263b30491e":
+  repo: go-jose
+  path: crypter_test.go
+  line: 859
+  token: "rand.Int"
+  verdict: site
+  note: "crypto/rand.Int call in test"
+"c65032501445f9a8":
+  repo: go-jose
+  path: cipher/key_wrap_test.go
+  line: 29
+  token: "aes.NewCipher"
+  verdict: site
+  note: "crypto/aes call in test"
+"c67217d585aaafae":
+  repo: smallstep-crypto
+  path: x25519/x25519_test.go
+  line: 617
+  token: "GenerateKey"
+  verdict: not_site
+  note: "same-package GenerateKey wrapper"
+"c7a53261b4b816b3":
+  repo: smallstep-crypto
+  path: pemutil/pem_test.go
+  line: 561
+  token: "GenerateKey"
+  verdict: not_site
+  note: "keyutil.GenerateKey is a repo-local wrapper (go.step.sm/crypto/keyutil), not a direct crypto-lib call"
+"c7aca3b287f76552":
+  repo: smallstep-crypto
+  path: x509util/utils.go
+  line: 100
+  token: "rand.Int"
+  verdict: site
+  note: "crypto/rand Int"
+"c81496c036e18782":
+  repo: smallstep-crypto
+  path: kms/softkms/softkms_test.go
+  line: 160
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call, test file"
+"c83745b7422d9a17":
+  repo: age
+  path: testkit_test.go
+  line: 196
+  token: "sha256.Sum256"
+  verdict: site
+  note: "crypto/sha256.Sum256, test file"
+"c8dc6d387be93065":
+  repo: oauthlib
+  path: oauthlib/oauth2/rfc6749/grant_types/authorization_code.py
+  line: 24
+  token: "SHA256"
+  verdict: not_site
+  note: "line is inside a docstring describing PKCE S256, not executable code"
+"c90d86912200a84f":
+  repo: paramiko
+  path: paramiko/rsakey.py
+  line: 184
+  token: "rsa.generate_private_key"
+  verdict: site
+  note: "cryptography RSA key generation"
+"c9d7beb88c402c16":
+  repo: smallstep-crypto
+  path: x25519/x25519_test.go
+  line: 329
+  token: "GenerateKey"
+  verdict: not_site
+  note: "inside t.Errorf format string literal, not a call"
+"ca13946be3e712dc":
+  repo: smallstep-crypto
+  path: keyutil/key_test.go
+  line: 358
+  token: "GenerateKey"
+  verdict: not_site
+  note: "inside t.Errorf string literal, not a call"
+"ca355caffd46439c":
+  repo: smallstep-crypto
+  path: pemutil/pkcs8.go
+  line: 237
+  token: "aes.NewCipher"
+  verdict: site
+  note: "crypto/aes NewCipher"
+"cb72507c594a1d73":
+  repo: sio
+  path: dare.go
+  line: 49
+  token: "Cipher"
+  verdict: not_site
+  note: "method definition headerV20.Cipher(), local getter not crypto call"
+"cba3013caa446d7f":
+  repo: smallstep-crypto
+  path: kms/mackms/signer.go
+  line: 192
+  token: "ecdh.P521"
+  verdict: site
+  note: "return ecdh.P521() call"
+"cbc7e4c60ba51073":
+  repo: age
+  path: agessh/agessh.go
+  line: 129
+  token: "sha256.New"
+  verdict: site
+  note: "crypto/sha256.New used in rsa.DecryptOAEP"
+"cbcc6f63077cd855":
+  repo: smallstep-crypto
+  path: kms/mackms/mackms_test.go
+  line: 700
+  token: "ecdh.P256"
+  verdict: site
+  note: "ecdh.P256().NewPublicKey() call"
+"cc37e26d8ee3d4ea":
+  repo: go-jose
+  path: cryptosigner/cryptosigner_test.go
+  line: 173
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call in test"
+"ce198ad7f83c2ca1":
+  repo: age
+  path: tag/tag.go
+  line: 121
+  token: "sha256.Sum256"
+  verdict: site
+  note: "crypto/sha256.Sum256 call"
+"cefcecfe9436358d":
+  repo: smallstep-crypto
+  path: kms/mackms/mackms.go
+  line: 1396
+  token: "ecdh.P256"
+  verdict: site
+  note: "stdlib crypto/ecdh"
+"cf9d96311a511751":
+  repo: smallstep-crypto
+  path: kms/mackms/signer.go
+  line: 137
+  token: "ECDH"
+  verdict: not_site
+  note: "method definition func (e *ECDH) ECDH(...), not a call"
+"cffa48cfa730e448":
+  repo: paramiko
+  path: paramiko/kex_ecdh_nist.py
+  line: 117
+  token: "ec.ECDH"
+  verdict: site
+  note: "cryptography ECDH exchange call"
+"d005ded8b5435cc2":
+  repo: go-jose
+  path: signing_test.go
+  line: 413
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call in test"
+"d055fa4f90e06077":
+  repo: go-jose
+  path: cryptosigner/cryptosigner.go
+  line: 64
+  token: "P521"
+  verdict: site
+  note: "crypto/elliptic.P521() call in switch case"
+"d138334a67410001":
+  repo: sigstore-python
+  path: test/unit/test_hashes.py
+  line: 29
+  token: "hashlib.sha3_256"
+  verdict: site
+  note: "hashlib.sha3_256(b'').hexdigest(), test file"
+"d1e4512bbc044728":
+  repo: sigstore-python
+  path: test/unit/internal/test_key_details.py
+  line: 130
+  token: "rsa.generate_private_key"
+  verdict: site
+  note: "cryptography rsa.generate_private_key, test file"
+"d26ceb96edeaf876":
+  repo: go-jose
+  path: jwk.go
+  line: 160
+  token: "sha256.Sum256"
+  verdict: site
+  note: "crypto/sha256 call"
+"d2751dee9e5d53b4":
+  repo: smallstep-crypto
+  path: keyutil/key_test.go
+  line: 282
+  token: "GenerateKey"
+  verdict: not_site
+  note: "inside t.Errorf string literal, not a call"
+"d3efa9fbbd428e88":
+  repo: smallstep-crypto
+  path: pemutil/pem.go
+  line: 776
+  token: "P384"
+  verdict: site
+  note: "crypto/elliptic P384()"
+"d40b2abca3aa3b2b":
+  repo: age
+  path: internal/stream/stream_test.go
+  line: 621
+  token: "rand.Read"
+  verdict: site
+  note: "crypto/rand.Read, test file"
+"d454462e2ae4e9e1":
+  repo: go-jose
+  path: json/decode_test.go
+  line: 624
+  token: "Float64"
+  verdict: not_site
+  note: "json.Number.Float64() non-crypto API call"
+"d61374e9077be20e":
+  repo: smallstep-crypto
+  path: keyutil/key_test.go
+  line: 366
+  token: "GenerateKey"
+  verdict: not_site
+  note: "inside t.Errorf string literal, not a call"
+"d6320d51802e1c1e":
+  repo: smallstep-crypto
+  path: x25519/x25519.go
+  line: 43
+  token: "X25519"
+  verdict: site
+  note: "golang.org/x/crypto/curve25519 X25519 call"
+"d665480383843fb0":
+  repo: smallstep-crypto
+  path: kms/pkcs11/pkcs11_test.go
+  line: 868
+  token: "ed25519.GenerateKey"
+  verdict: not_site
+  note: "string literal inside t.Fatalf format message"
+"d6e54e7880295291":
+  repo: sigstore-python
+  path: sigstore/dsse/__init__.py
+  line: 277
+  token: "hashes.SHA256"
+  verdict: site
+  note: "key.sign(pae, ec.ECDSA(hashes.SHA256()))"
+"d72f0fc6abddf1a6":
+  repo: smallstep-crypto
+  path: kms/softkms/softkms_test.go
+  line: 164
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "crypto/rsa call, test file"
+"d73a3fb2c2511b4b":
+  repo: age
+  path: internal/stream/stream_test.go
+  line: 683
+  token: "rand.Read"
+  verdict: site
+  note: "crypto/rand.Read, test file"
+"d7a8d2daf42092c5":
+  repo: sio
+  path: dare.go
+  line: 29
+  token: "Uint32"
+  verdict: not_site
+  note: "binary.LittleEndian.Uint32 in method definition body; encoding/binary, not crypto"
+"d7c13e56161ad16a":
+  repo: smallstep-crypto
+  path: jose/parse_test.go
+  line: 769
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "stdlib crypto/ecdsa, test file"
+"d7c8b33f0df6900c":
+  repo: go-jose
+  path: jose-util/generator/generate.go
+  line: 96
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "crypto/rsa call"
+"d7f608a369c0b12f":
+  repo: smallstep-crypto
+  path: jose/parse_test.go
+  line: 541
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "stdlib crypto/rsa, test file"
+"d83a845ebb0282cc":
+  repo: age
+  path: internal/stream/stream_test.go
+  line: 416
+  token: "rand.Read"
+  verdict: site
+  note: "crypto/rand.Read, test file"
+"d890c08d21c72879":
+  repo: age
+  path: internal/stream/stream_test.go
+  line: 710
+  token: "rand.Read"
+  verdict: site
+  note: "crypto/rand.Read, test file"
+"d8ab7e988754e1b6":
+  repo: smallstep-crypto
+  path: x25519/x25519.go
+  line: 37
+  token: "GenerateKey"
+  verdict: not_site
+  note: "func definition line, not a call"
+"d8eab85aef04d4bd":
+  repo: smallstep-crypto
+  path: x509util/certificate_request_test.go
+  line: 874
+  token: "ed25519.GenerateKey"
+  verdict: site
+  note: "crypto/ed25519 GenerateKey, test file"
+"d97407478111726b":
+  repo: smallstep-crypto
+  path: kms/mackms/mackms.go
+  line: 1429
+  token: "P384"
+  verdict: site
+  note: "stdlib crypto/elliptic.P384"
+"d978e2263bf3f5d0":
+  repo: smallstep-crypto
+  path: kms/sshagentkms/sshagentkms_test.go
+  line: 545
+  token: "ed25519.GenerateKey"
+  verdict: site
+  note: "crypto/ed25519 call, test file"
+"da0a59f2f6b1998e":
+  repo: smallstep-crypto
+  path: kms/cloudkms/attestation.go
+  line: 337
+  token: "sha256.Sum256"
+  verdict: site
+  note: "stdlib crypto/sha256"
+"da1b2658e02680d5":
+  repo: age
+  path: plugin/encode.go
+  line: 100
+  token: "ecdh.X25519"
+  verdict: site
+  note: "crypto/ecdh.X25519() curve constructor call"
+"daa6615cdaa73f3e":
+  repo: smallstep-crypto
+  path: keyutil/key_test.go
+  line: 466
+  token: "GenerateKey"
+  verdict: not_site
+  note: "inside t.Errorf string literal, not a call"
+"db471e76abd3ab6d":
+  repo: sigstore-python
+  path: sigstore/_internal/trust.py
+  line: 77
+  token: "hashes.SHA512"
+  verdict: site
+  note: "cryptography hashes.SHA512() instantiation"
+"db8ca7909a36118e":
+  repo: smallstep-crypto
+  path: tpm/rand/rand_simulator_test.go
+  line: 47
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "crypto/rsa GenerateKey, test file"
+"dc244869ca8d8c5f":
+  repo: smallstep-crypto
+  path: jose/validate_test.go
+  line: 44
+  token: "ed25519.GenerateKey"
+  verdict: site
+  note: "stdlib crypto/ed25519, test file"
+"dc4296ec77934270":
+  repo: age
+  path: internal/stream/stream.go
+  line: 64
+  token: "chacha20poly1305.New"
+  verdict: site
+  note: "x/crypto/chacha20poly1305.New AEAD construction"
+"dc9f216832c3e26c":
+  repo: go-jose
+  path: cryptosigner/cryptosigner_test.go
+  line: 168
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call in test"
+"dd549e4ffa767d2f":
+  repo: age
+  path: recipients_test.go
+  line: 35
+  token: "rand.Read"
+  verdict: site
+  note: "crypto/rand.Read, test file"
+"dd8892de2bbac5b6":
+  repo: go-jose
+  path: asymmetric.go
+  line: 394
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call"
+"dd9eb2cc7b1539b8":
+  repo: go-jose
+  path: shared.go
+  line: 537
+  token: "P384"
+  verdict: site
+  note: "crypto/elliptic.P384() call in switch case"
+"de5f72c7e6065a76":
+  repo: sio
+  path: dare.go
+  line: 270
+  token: "Uint32"
+  verdict: not_site
+  note: "binary.LittleEndian.PutUint32/Uint32, encoding/binary not crypto"
+"deaab81fa30739fd":
+  repo: smallstep-crypto
+  path: kms/sshagentkms/sshagentkms_test.go
+  line: 279
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call, test file"
+"deceaf3e63799242":
+  repo: smallstep-crypto
+  path: x509util/certificate_test.go
+  line: 40
+  token: "ed25519.GenerateKey"
+  verdict: site
+  note: "crypto/ed25519 GenerateKey, test file"
+"df06d489ed916383":
+  repo: sio
+  path: dare.go
+  line: 271
+  token: "Cipher"
+  verdict: not_site
+  note: "header.Cipher() local getter call, not crypto primitive; ad.Ciphers[...] AEAD lookup itself is not the site"
+"df9b10da67b61f13":
+  repo: smallstep-crypto
+  path: kms/mackms/signer_test.go
+  line: 102
+  token: "ECDH"
+  verdict: site
+  note: "goP384.ECDH(ecdhPub) crypto/ecdh PrivateKey method"
+"dfbbac5148272734":
+  repo: paramiko
+  path: paramiko/pkey.py
+  line: 397
+  token: "SHA256"
+  verdict: not_site
+  note: "docstring text, not a call"
+"dff54da820d5e226":
+  repo: sigstore-python
+  path: test/unit/internal/test_key_details.py
+  line: 57
+  token: "rsa.generate_private_key"
+  verdict: site
+  note: "cryptography rsa.generate_private_key, test file"
+"e001a57d77bd0e19":
+  repo: smallstep-crypto
+  path: x509util/certificate_test.go
+  line: 122
+  token: "ed25519.GenerateKey"
+  verdict: site
+  note: "crypto/ed25519 GenerateKey, test file"
+"e08fa3433013e63e":
+  repo: smallstep-crypto
+  path: kms/capi/ncrypt_windows.go
+  line: 122
+  token: "P256"
+  verdict: site
+  note: "stdlib crypto/elliptic.P256"
+"e0b61213097e5561":
+  repo: smallstep-crypto
+  path: x25519/x25519.go
+  line: 91
+  token: "X25519"
+  verdict: site
+  note: "curve25519.X25519 call"
+"e18f8f4b2b37f2bb":
+  repo: smallstep-crypto
+  path: kms/azurekms/utils.go
+  line: 137
+  token: "P256"
+  verdict: site
+  note: "stdlib crypto/elliptic.P256"
+"e1a5d300a1858e8e":
+  repo: paramiko
+  path: paramiko/config.py
+  line: 449
+  token: "sha1"
+  verdict: site
+  note: "hashlib.sha1() call, sha1 imported from hashlib"
+"e2621fd6ed547053":
+  repo: age
+  path: x25519.go
+  line: 176
+  token: "X25519"
+  verdict: site
+  note: "curve25519.X25519 call"
+"e26f75ee90aedd71":
+  repo: python-jose
+  path: tests/algorithms/test_EC.py
+  line: 238
+  token: "generate_private_key"
+  verdict: site
+  note: "cryptography ec.generate_private_key call in test"
+"e2abca76e4c422dc":
+  repo: smallstep-crypto
+  path: kms/yubikey/yubikey_test.go
+  line: 96
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "crypto/rsa call, test file"
+"e2dacedcdf11ac76":
+  repo: age
+  path: scrypt.go
+  line: 66
+  token: "rand.Read"
+  verdict: site
+  note: "crypto/rand.Read filling salt"
+"e32aee65a3c10090":
+  repo: smallstep-crypto
+  path: kms/softkms/softkms_test.go
+  line: 234
+  token: "GenerateKey"
+  verdict: not_site
+  note: "string literal inside t.Errorf format message"
+"e4d618569a45fc8e":
+  repo: sigstore-python
+  path: test/unit/test_sign.py
+  line: 186
+  token: "hashlib.sha256"
+  verdict: site
+  note: "hashlib.sha256(input_).digest(), test file"
+"e52f89b3f826f38f":
+  repo: smallstep-crypto
+  path: jose/types_test.go
+  line: 124
+  token: "ed25519.GenerateKey"
+  verdict: site
+  note: "stdlib crypto/ed25519, test file"
+"e60cc240f35f5f31":
+  repo: sigstore-python
+  path: test/unit/test_hashes.py
+  line: 26
+  token: "hashlib.sha256"
+  verdict: site
+  note: "hashlib.sha256(b'').hexdigest(), test file"
+"e62710438eed25b4":
+  repo: paramiko
+  path: paramiko/kex_curve25519.py
+  line: 45
+  token: "X25519PrivateKey.generate"
+  verdict: site
+  note: "cryptography X25519 key generation"
+"e65871d1df95ee06":
+  repo: paramiko
+  path: paramiko/pkey.py
+  line: 727
+  token: "algorithms.AES"
+  verdict: site
+  note: "cryptography AES algorithm construction inside Cipher() call"
+"e6b3a32d62df9d41":
+  repo: smallstep-crypto
+  path: pemutil/pem.go
+  line: 752
+  token: "ecdh.P384"
+  verdict: site
+  note: "crypto/ecdh P384()"
+"e716d4c79c0072ec":
+  repo: smallstep-crypto
+  path: kms/mackms/mackms.go
+  line: 1465
+  token: "sha1.New"
+  verdict: site
+  note: "crypto/sha1 New()"
+"e719e4106d551255":
+  repo: smallstep-crypto
+  path: x509util/utils.go
+  line: 140
+  token: "sha256.Sum256"
+  verdict: site
+  note: "crypto/sha256 Sum256"
+"e74a1bb2edd15b31":
+  repo: smallstep-crypto
+  path: kms/mackms/signer.go
+  line: 187
+  token: "P256"
+  verdict: site
+  note: "case elliptic.P256(): call"
+"e846db0f9ca1d96e":
+  repo: go-jose
+  path: jwk_test.go
+  line: 484
+  token: "sha1.Sum"
+  verdict: site
+  note: "crypto/sha1 call in test"
+"e923fe870abd8b06":
+  repo: go-jose
+  path: asymmetric.go
+  line: 202
+  token: "sha256.New"
+  verdict: site
+  note: "rsa.EncryptOAEP(sha256.New(), ...) real call"
+"e9e44a99956316dd":
+  repo: smallstep-crypto
+  path: x25519/x25519.go
+  line: 181
+  token: "sha512.New"
+  verdict: site
+  note: "crypto/sha512 New()"
+"ea27e83b0808e27a":
+  repo: sigstore-python
+  path: sigstore/_internal/trust.py
+  line: 76
+  token: "hashes.SHA384"
+  verdict: site
+  note: "cryptography hashes.SHA384() instantiation"
+"ea3da49cb5a27814":
+  repo: age
+  path: internal/stream/stream.go
+  line: 363
+  token: "chacha20poly1305.New"
+  verdict: site
+  note: "x/crypto/chacha20poly1305.New AEAD construction"
+"ea4109a77996043e":
+  repo: smallstep-crypto
+  path: pemutil/pem.go
+  line: 774
+  token: "ecdh.P384"
+  verdict: site
+  note: "crypto/ecdh P384() switch case"
+"ea4fbc04a9b54beb":
+  repo: age
+  path: cmd/age/age.go
+  line: 48
+  token: "keygen"
+  verdict: not_site
+  note: "occurs in usage help string literal, not a call"
+"eac10bb6d6e519af":
+  repo: go-jose
+  path: doc_test.go
+  line: 31
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "crypto/rsa call in test"
+"eb286923c448527f":
+  repo: sigstore-python
+  path: sigstore/_internal/oidc/oauth.py
+  line: 208
+  token: "hashlib.sha256"
+  verdict: site
+  note: "hashlib.sha256(code_verifier).digest() for PKCE challenge"
+"eba1a36c4d86219b":
+  repo: smallstep-crypto
+  path: pemutil/pem.go
+  line: 815
+  token: "sha256.Sum224"
+  verdict: site
+  note: "crypto/sha256 Sum224"
+"ebaa64b46418805d":
+  repo: go-jose
+  path: cryptosigner/cryptosigner_test.go
+  line: 125
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call in test"
+"ebeee444bc2dff44":
+  repo: smallstep-crypto
+  path: pemutil/pem_test.go
+  line: 1246
+  token: "P256"
+  verdict: site
+  note: "crypto/elliptic P256() in struct literal, test file"
+"ebfb17eb35874446":
+  repo: go-jose
+  path: jwk.go
+  line: 542
+  token: "P521"
+  verdict: site
+  note: "crypto/elliptic.P521() call"
+"ec99ffbb1b60df7c":
+  repo: age
+  path: x25519.go
+  line: 75
+  token: "X25519"
+  verdict: site
+  note: "curve25519.X25519 call"
+"ed28fa84f1bbb0e2":
+  repo: smallstep-crypto
+  path: pemutil/pem.go
+  line: 862
+  token: "sha256.Sum224"
+  verdict: site
+  note: "crypto/sha256 Sum224"
+"ed418ca368eb2860":
+  repo: sigstore-python
+  path: test/unit/internal/test_key_details.py
+  line: 43
+  token: "ec.generate_private_key"
+  verdict: site
+  note: "cryptography ec.generate_private_key, test file"
+"ed5ebfcc3e0929e2":
+  repo: age
+  path: age.go
+  line: 156
+  token: "rand.Read"
+  verdict: site
+  note: "crypto/rand.Read filling file key"
+"edd0487894f3db99":
+  repo: smallstep-crypto
+  path: kms/softkms/softkms_test.go
+  line: 168
+  token: "ed25519.GenerateKey"
+  verdict: site
+  note: "crypto/ed25519 call, test file"
+"ee1fa8e1fafe25cd":
+  repo: go-jose
+  path: cryptosigner/cryptosigner_test.go
+  line: 163
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call in test"
+"ee737c98c8ec77ef":
+  repo: smallstep-crypto
+  path: kms/pkcs11/pkcs11.go
+  line: 409
+  token: "P521"
+  verdict: site
+  note: "elliptic.P521() call"
+"eeae5385b93a18e8":
+  repo: go-jose
+  path: jwk_test.go
+  line: 618
+  token: "P256"
+  verdict: site
+  note: "crypto/elliptic.P256() call in test"
+"eef4c5cff0744544":
+  repo: smallstep-crypto
+  path: kms/pkcs11/pkcs11_test.go
+  line: 741
+  token: "ed25519.GenerateKey"
+  verdict: not_site
+  note: "string literal inside t.Fatalf format message"
+"ef6302a58de1ade5":
+  repo: smallstep-crypto
+  path: x25519/x25519.go
+  line: 179
+  token: "ScalarBaseMult"
+  verdict: not_site
+  note: "filippo.io/edwards25519 Point.ScalarBaseMult method, not x/crypto/curve25519"
+"ef63b6d8ddb85496":
+  repo: smallstep-crypto
+  path: keyutil/key.go
+  line: 259
+  token: "rand.Int"
+  verdict: site
+  note: "stdlib crypto/rand.Int"
+"f0075074cba5ec56":
+  repo: smallstep-crypto
+  path: kms/yubikey/yubikey_test.go
+  line: 1370
+  token: "sha256.Sum256"
+  verdict: site
+  note: "crypto/sha256 call, test file"
+"f04fc683ebfe971b":
+  repo: sigstore-python
+  path: test/unit/test_hashes.py
+  line: 28
+  token: "hashlib.sha512"
+  verdict: site
+  note: "hashlib.sha512(b'').hexdigest(), test file"
+"f101e006c38d93cd":
+  repo: sigstore-python
+  path: sigstore/hashes.py
+  line: 56
+  token: "hashes.SHA256"
+  verdict: site
+  note: "Prehashed(hashes.SHA256()) for cryptography signing"
+"f14f5d586696ec99":
+  repo: smallstep-crypto
+  path: sshutil/sshutil_test.go
+  line: 43
+  token: "ECDH"
+  verdict: site
+  note: "k.ECDH() crypto/ecdsa method, test file"
+"f1b1c094b4fd2033":
+  repo: sigstore-python
+  path: sigstore/_internal/trust.py
+  line: 75
+  token: "hashes.SHA256"
+  verdict: site
+  note: "cryptography hashes.SHA256() instantiation"
+"f3899495f154c670":
+  repo: smallstep-crypto
+  path: kms/mackms/mackms_test.go
+  line: 963
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call, test file"
+"f3f3cada3e4ff6de":
+  repo: sigstore-python
+  path: test/unit/test_sign.py
+  line: 210
+  token: "hashlib.sha256"
+  verdict: site
+  note: "hashlib.sha256(b'').hexdigest(), test file"
+"f49acb6c34402b19":
+  repo: age
+  path: internal/stream/stream_test.go
+  line: 471
+  token: "rand.Read"
+  verdict: site
+  note: "crypto/rand.Read, test file"
+"f4f4f1cffac0f47f":
+  repo: smallstep-crypto
+  path: x509util/certificate_test.go
+  line: 500
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa GenerateKey, test file"
+"f5c9f3328d10d69f":
+  repo: smallstep-crypto
+  path: internal/bcrypt_pbkdf/bcrypt_pbkdf.go
+  line: 46
+  token: "sha512.New"
+  verdict: site
+  note: "stdlib crypto/sha512"
+"f5d10c4abaef89d8":
+  repo: age
+  path: tag/internal/tagtest/tagtest.go
+  line: 26
+  token: "ecdh.P256"
+  verdict: site
+  note: "crypto/ecdh.P256() curve constructor used in hpke.DHKEM"
+"f5d9eb3098f300d7":
+  repo: smallstep-crypto
+  path: keyutil/key_test.go
+  line: 681
+  token: "GenerateKey"
+  verdict: not_site
+  note: "calls local package function GenerateKey under test"
+"f61a8c500856287c":
+  repo: age
+  path: agessh/agessh_test.go
+  line: 63
+  token: "ed25519.GenerateKey"
+  verdict: site
+  note: "crypto/ed25519.GenerateKey, test file"
+"f643fbaceece3420":
+  repo: smallstep-crypto
+  path: tpm/tss2/signer.go
+  line: 254
+  token: "P521"
+  verdict: site
+  note: "crypto/elliptic P521() switch case"
+"f738305f6308b4f9":
+  repo: smallstep-crypto
+  path: keyutil/key_test.go
+  line: 356
+  token: "GenerateKey"
+  verdict: not_site
+  note: "calls local package function GenerateKey under test"
+"f74c14ce77a9c4ad":
+  repo: smallstep-crypto
+  path: kms/cloudkms/attestation_test.go
+  line: 438
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "stdlib crypto/rsa, test file"
+"f796c1c20935dad5":
+  repo: smallstep-crypto
+  path: jose/types.go
+  line: 181
+  token: "SHA384"
+  verdict: not_site
+  note: "const declaration, not a call"
+"f81befc6b284617a":
+  repo: smallstep-crypto
+  path: jose/types_test.go
+  line: 120
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "stdlib crypto/ecdsa, test file"
+"f8a9c77f5cd8a119":
+  repo: smallstep-crypto
+  path: kms/awskms/decrypter_test.go
+  line: 163
+  token: "sha256.New"
+  verdict: site
+  note: "stdlib crypto/sha256, test file"
+"f90151daf70e8df4":
+  repo: smallstep-crypto
+  path: keyutil/key_test.go
+  line: 462
+  token: "GenerateKey"
+  verdict: not_site
+  note: "inside t.Errorf string literal, not a call"
+"f9895dbf76472e6f":
+  repo: smallstep-crypto
+  path: kms/platform/kms_test.go
+  line: 319
+  token: "sha256.Sum256"
+  verdict: site
+  note: "crypto/sha256 call, test file"
+"f98e819e8f1b21be":
+  repo: smallstep-crypto
+  path: kms/tpmkms/tpmkms.go
+  line: 1571
+  token: "sha1.Sum"
+  verdict: site
+  note: "crypto/sha1 call"
+"f98eeedaa0486f22":
+  repo: sigstore-python
+  path: test/unit/internal/test_key_details.py
+  line: 185
+  token: "dsa.generate_private_key"
+  verdict: site
+  note: "cryptography dsa.generate_private_key, test file"
+"f9b5db30458ef64b":
+  repo: golang-jwt
+  path: map_claims.go
+  line: 55
+  token: "Float64"
+  verdict: not_site
+  note: "json.Number.Float64() call, unrelated to crypto"
+"f9c3567193f17d28":
+  repo: go-jose
+  path: jwk_test.go
+  line: 254
+  token: "sha1.Sum"
+  verdict: site
+  note: "crypto/sha1 call in test"
+"fa29dd4f85ebf99b":
+  repo: smallstep-crypto
+  path: x25519/x25519_test.go
+  line: 613
+  token: "GenerateKey"
+  verdict: not_site
+  note: "same-package GenerateKey wrapper"
+"fa5ab14ad2520afc":
+  repo: smallstep-crypto
+  path: kms/mackms/signer_test.go
+  line: 59
+  token: "ecdh.P521"
+  verdict: site
+  note: "ecdh.P521().GenerateKey(), test file"
+"faa7d3af384ba6a6":
+  repo: smallstep-crypto
+  path: kms/mackms/signer_test.go
+  line: 155
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call, test file"
+"fb84b71e178546f2":
+  repo: smallstep-crypto
+  path: x509util/fingerprint.go
+  line: 41
+  token: "sha256.Sum256"
+  verdict: site
+  note: "crypto/sha256 Sum256"
+"fbaa029dc7c717b9":
+  repo: age
+  path: agessh/agessh.go
+  line: 36
+  token: "sha256.Sum256"
+  verdict: site
+  note: "crypto/sha256 call on SSH pubkey"
+"fbc0373d060d31c5":
+  repo: smallstep-crypto
+  path: pemutil/cosign_test.go
+  line: 44
+  token: "P256"
+  verdict: site
+  note: "crypto/elliptic P256() in struct literal, test file"
+"fbe08078cdc72fa4":
+  repo: smallstep-crypto
+  path: kms/tpmkms/tpmkms_simulator_test.go
+  line: 595
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call, test file"
+"fc15d51f51299531":
+  repo: smallstep-crypto
+  path: kms/mackms/mackms_test.go
+  line: 1150
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call, test file"
+"fc9c138042648235":
+  repo: smallstep-crypto
+  path: pemutil/pem.go
+  line: 768
+  token: "ecdh.P256"
+  verdict: site
+  note: "crypto/ecdh P256() switch case"
+"fcf35533f849dc6a":
+  repo: sigstore-python
+  path: test/unit/internal/test_key_details.py
+  line: 149
+  token: "hashes.SHA256"
+  verdict: site
+  note: "cryptography hashes.SHA256() in padding.MGF1, test file"
+"fcfac8c956b4da65":
+  repo: paramiko
+  path: paramiko/kex_curve25519.py
+  line: 30
+  token: "X25519PrivateKey.generate"
+  verdict: site
+  note: "cryptography X25519 key generation"
+"fd279ff142ab75f0":
+  repo: paramiko
+  path: tests/test_packetizer.py
+  line: 102
+  token: "Cipher"
+  verdict: site
+  note: "cryptography Cipher() construction, test file"
+"fd393b0584fab2b3":
+  repo: smallstep-crypto
+  path: kms/pkcs11/pkcs11.go
+  line: 399
+  token: "P256"
+  verdict: site
+  note: "elliptic.P256() call"
+"fd579166c0189f33":
+  repo: smallstep-crypto
+  path: kms/azurekms/utils.go
+  line: 146
+  token: "ecdh.P521"
+  verdict: site
+  note: "stdlib crypto/ecdh"
+"fd6f6a01e96751b4":
+  repo: smallstep-crypto
+  path: pemutil/pem.go
+  line: 780
+  token: "ecdh.P521"
+  verdict: site
+  note: "crypto/ecdh P521() switch case"
+"fed727793a76977a":
+  repo: smallstep-crypto
+  path: kms/pkcs11/pkcs11.go
+  line: 407
+  token: "P384"
+  verdict: site
+  note: "elliptic.P384() call"
+"ff7e6fb3d5aff57a":
+  repo: go-jose
+  path: crypter_test.go
+  line: 41
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "crypto/ecdsa call in test"
+"ff87a4dffea36381":
+  repo: paramiko
+  path: paramiko/kex_ecdh_nist.py
+  line: 71
+  token: "ec.ECDH"
+  verdict: site
+  note: "cryptography ECDH exchange call"
+"ffb8096c65566aef":
+  repo: age
+  path: internal/stream/stream_test.go
+  line: 541
+  token: "rand.Read"
+  verdict: site
+  note: "crypto/rand.Read, test file"
+"ffbe034d1458ea84":
+  repo: golang-jwt
+  path: rsa_test.go
+  line: 123
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "crypto/rsa.GenerateKey call in test file, crypto/rsa imported"

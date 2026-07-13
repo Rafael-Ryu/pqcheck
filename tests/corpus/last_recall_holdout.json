@@ -1,0 +1,36 @@
+{
+  "sites": 276,
+  "detected": 273,
+  "recall": 0.9891,
+  "per_repo": {
+    "authlib": {
+      "sites": 20,
+      "detected": 20
+    },
+    "borgbackup": {
+      "sites": 52,
+      "detected": 49
+    },
+    "certbot": {
+      "sites": 10,
+      "detected": 10
+    },
+    "cosign": {
+      "sites": 128,
+      "detected": 128
+    },
+    "wireguard-go": {
+      "sites": 52,
+      "detected": 52
+    },
+    "certmagic": {
+      "sites": 14,
+      "detected": 14
+    }
+  },
+  "misses": [
+    "borgbackup:src/borg/legacy/crypto/key.py:41",
+    "borgbackup:src/borg/legacy/crypto/key.py:51",
+    "borgbackup:src/borg/testsuite/crypto/crypto_test.py:233"
+  ]
+}

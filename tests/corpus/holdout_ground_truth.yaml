@@ -1,0 +1,2686 @@
+# Ground truth for the held-out recall benchmark (holdout.yaml repos).
+# Keyed by run_recall_v2 fingerprint sha256(repo|path|line)[:16].
+# Same protocol as ground_truth.yaml (README.md); adjudicated 2026-07-12
+# over the pinned SHAs. These repos were never used to tune detectors or
+# catalogs -- misses here are reported, not patched, to keep the set held out.
+"001802358a6fbf51":
+  repo: cosign
+  path: pkg/cosign/verify_test.go
+  line: 477
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"0147c32198764a4e":
+  repo: wireguard-go
+  path: device/cookie.go
+  line: 109
+  token: "blake2s.New128"
+  verdict: site
+  note: "golang.org/x/crypto/blake2s.New128 real call"
+"01e16db4d2a45c6d":
+  repo: authlib
+  path: authlib/jose/rfc7518/jws_algs.py
+  line: 89
+  token: "padding.PKCS1v15"
+  verdict: site
+  note: "self.padding = padding.PKCS1v15() real call"
+"02b3d7812803f251":
+  repo: borgbackup
+  path: scripts/chunker_bench.py
+  line: 148
+  token: "hashlib.sha256"
+  verdict: site
+  note: "hashlib.sha256(b).digest() over chunk bytes"
+"02f3edda85c556ed":
+  repo: cosign
+  path: test/e2e_attach_test.go
+  line: 66
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"040dcde3eb6fabff":
+  repo: wireguard-go
+  path: device/cookie.go
+  line: 178
+  token: "blake2s.New256"
+  verdict: site
+  note: "golang.org/x/crypto/blake2s.New256 real call"
+"048a48ff3a9bc406":
+  repo: borgbackup
+  path: src/borg/testsuite/archiver/key_cmds_test.py
+  line: 359
+  token: "sha256"
+  verdict: not_site
+  note: "inside a '#'-prefixed comment block illustrating how to find a collision"
+"05161ad79fb6da26":
+  repo: cosign
+  path: cmd/cosign/cli/verify/verify_test.go
+  line: 175
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"05afcf527cdfaead":
+  repo: wireguard-go
+  path: tun/offload_linux.go
+  line: 120
+  token: "Uint32"
+  verdict: not_site
+  note: "encoding/binary.BigEndian.Uint32 packet field decode, not crypto"
+"05e2012f11191229":
+  repo: borgbackup
+  path: src/borg/testsuite/chunkers/buzhash64_test.py
+  line: 21
+  token: "sha256"
+  verdict: site
+  note: "sha256(data).digest() inside test helper H(), calls hashlib directly, test file"
+"069ce6df8f4bd0f8":
+  repo: cosign
+  path: pkg/oci/mutate/signature.go
+  line: 143
+  token: "Signature"
+  verdict: not_site
+  note: "in-repo oci.Signature interface method/wrapper, no crypto primitive invoked"
+"070984d161f1b731":
+  repo: borgbackup
+  path: src/borg/testsuite/crypto/crypto_test.py
+  line: 312
+  token: "sha256"
+  verdict: site
+  note: "expected = sha256(...).digest()[:size] reference value for derive_key test"
+"076713bd1e279516":
+  repo: cosign
+  path: pkg/cosign/verify_test.go
+  line: 1757
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"0a0a79534b9a4227":
+  repo: cosign
+  path: pkg/oci/mutate/signature.go
+  line: 69
+  token: "Signature"
+  verdict: not_site
+  note: "in-repo oci.Signature interface method/wrapper, no crypto primitive invoked"
+"0ab8c76c92b63add":
+  repo: borgbackup
+  path: src/borg/testsuite/repository_test.py
+  line: 1002
+  token: "sha256"
+  verdict: site
+  note: "pack_name built from bin_to_hex(sha256(pack).digest()), test file"
+"0b2594a90f1beff6":
+  repo: cosign
+  path: test/e2e_attach_test.go
+  line: 187
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"0b32085bd06e5772":
+  repo: certbot
+  path: src/acme/_internal/tests/client_test.py
+  line: 668
+  token: "hashes.SHA256"
+  verdict: site
+  note: "hashes.SHA256() passed as sign() algorithm arg, test file"
+"0c17581c9c6254df":
+  repo: borgbackup
+  path: src/borg/testsuite/repository_test.py
+  line: 1030
+  token: "sha256"
+  verdict: site
+  note: "assert pack_id == sha256(cdata).digest(), test file"
+"0e8477e508cc103f":
+  repo: cosign
+  path: pkg/oci/signatures.go
+  line: 48
+  token: "Signature"
+  verdict: not_site
+  note: "in-repo oci.Signature interface method/wrapper, no crypto primitive invoked"
+"0e9f5ca2b4fc6b86":
+  repo: cosign
+  path: cmd/cosign/cli/verify/verify_blob_test.go
+  line: 366
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"0ea8684930dac970":
+  repo: cosign
+  path: pkg/oci/mutate/signature_test.go
+  line: 410
+  token: "Signature"
+  verdict: not_site
+  note: "in-repo oci.Signature interface method/wrapper, no crypto primitive invoked"
+"0f03a12fc5f01f67":
+  repo: wireguard-go
+  path: tun/checksum.go
+  line: 31
+  token: "Uint64"
+  verdict: not_site
+  note: "binary.NativeEndian/BigEndian Uint64/Uint32, IP checksum arithmetic, not crypto"
+"0faff4635d1f89bf":
+  repo: authlib
+  path: authlib/jose/rfc7517/base_key.py
+  line: 109
+  token: "hashlib.sha256"
+  verdict: site
+  note: "hashlib.sha256(to_bytes(json_data)).digest() real call"
+"11673bab5e8e15f2":
+  repo: cosign
+  path: pkg/oci/mutate/signature.go
+  line: 68
+  token: "Signature"
+  verdict: not_site
+  note: "in-repo oci.Signature interface method/wrapper, no crypto primitive invoked"
+"1182f4dde9b47c12":
+  repo: borgbackup
+  path: src/borg/repository.py
+  line: 173
+  token: "sha256"
+  verdict: site
+  note: "pack_id = sha256(pack_data).digest() naming a stored pack"
+"13e2a2e9b6a7b2db":
+  repo: cosign
+  path: pkg/cosign/verify_test.go
+  line: 870
+  token: "elliptic.P256"
+  verdict: site
+  note: "real crypto/elliptic P256() curve constructor call"
+"1495ddcaa51d1b92":
+  repo: cosign
+  path: cmd/cosign/cli/bundle/upgrade_test.go
+  line: 411
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "real crypto/ecdsa GenerateKey call"
+"14ef89fca856ca05":
+  repo: cosign
+  path: pkg/blob/load.go
+  line: 88
+  token: "sha256.New"
+  verdict: site
+  note: "real crypto/sha256 New() call"
+"1524e2562e0815ae":
+  repo: certbot
+  path: examples/http01_example.py
+  line: 161
+  token: "rsa.generate_private_key"
+  verdict: site
+  note: "cryptography rsa.generate_private_key call building account key"
+"157a3a06eb3ce923":
+  repo: borgbackup
+  path: src/borg/crypto/key.py
+  line: 726
+  token: "sha256"
+  verdict: site
+  note: "sha256(keydata).hexdigest() computing repokey candidate id"
+"15a6f4d7190b520e":
+  repo: wireguard-go
+  path: device/allowedips.go
+  line: 50
+  token: "Uint64"
+  verdict: not_site
+  note: "encoding/binary Uint32/Uint64, not crypto (IP byte comparison)"
+"161223a05babf1db":
+  repo: wireguard-go
+  path: tun/checksum.go
+  line: 40
+  token: "Uint64"
+  verdict: not_site
+  note: "binary.NativeEndian/BigEndian Uint64/Uint32, IP checksum arithmetic, not crypto"
+"1708c6ebc7a36aa2":
+  repo: certmagic
+  path: account.go
+  line: 105
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "real call: generates ACME account private key with elliptic.P256"
+"179c37c8fbd9c609":
+  repo: wireguard-go
+  path: device/cookie.go
+  line: 51
+  token: "blake2s.New256"
+  verdict: site
+  note: "golang.org/x/crypto/blake2s.New256 real call"
+"186aa069c2e94ee8":
+  repo: cosign
+  path: pkg/policy/attestation_test.go
+  line: 48
+  token: "Signature"
+  verdict: not_site
+  note: "in-repo oci.Signature interface method/wrapper, no crypto primitive invoked"
+"191035cd5c410a9d":
+  repo: certmagic
+  path: certmagic.go
+  line: 367
+  token: "GenerateKey"
+  verdict: not_site
+  note: "KeyGenerator interface method definition, not a call"
+"192bebfb352949e4":
+  repo: authlib
+  path: authlib/oauth1/rfc5849/rsa.py
+  line: 15
+  token: "padding.PKCS1v15"
+  verdict: site
+  note: "key.sign(msg, padding.PKCS1v15(), hashes.SHA1()) real call"
+"19545d1e34596fcc":
+  repo: wireguard-go
+  path: tun/checksum.go
+  line: 57
+  token: "Uint64"
+  verdict: not_site
+  note: "binary.NativeEndian/BigEndian Uint64/Uint32, IP checksum arithmetic, not crypto"
+"1982763648e2ceb0":
+  repo: wireguard-go
+  path: device/allowedips_rand_test.go
+  line: 86
+  token: "rand.New"
+  verdict: site
+  note: "math/rand.New(rand.NewSource(1)) real call"
+"1a22a12a584b9860":
+  repo: cosign
+  path: cmd/cosign/cli/options/registry_test.go
+  line: 32
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "real crypto/rsa GenerateKey call"
+"1a2dc8055b71c66b":
+  repo: cosign
+  path: internal/key/svkeypair_test.go
+  line: 69
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "real crypto/rsa GenerateKey call"
+"1a58be98e7fb1d5f":
+  repo: cosign
+  path: cmd/cosign/cli/verify/verify_bundle.go
+  line: 52
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"1b3cf8f57f16d6a1":
+  repo: cosign
+  path: test/e2e_test.go
+  line: 3080
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"1d75fcea06760981":
+  repo: cosign
+  path: pkg/oci/mutate/signature_test.go
+  line: 298
+  token: "Signature"
+  verdict: not_site
+  note: "in-repo oci.Signature interface method/wrapper, no crypto primitive invoked"
+"1f2c1998f3d9e547":
+  repo: wireguard-go
+  path: tun/checksum_test.go
+  line: 41
+  token: "rand.New"
+  verdict: site
+  note: "math/rand.New(rand.NewSource(1)) real call"
+"20d623b0d5b90f7e":
+  repo: cosign
+  path: pkg/oci/internal/signature/layer_test.go
+  line: 281
+  token: "SHA256"
+  verdict: site
+  note: "real v1.SHA256 digest computation call (go-containerregistry)"
+"20ddf233ee671163":
+  repo: borgbackup
+  path: src/borg/testsuite/repository_test.py
+  line: 748
+  token: "sha256"
+  verdict: site
+  note: "assert pack_id == sha256(cdata).digest(), test file"
+"214084a3689f331f":
+  repo: certmagic
+  path: config.go
+  line: 625
+  token: "Shuffle"
+  verdict: site
+  note: "weakrand.Shuffle, aliased import of math/rand/v2"
+"214350e88d3a38fb":
+  repo: cosign
+  path: pkg/cosign/verify_bundle_test.go
+  line: 495
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"21493a81b0702356":
+  repo: wireguard-go
+  path: device/noise-helpers.go
+  line: 35
+  token: "blake2s.New256"
+  verdict: site
+  note: "golang.org/x/crypto/blake2s.New256 real call inside HMAC1/HMAC2"
+"218e37bdab83f82d":
+  repo: cosign
+  path: pkg/cosign/verify_bundle_test.go
+  line: 87
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"22c10105208ecb87":
+  repo: wireguard-go
+  path: tun/offload_linux.go
+  line: 92
+  token: "Uint32"
+  verdict: not_site
+  note: "encoding/binary.BigEndian.Uint32 packet field decode, not crypto"
+"23e5f65b9db01782":
+  repo: wireguard-go
+  path: device/cookie.go
+  line: 244
+  token: "blake2s.New128"
+  verdict: site
+  note: "golang.org/x/crypto/blake2s.New128 real call"
+"23f469b781f0d349":
+  repo: wireguard-go
+  path: tun/checksum.go
+  line: 43
+  token: "Uint64"
+  verdict: not_site
+  note: "binary.NativeEndian/BigEndian Uint64/Uint32, IP checksum arithmetic, not crypto"
+"2439eee29bd66456":
+  repo: cosign
+  path: pkg/cosign/pivkey/disabled.go
+  line: 75
+  token: "GenerateKey"
+  verdict: not_site
+  note: "unimplemented stub method definition (disabled.go)"
+"245e4ebf696b2912":
+  repo: wireguard-go
+  path: device/cookie.go
+  line: 129
+  token: "rand.Read"
+  verdict: site
+  note: "crypto/rand.Read real call"
+"24bb766c1ce986fa":
+  repo: cosign
+  path: pkg/cosign/verify_test.go
+  line: 429
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "real crypto/rsa GenerateKey call"
+"25d14d69e914ff24":
+  repo: wireguard-go
+  path: tun/checksum.go
+  line: 20
+  token: "Uint64"
+  verdict: not_site
+  note: "binary.NativeEndian/BigEndian Uint64/Uint32, IP checksum arithmetic, not crypto"
+"26d498a72c54dcd6":
+  repo: borgbackup
+  path: src/borg/testsuite/crypto/file_integrity_test.py
+  line: 163
+  token: "hashlib.sha256"
+  verdict: site
+  note: "hashlib.sha256(data).hexdigest() reference value in pure_hash write test"
+"2740cbc7e1764254":
+  repo: wireguard-go
+  path: tun/checksum_test.go
+  line: 90
+  token: "rand.New"
+  verdict: site
+  note: "math/rand.New(rand.NewSource(1)) real call"
+"2770db7b8649b5c2":
+  repo: wireguard-go
+  path: device/noise-helpers.go
+  line: 86
+  token: "rand.Read"
+  verdict: site
+  note: "crypto/rand.Read real call"
+"278333b2c9ce991e":
+  repo: borgbackup
+  path: src/borg/crypto/key.py
+  line: 739
+  token: "sha256"
+  verdict: site
+  note: "sha256(blob).hexdigest() computing keyfile candidate id"
+"27dac72df5e2527f":
+  repo: wireguard-go
+  path: tun/checksum.go
+  line: 67
+  token: "Uint32"
+  verdict: not_site
+  note: "binary.NativeEndian/BigEndian Uint64/Uint32, IP checksum arithmetic, not crypto"
+"2870d5f5e7429403":
+  repo: cosign
+  path: pkg/oci/mutate/signature_test.go
+  line: 403
+  token: "Signature"
+  verdict: not_site
+  note: "in-repo oci.Signature interface method/wrapper, no crypto primitive invoked"
+"287d7bf3694c9946":
+  repo: wireguard-go
+  path: device/noise-protocol.go
+  line: 654
+  token: "chacha20poly1305.New"
+  verdict: site
+  note: "golang.org/x/crypto/chacha20poly1305.New real call"
+"2907d9053713fbb1":
+  repo: certbot
+  path: src/acme/crypto_util.py
+  line: 140
+  token: "hashes.SHA256"
+  verdict: site
+  note: "hashes.SHA256() passed as builder.sign() algorithm arg"
+"2988739cff8489f0":
+  repo: cosign
+  path: test/helpers.go
+  line: 663
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "real crypto/rsa GenerateKey call"
+"29c353ba44796073":
+  repo: cosign
+  path: pkg/cosign/verify_test.go
+  line: 588
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"2b246ec8bf0103d0":
+  repo: wireguard-go
+  path: device/receive.go
+  line: 137
+  token: "Uint32"
+  verdict: not_site
+  note: "encoding/binary.LittleEndian.Uint32 message field decode, not crypto"
+"2b35a975a50c8a1b":
+  repo: cosign
+  path: pkg/oci/internal/signature/layer.go
+  line: 84
+  token: "Signature"
+  verdict: not_site
+  note: "in-repo oci.Signature interface method/wrapper, no crypto primitive invoked"
+"2b4a1f5a2e5219a2":
+  repo: wireguard-go
+  path: device/cookie.go
+  line: 165
+  token: "chacha20poly1305.NewX"
+  verdict: site
+  note: "golang.org/x/crypto/chacha20poly1305.NewX real call"
+"2cc9333e1d41e6d7":
+  repo: cosign
+  path: cmd/cosign/cli/verify/verify_blob_test.go
+  line: 136
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "real crypto/ecdsa GenerateKey call"
+"2d809ea8d0eea4f3":
+  repo: cosign
+  path: internal/key/svkeypair_test.go
+  line: 65
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "real crypto/ecdsa GenerateKey call"
+"2ded28c2872023c0":
+  repo: cosign
+  path: cmd/cosign/cli/bundle/bundle_test.go
+  line: 157
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"2ec9d36b81a6ccd7":
+  repo: cosign
+  path: pkg/cosign/verify_test.go
+  line: 2463
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"2f3123cb40cf1fba":
+  repo: certmagic
+  path: crypto_test.go
+  line: 61
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "test file, real call with elliptic.P384()"
+"2f4593e822575324":
+  repo: wireguard-go
+  path: device/allowedips.go
+  line: 44
+  token: "Uint64"
+  verdict: not_site
+  note: "encoding/binary Uint32/Uint64, not crypto (IP byte comparison)"
+"31340913857a9f30":
+  repo: wireguard-go
+  path: device/indextable.go
+  line: 29
+  token: "Uint32"
+  verdict: not_site
+  note: "encoding/binary.LittleEndian.Uint32, not crypto"
+"316fd06a9c7c5c46":
+  repo: authlib
+  path: authlib/oauth2/rfc7636/challenge.py
+  line: 29
+  token: "SHA256"
+  verdict: not_site
+  note: "comment '# BASE64URL-ENCODE(SHA256(ASCII(code_verifier)))'"
+"328d5aee1b6649e4":
+  repo: wireguard-go
+  path: tun/checksum.go
+  line: 25
+  token: "Uint64"
+  verdict: not_site
+  note: "binary.NativeEndian/BigEndian Uint64/Uint32, IP checksum arithmetic, not crypto"
+"32a9ca2d168a5de9":
+  repo: borgbackup
+  path: src/borg/helpers/fs.py
+  line: 384
+  token: "hashlib.sha256"
+  verdict: site
+  note: "hashlib.sha256(f\"{ino}/{dev}\".encode()).digest() hardlink id from inode"
+"33ab6171db5e63de":
+  repo: wireguard-go
+  path: device/cookie.go
+  line: 98
+  token: "blake2s.New128"
+  verdict: site
+  note: "golang.org/x/crypto/blake2s.New128 real call"
+"3452b6e952fdd70e":
+  repo: borgbackup
+  path: src/borg/cache.py
+  line: 705
+  token: "hashlib.sha256"
+  verdict: site
+  note: "hashlib.sha256(chunks_data).digest() verifying loaded chunk index"
+"35bf84934d030174":
+  repo: cosign
+  path: pkg/cosign/verify.go
+  line: 1619
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"364054058624fc39":
+  repo: cosign
+  path: pkg/cosign/tlog_test.go
+  line: 118
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"371933b3fd500f1e":
+  repo: wireguard-go
+  path: device/noise-protocol.go
+  line: 309
+  token: "chacha20poly1305.New"
+  verdict: site
+  note: "golang.org/x/crypto/chacha20poly1305.New real call"
+"376d47edfeed07dd":
+  repo: cosign
+  path: pkg/oci/static/signature.go
+  line: 143
+  token: "Signature"
+  verdict: not_site
+  note: "in-repo oci.Signature interface method/wrapper, no crypto primitive invoked"
+"379cb895dd36c18f":
+  repo: authlib
+  path: authlib/jose/rfc7518/jwe_algs.py
+  line: 184
+  token: "Cipher"
+  verdict: site
+  note: "Cipher(AES(op_key), GCM(iv, tag), backend=default_backend()) real call"
+"387a3c1833775ca7":
+  repo: authlib
+  path: authlib/jose/rfc7518/ec_key.py
+  line: 102
+  token: "ec.generate_private_key"
+  verdict: site
+  note: "ec.generate_private_key(curve=..., backend=...) real call"
+"3a62449ea0e9feee":
+  repo: cosign
+  path: pkg/oci/mutate/signature_test.go
+  line: 338
+  token: "Signature"
+  verdict: not_site
+  note: "in-repo oci.Signature interface method/wrapper, no crypto primitive invoked"
+"3a65089f299cf481":
+  repo: cosign
+  path: pkg/cosign/pivkey/pivkey.go
+  line: 155
+  token: "GenerateKey"
+  verdict: not_site
+  note: "method definition, not a call site"
+"3a670e18fe4db811":
+  repo: borgbackup
+  path: src/borg/helpers/parseformat.py
+  line: 1150
+  token: "sha256"
+  verdict: site
+  note: "sha256(b\"\".join(...)).hexdigest() computing file fingerprint"
+"3a682895c3d00213":
+  repo: borgbackup
+  path: src/borg/crypto/key.py
+  line: 839
+  token: "sha256"
+  verdict: site
+  note: "sha256(keyfile_data.encode()).hexdigest() naming the saved keyfile"
+"3ba66563d21129df":
+  repo: wireguard-go
+  path: device/noise-protocol.go
+  line: 503
+  token: "chacha20poly1305.New"
+  verdict: site
+  note: "golang.org/x/crypto/chacha20poly1305.New real call"
+"3be22ced4f2a4fe6":
+  repo: cosign
+  path: internal/key/svkeypair_test.go
+  line: 145
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "real crypto/ecdsa GenerateKey call"
+"3bec6b2bd9908b05":
+  repo: wireguard-go
+  path: device/allowedips_rand_test.go
+  line: 95
+  token: "rand.Intn"
+  verdict: site
+  note: "math/rand.Intn real call"
+"3cad117dca2eb809":
+  repo: wireguard-go
+  path: device/noise-protocol.go
+  line: 160
+  token: "Uint32"
+  verdict: not_site
+  note: "encoding/binary.LittleEndian.Uint32 message field decode, not crypto"
+"3d3e98453e882c30":
+  repo: cosign
+  path: test/e2e_test.go
+  line: 4302
+  token: "Signature"
+  verdict: not_site
+  note: "in-repo oci.Signature interface method/wrapper, no crypto primitive invoked"
+"3d88e839378a7df8":
+  repo: wireguard-go
+  path: device/device_test.go
+  line: 55
+  token: "rand.Read"
+  verdict: site
+  note: "math/rand.Read real call (math/rand imported)"
+"3da5d8f8992f3abe":
+  repo: certbot
+  path: src/acme/_internal/tests/crypto_util_test.py
+  line: 120
+  token: "rsa.generate_private_key"
+  verdict: site
+  note: "cryptography rsa.generate_private_key call in setUp, test file"
+"3e1980e8abcaaa6d":
+  repo: borgbackup
+  path: src/borg/testsuite/archiver/key_cmds_test.py
+  line: 111
+  token: "sha256"
+  verdict: site
+  note: "sha256(key_content).hexdigest() asserted against keyfile name, test file"
+"3e3c6da155f201e1":
+  repo: cosign
+  path: pkg/oci/static/file_test.go
+  line: 75
+  token: "SHA256"
+  verdict: not_site
+  note: "string literal v1.SHA256() inside t.Errorf/t.Fatalf message, not an actual call"
+"3ee7820434916f6a":
+  repo: cosign
+  path: cmd/cosign/cli/verify/verify_blob_test.go
+  line: 1570
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "real crypto/ecdsa GenerateKey call"
+"3f5ec999c8f3dfd8":
+  repo: wireguard-go
+  path: device/noise-protocol.go
+  line: 579
+  token: "chacha20poly1305.New"
+  verdict: site
+  note: "golang.org/x/crypto/chacha20poly1305.New real call"
+"3f7d7dc8e1459278":
+  repo: authlib
+  path: authlib/oauth1/rfc5849/rsa.py
+  line: 21
+  token: "padding.PKCS1v15"
+  verdict: site
+  note: "key.verify(sig, msg, padding.PKCS1v15(), hashes.SHA1()) real call"
+"3f9a76771dab5d46":
+  repo: authlib
+  path: authlib/oauth2/rfc7636/challenge.py
+  line: 18
+  token: "hashlib.sha256"
+  verdict: site
+  note: "hashlib.sha256(to_bytes(code_verifier, 'ascii')).digest() real call"
+"3fb84c863d52cf2b":
+  repo: borgbackup
+  path: src/borg/testsuite/repository_test.py
+  line: 763
+  token: "sha256"
+  verdict: site
+  note: "expected_pack_id = sha256(pack_data).digest(), test file"
+"3fdef04b9bea7e30":
+  repo: cosign
+  path: pkg/oci/mutate/signature_test.go
+  line: 340
+  token: "Signature"
+  verdict: not_site
+  note: "in-repo oci.Signature interface method/wrapper, no crypto primitive invoked"
+"4148da82626ba7b9":
+  repo: cosign
+  path: pkg/oci/static/file_test.go
+  line: 73
+  token: "SHA256"
+  verdict: site
+  note: "real v1.SHA256 digest computation call (go-containerregistry)"
+"4185e91b60389da7":
+  repo: wireguard-go
+  path: tun/checksum.go
+  line: 30
+  token: "Uint64"
+  verdict: not_site
+  note: "binary.NativeEndian/BigEndian Uint64/Uint32, IP checksum arithmetic, not crypto"
+"43a796e2b4cfcba1":
+  repo: cosign
+  path: pkg/oci/mutate/signature_test.go
+  line: 355
+  token: "Signature"
+  verdict: not_site
+  note: "in-repo oci.Signature interface method/wrapper, no crypto primitive invoked"
+"43bc81f1043c8662":
+  repo: authlib
+  path: authlib/jose/rfc7518/jwe_encs.py
+  line: 89
+  token: "Cipher"
+  verdict: site
+  note: "Cipher(AES(dkey), CBC(iv), backend=default_backend()) real call"
+"43cc11bf1a5dea8b":
+  repo: borgbackup
+  path: src/borg/cache.py
+  line: 607
+  token: "hashlib.sha256"
+  verdict: site
+  note: "hashlib.sha256(data).hexdigest() naming stored chunks index"
+"44ce2f118e2e292e":
+  repo: certmagic
+  path: crypto.go
+  line: 347
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "real call, elliptic.P384() key type"
+"453a21df95e17ab1":
+  repo: cosign
+  path: pkg/oci/internal/signature/layer_test.go
+  line: 284
+  token: "SHA256"
+  verdict: not_site
+  note: "string literal v1.SHA256() inside t.Errorf/t.Fatalf message, not an actual call"
+"455e1d09242d6d09":
+  repo: cosign
+  path: cmd/cosign/cli/trustedroot/trustedroot_test.go
+  line: 399
+  token: "ed25519.GenerateKey"
+  verdict: site
+  note: "real crypto/ed25519 GenerateKey call"
+"457300a7aa98ab19":
+  repo: wireguard-go
+  path: tun/netstack/examples/ping_client.go
+  line: 49
+  token: "rand.Intn"
+  verdict: site
+  note: "math/rand.Intn real call (build-ignore example file, still real code)"
+"4698114847672cce":
+  repo: borgbackup
+  path: src/borg/testsuite/repository_test.py
+  line: 961
+  token: "sha256"
+  verdict: site
+  note: "index_name built from bin_to_hex(sha256(content).digest()), test file"
+"46cb3bd58682c0a2":
+  repo: cosign
+  path: pkg/cosign/verify_test.go
+  line: 2146
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"47c903c55f80fc3e":
+  repo: wireguard-go
+  path: device/cookie.go
+  line: 185
+  token: "blake2s.New256"
+  verdict: site
+  note: "golang.org/x/crypto/blake2s.New256 real call"
+"48c97f9f2d5d892d":
+  repo: wireguard-go
+  path: tun/checksum.go
+  line: 83
+  token: "Uint64"
+  verdict: not_site
+  note: "binary.NativeEndian/BigEndian Uint64/Uint32, IP checksum arithmetic, not crypto"
+"4970c14cc91aa4d0":
+  repo: cosign
+  path: test/e2e_test.go
+  line: 5180
+  token: "sha256.New"
+  verdict: site
+  note: "real crypto/sha256 New() call"
+"4a7db344e2175864":
+  repo: cosign
+  path: pkg/cosign/verify_test.go
+  line: 2454
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"4b1bf2deaa406268":
+  repo: cosign
+  path: internal/test/cert_utils.go
+  line: 107
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "real crypto/ecdsa GenerateKey call"
+"4b44073dada4bbcc":
+  repo: wireguard-go
+  path: device/cookie.go
+  line: 204
+  token: "chacha20poly1305.NewX"
+  verdict: site
+  note: "golang.org/x/crypto/chacha20poly1305.NewX real call"
+"4b7f1f1161381a43":
+  repo: borgbackup
+  path: src/borg/testsuite/archiver/key_cmds_test.py
+  line: 128
+  token: "sha256"
+  verdict: site
+  note: "sha256(key_content).hexdigest() asserted against renamed keyfile, test file"
+"4bbad0facdef806d":
+  repo: wireguard-go
+  path: tun/checksum.go
+  line: 24
+  token: "Uint64"
+  verdict: not_site
+  note: "binary.NativeEndian/BigEndian Uint64/Uint32, IP checksum arithmetic, not crypto"
+"4ccd100978e92b7d":
+  repo: wireguard-go
+  path: tun/checksum.go
+  line: 18
+  token: "Uint64"
+  verdict: not_site
+  note: "binary.NativeEndian/BigEndian Uint64/Uint32, IP checksum arithmetic, not crypto"
+"4f65434ffa78d762":
+  repo: cosign
+  path: pkg/oci/mutate/signature_test.go
+  line: 323
+  token: "Signature"
+  verdict: not_site
+  note: "in-repo oci.Signature interface method/wrapper, no crypto primitive invoked"
+"505a3f1eeca12c2a":
+  repo: wireguard-go
+  path: device/noise-protocol.go
+  line: 126
+  token: "Uint32"
+  verdict: not_site
+  note: "encoding/binary.LittleEndian.Uint32 message field decode, not crypto"
+"51024e14c6f0ac73":
+  repo: borgbackup
+  path: src/borg/testsuite/hashindex_test.py
+  line: 17
+  token: "hashlib.sha256"
+  verdict: site
+  note: "hashlib.sha256(H(x)).digest() inside test helper H2(), test file"
+"51ce944b58195409":
+  repo: cosign
+  path: internal/key/svkeypair_test.go
+  line: 172
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"534277649b167b11":
+  repo: wireguard-go
+  path: tun/checksum.go
+  line: 37
+  token: "Uint64"
+  verdict: not_site
+  note: "binary.NativeEndian/BigEndian Uint64/Uint32, IP checksum arithmetic, not crypto"
+"5408c36cc055ba66":
+  repo: certmagic
+  path: config.go
+  line: 906
+  token: "GenerateKey"
+  verdict: not_site
+  note: "cfg.KeySource.GenerateKey() dispatches through KeyGenerator interface field, not a direct crypto-library call"
+"550c3c3453056133":
+  repo: borgbackup
+  path: src/borg/testsuite/repository_test.py
+  line: 942
+  token: "sha256"
+  verdict: not_site
+  note: "in a comment explaining the pack is named by sha256(content)"
+"55f19855f85db3b9":
+  repo: cosign
+  path: pkg/cosign/verify_test.go
+  line: 304
+  token: "elliptic.P256"
+  verdict: site
+  note: "real crypto/elliptic P256() curve constructor call"
+"57e41092dc9b6dc9":
+  repo: authlib
+  path: authlib/jose/rfc7515/__init__.py
+  line: 5
+  token: "Signature"
+  verdict: not_site
+  note: "import line 'from .jws import JsonWebSignature', name match only"
+"57ebb89b5e26c321":
+  repo: cosign
+  path: pkg/cosign/verify_test.go
+  line: 1944
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"585d497c807de944":
+  repo: wireguard-go
+  path: tun/checksum.go
+  line: 49
+  token: "Uint64"
+  verdict: not_site
+  note: "binary.NativeEndian/BigEndian Uint64/Uint32, IP checksum arithmetic, not crypto"
+"58b4b7d78f44f9f6":
+  repo: wireguard-go
+  path: tun/checksum.go
+  line: 16
+  token: "Uint64"
+  verdict: not_site
+  note: "binary.NativeEndian/BigEndian Uint64/Uint32, IP checksum arithmetic, not crypto"
+"5b32afb90c8f7222":
+  repo: cosign
+  path: internal/pkg/cosign/common_test.go
+  line: 73
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"5ba1981f67004635":
+  repo: wireguard-go
+  path: tun/checksum.go
+  line: 62
+  token: "Uint64"
+  verdict: not_site
+  note: "binary.NativeEndian/BigEndian Uint64/Uint32, IP checksum arithmetic, not crypto"
+"5bb4d3789d3df545":
+  repo: wireguard-go
+  path: tun/checksum.go
+  line: 22
+  token: "Uint64"
+  verdict: not_site
+  note: "binary.NativeEndian/BigEndian Uint64/Uint32, IP checksum arithmetic, not crypto"
+"5bfda8278a608804":
+  repo: cosign
+  path: test/e2e_test.go
+  line: 387
+  token: "ed25519.GenerateKey"
+  verdict: site
+  note: "real crypto/ed25519 GenerateKey call"
+"5d41b39d65267acf":
+  repo: cosign
+  path: pkg/oci/mutate/mutate_test.go
+  line: 169
+  token: "rand.Read"
+  verdict: site
+  note: "real crypto/rand Read call (verified crypto/rand import)"
+"5d8e255f2d87a3be":
+  repo: cosign
+  path: cmd/cosign/cli/verify/verify_blob_attestation_test.go
+  line: 326
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "real crypto/ecdsa GenerateKey call"
+"5e0ed4617f67b8de":
+  repo: wireguard-go
+  path: tun/checksum.go
+  line: 27
+  token: "Uint64"
+  verdict: not_site
+  note: "binary.NativeEndian/BigEndian Uint64/Uint32, IP checksum arithmetic, not crypto"
+"5f50c7ff606ebd1e":
+  repo: wireguard-go
+  path: device/allowedips.go
+  line: 38
+  token: "Uint32"
+  verdict: not_site
+  note: "encoding/binary Uint32/Uint64, not crypto (IP byte comparison)"
+"5ff513b7332fe247":
+  repo: authlib
+  path: authlib/jose/rfc7518/jwe_encs.py
+  line: 117
+  token: "Cipher"
+  verdict: site
+  note: "Cipher(AES(key), GCM(iv), backend=default_backend()) real call"
+"618259eb8bb82f5f":
+  repo: cosign
+  path: pkg/cosign/verify_test.go
+  line: 316
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"62bf77a7421f488b":
+  repo: cosign
+  path: cmd/cosign/cli/verify/verify_blob_test.go
+  line: 179
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "real crypto/ecdsa GenerateKey call"
+"64346b0c447f1a9e":
+  repo: cosign
+  path: test/e2e_test.go
+  line: 2638
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"65234bff2bd32374":
+  repo: borgbackup
+  path: src/borg/hlfuse.py
+  line: 355
+  token: "hashlib.sha256"
+  verdict: site
+  note: "hashlib.sha256(path).digest()[:16] file_id in _file_version"
+"656c9345aeaf76f3":
+  repo: borgbackup
+  path: src/borg/testsuite/chunkers/buzhash_test.py
+  line: 15
+  token: "sha256"
+  verdict: site
+  note: "sha256(data).digest() inside test helper H(), calls hashlib directly, test file"
+"662e635cae25d032":
+  repo: borgbackup
+  path: src/borg/testsuite/repository_test.py
+  line: 1020
+  token: "SHA256"
+  verdict: not_site
+  note: "in a comment: 'must still use SHA256(pack_bytes)', not a call"
+"66d9074c0021c9ea":
+  repo: wireguard-go
+  path: tun/checksum.go
+  line: 48
+  token: "Uint64"
+  verdict: not_site
+  note: "binary.NativeEndian/BigEndian Uint64/Uint32, IP checksum arithmetic, not crypto"
+"677af0b5fb89fda1":
+  repo: cosign
+  path: pkg/cosign/verify_test.go
+  line: 210
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"67be856e57c86e54":
+  repo: wireguard-go
+  path: device/noise-protocol.go
+  line: 655
+  token: "chacha20poly1305.New"
+  verdict: site
+  note: "golang.org/x/crypto/chacha20poly1305.New real call"
+"6809fccb43459389":
+  repo: wireguard-go
+  path: tun/checksum.go
+  line: 19
+  token: "Uint64"
+  verdict: not_site
+  note: "binary.NativeEndian/BigEndian Uint64/Uint32, IP checksum arithmetic, not crypto"
+"681e7701ab3a4572":
+  repo: borgbackup
+  path: src/borg/testsuite/crypto/file_integrity_test.py
+  line: 178
+  token: "hashlib.sha256"
+  verdict: site
+  note: "hashlib.sha256(data + b\"11\").hexdigest() reference value in impure_hash write test"
+"6a177baa7cbb0e17":
+  repo: cosign
+  path: test/e2e_test.go
+  line: 4474
+  token: "Signature"
+  verdict: not_site
+  note: "in-repo oci.Signature interface method/wrapper, no crypto primitive invoked"
+"6af3f185787570a4":
+  repo: wireguard-go
+  path: device/noise-protocol.go
+  line: 159
+  token: "Uint32"
+  verdict: not_site
+  note: "encoding/binary.LittleEndian.Uint32 message field decode, not crypto"
+"6b1b35a19099af45":
+  repo: wireguard-go
+  path: tun/offload_linux.go
+  line: 580
+  token: "Uint32"
+  verdict: not_site
+  note: "encoding/binary.BigEndian.Uint32 packet field decode, not crypto"
+"6b69c27982acae01":
+  repo: cosign
+  path: cmd/cosign/cli/sign/sign_blob_test.go
+  line: 88
+  token: "ed25519.GenerateKey"
+  verdict: site
+  note: "real crypto/ed25519 GenerateKey call"
+"6c0e1e977f71f27d":
+  repo: cosign
+  path: test/helpers.go
+  line: 765
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "real crypto/rsa GenerateKey call"
+"6c6928dea00eb23d":
+  repo: wireguard-go
+  path: tun/checksum.go
+  line: 29
+  token: "Uint64"
+  verdict: not_site
+  note: "binary.NativeEndian/BigEndian Uint64/Uint32, IP checksum arithmetic, not crypto"
+"6df08c0ff8677ce0":
+  repo: cosign
+  path: pkg/oci/internal/signature/layer_test.go
+  line: 462
+  token: "SHA256"
+  verdict: not_site
+  note: "string literal v1.SHA256() inside t.Errorf/t.Fatalf message, not an actual call"
+"6df9162800750dba":
+  repo: cosign
+  path: cmd/cosign/cli/verify/verify_blob_test.go
+  line: 1672
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"6e1c6ca4f0174eaa":
+  repo: cosign
+  path: cmd/cosign/cli/trustedroot/trustedroot_test.go
+  line: 356
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "real crypto/ecdsa GenerateKey call"
+"6efcd7ff623e83b6":
+  repo: certmagic
+  path: crypto.go
+  line: 345
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "real call, elliptic.P256() key type"
+"6f05cbbadbc93170":
+  repo: wireguard-go
+  path: device/pools_test.go
+  line: 111
+  token: "rand.Intn"
+  verdict: site
+  note: "math/rand.Intn real call"
+"7009829b4dd46842":
+  repo: cosign
+  path: pkg/oci/internal/signature/layer_test.go
+  line: 460
+  token: "SHA256"
+  verdict: not_site
+  note: "string literal v1.SHA256() inside t.Errorf/t.Fatalf message, not an actual call"
+"707fcee2da46ac86":
+  repo: wireguard-go
+  path: device/cookie.go
+  line: 143
+  token: "blake2s.New128"
+  verdict: site
+  note: "golang.org/x/crypto/blake2s.New128 real call"
+"71561fc2fefb3224":
+  repo: wireguard-go
+  path: device/noise-protocol.go
+  line: 190
+  token: "Uint32"
+  verdict: not_site
+  note: "encoding/binary.LittleEndian.Uint32 message field decode, not crypto"
+"72a13d05e1dd9a96":
+  repo: borgbackup
+  path: src/borg/testsuite/helpers/datastruct_test.py
+  line: 11
+  token: "hashlib.md5"
+  verdict: site
+  note: "hashlib.md5(msgpack.packb(d)).hexdigest() asserted against fixed digest, test file"
+"734ed362ea1441f6":
+  repo: wireguard-go
+  path: tun/checksum_test.go
+  line: 57
+  token: "rand.New"
+  verdict: site
+  note: "math/rand.New(rand.NewSource(1)) real call"
+"7489806a1fccf1f7":
+  repo: wireguard-go
+  path: device/allowedips_rand_test.go
+  line: 96
+  token: "rand.Intn"
+  verdict: site
+  note: "math/rand.Intn real call"
+"74fee01663869763":
+  repo: authlib
+  path: authlib/jose/rfc7518/jwe_encs.py
+  line: 134
+  token: "Cipher"
+  verdict: site
+  note: "Cipher(AES(key), GCM(iv, tag), backend=default_backend()) real call"
+"76861d0e86c7d835":
+  repo: cosign
+  path: pkg/oci/static/signature.go
+  line: 195
+  token: "SHA256"
+  verdict: site
+  note: "real v1.SHA256 digest computation call (go-containerregistry)"
+"76ca3a2a8e249f96":
+  repo: cosign
+  path: cmd/cosign/cli/trustedroot/trustedroot.go
+  line: 587
+  token: "elliptic.P256"
+  verdict: site
+  note: "real crypto/elliptic P256() curve constructor call"
+"76d744ef7e3c6bcf":
+  repo: cosign
+  path: pkg/oci/internal/signature/layer_test.go
+  line: 282
+  token: "SHA256"
+  verdict: not_site
+  note: "string literal v1.SHA256() inside t.Errorf/t.Fatalf message, not an actual call"
+"77396678e0a6a562":
+  repo: cosign
+  path: cmd/cosign/cli/initialize/init_test.go
+  line: 35
+  token: "ed25519.GenerateKey"
+  verdict: site
+  note: "real crypto/ed25519 GenerateKey call"
+"7767e18086e0127a":
+  repo: borgbackup
+  path: src/borg/testsuite/repository_test.py
+  line: 976
+  token: "sha256"
+  verdict: site
+  note: "pack_name built from bin_to_hex(sha256(pack).digest()), test file"
+"776cfc397c472e34":
+  repo: cosign
+  path: internal/key/svkeypair_test.go
+  line: 272
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"77e400828c1872fe":
+  repo: wireguard-go
+  path: tai64n/tai64n.go
+  line: 40
+  token: "Uint64"
+  verdict: not_site
+  note: "encoding/binary.BigEndian.Uint64 timestamp decode, not crypto"
+"78129a9405009f8a":
+  repo: wireguard-go
+  path: tun/checksum.go
+  line: 28
+  token: "Uint64"
+  verdict: not_site
+  note: "binary.NativeEndian/BigEndian Uint64/Uint32, IP checksum arithmetic, not crypto"
+"7837257bc9d927b4":
+  repo: borgbackup
+  path: src/borg/testsuite/repository_test.py
+  line: 964
+  token: "sha256"
+  verdict: not_site
+  note: "in an assert-trailing comment '(name == sha256(content))', not itself a call"
+"787fe8dff7f2f64f":
+  repo: cosign
+  path: pkg/oci/mutate/mutate_test.go
+  line: 182
+  token: "rand.Read"
+  verdict: site
+  note: "real crypto/rand Read call (verified crypto/rand import)"
+"78fc38c6ed3afa09":
+  repo: cosign
+  path: pkg/cosign/tlog_test.go
+  line: 167
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"7916c223300555a2":
+  repo: cosign
+  path: pkg/cosign/verify_test.go
+  line: 549
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"7cb860a1fdb3565c":
+  repo: borgbackup
+  path: src/borg/testsuite/archiver/transfer_cmd_test.py
+  line: 509
+  token: "hashlib.sha256"
+  verdict: site
+  note: "hashlib.sha256(content).hexdigest() hashing dest archive file content, test file"
+"7ce32076edce0700":
+  repo: cosign
+  path: cmd/cosign/cli/trustedroot/trustedroot_test.go
+  line: 371
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "real crypto/ecdsa GenerateKey call"
+"7f02cf7e3481fbc4":
+  repo: authlib
+  path: authlib/oauth1/rfc5849/client_auth.py
+  line: 150
+  token: "hashlib.sha1"
+  verdict: site
+  note: "hashlib.sha1(body).digest() real call, oauth_body_hash"
+"7f4ae9465fabc5f5":
+  repo: cosign
+  path: pkg/oci/mutate/signature_test.go
+  line: 371
+  token: "Signature"
+  verdict: not_site
+  note: "in-repo oci.Signature interface method/wrapper, no crypto primitive invoked"
+"7f987411f47e3093":
+  repo: cosign
+  path: internal/test/cert_utils.go
+  line: 235
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "real crypto/ecdsa GenerateKey call"
+"80628bdcd541943b":
+  repo: cosign
+  path: pkg/cosign/fuzz_test.go
+  line: 119
+  token: "Signature"
+  verdict: not_site
+  note: "in-repo oci.Signature interface method/wrapper, no crypto primitive invoked"
+"82be99675a767165":
+  repo: certbot
+  path: src/acme/_internal/tests/client_test.py
+  line: 652
+  token: "ec.generate_private_key"
+  verdict: site
+  note: "cryptography ec.generate_private_key(ec.SECP256R1()) in test helper, test file"
+"83dbef354e394271":
+  repo: cosign
+  path: pkg/oci/internal/signature/layer_test.go
+  line: 459
+  token: "SHA256"
+  verdict: site
+  note: "real v1.SHA256 digest computation call (go-containerregistry)"
+"83f368bd7a52161a":
+  repo: wireguard-go
+  path: device/receive.go
+  line: 252
+  token: "Uint64"
+  verdict: not_site
+  note: "encoding/binary.LittleEndian.Uint64 counter decode, not crypto"
+"860687a693fc8001":
+  repo: cosign
+  path: pkg/blob/load.go
+  line: 94
+  token: "sha512.New"
+  verdict: site
+  note: "real crypto/sha512 New() call"
+"86fe417b75c19819":
+  repo: cosign
+  path: pkg/oci/static/signature_test.go
+  line: 217
+  token: "SHA256"
+  verdict: not_site
+  note: "string literal v1.SHA256() inside t.Errorf/t.Fatalf message, not an actual call"
+"8724c65cc5cc19bc":
+  repo: authlib
+  path: authlib/jose/rfc7518/jwe_encs.py
+  line: 65
+  token: "Cipher"
+  verdict: site
+  note: "Cipher(AES(ekey), CBC(iv), backend=default_backend()) real call"
+"87e747ed36202372":
+  repo: cosign
+  path: pkg/oci/remote/write.go
+  line: 470
+  token: "SHA256"
+  verdict: site
+  note: "real v1.SHA256 digest computation call (go-containerregistry)"
+"884c58cc7075bb4c":
+  repo: borgbackup
+  path: src/borg/crypto/key.py
+  line: 291
+  token: "sha256"
+  verdict: site
+  note: "sha256(from_key + salt + domain).digest()[:size] key derivation"
+"8872635ed691f6ac":
+  repo: borgbackup
+  path: src/borg/legacy/crypto/key.py
+  line: 51
+  token: "AES"
+  verdict: site
+  note: "AES(key, iv).encrypt(...); same OpenSSL EVP AES-256-CTR wrapper as line 41"
+"8a028f7a5be0ac8b":
+  repo: wireguard-go
+  path: device/device_test.go
+  line: 59
+  token: "rand.Read"
+  verdict: site
+  note: "math/rand.Read real call (math/rand imported)"
+"8acca0505d0dcb18":
+  repo: certmagic
+  path: crypto.go
+  line: 351
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "real call, RSA4096 key type"
+"8b3bd743517366e0":
+  repo: wireguard-go
+  path: device/noise-protocol.go
+  line: 324
+  token: "chacha20poly1305.New"
+  verdict: site
+  note: "golang.org/x/crypto/chacha20poly1305.New real call"
+"8ba0c40b0da1c676":
+  repo: wireguard-go
+  path: device/noise-protocol.go
+  line: 127
+  token: "Uint32"
+  verdict: not_site
+  note: "encoding/binary.LittleEndian.Uint32 message field decode, not crypto"
+"8e47cefbc5a25143":
+  repo: cosign
+  path: cmd/cosign/cli/bundle/bundle_test.go
+  line: 44
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"8f223cd470a65ed3":
+  repo: certbot
+  path: src/acme/_internal/tests/crypto_util_test.py
+  line: 264
+  token: "X25519PrivateKey.generate"
+  verdict: site
+  note: "cryptography x25519.X25519PrivateKey.generate() call, test file"
+"8f6f29a4c7f9327a":
+  repo: authlib
+  path: authlib/jose/rfc7518/ec_key.py
+  line: 50
+  token: "ec.ECDH"
+  verdict: site
+  note: "private_key.exchange(ec.ECDH(), pubkey) real call"
+"8fd812e1a4043ac1":
+  repo: cosign
+  path: pkg/cosign/pivkey/pivkey.go
+  line: 274
+  token: "sha256.New"
+  verdict: site
+  note: "real crypto/sha256 New() call"
+"91e28d13c7900ddb":
+  repo: wireguard-go
+  path: device/noise-protocol.go
+  line: 158
+  token: "Uint32"
+  verdict: not_site
+  note: "encoding/binary.LittleEndian.Uint32 message field decode, not crypto"
+"9210d6c7753fdd43":
+  repo: cosign
+  path: pkg/cosign/verify_test.go
+  line: 1924
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "real crypto/ecdsa GenerateKey call"
+"9272709fc9256cd3":
+  repo: wireguard-go
+  path: tun/checksum.go
+  line: 26
+  token: "Uint64"
+  verdict: not_site
+  note: "binary.NativeEndian/BigEndian Uint64/Uint32, IP checksum arithmetic, not crypto"
+"9440478ac20dabd8":
+  repo: cosign
+  path: cmd/cosign/cli/verify/verify_blob_test.go
+  line: 1623
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"95c1982c55eea7eb":
+  repo: cosign
+  path: pkg/oci/mutate/signature_test.go
+  line: 353
+  token: "Signature"
+  verdict: not_site
+  note: "in-repo oci.Signature interface method/wrapper, no crypto primitive invoked"
+"9824a3489950935d":
+  repo: wireguard-go
+  path: device/allowedips_rand_test.go
+  line: 102
+  token: "rand.Intn"
+  verdict: site
+  note: "math/rand.Intn real call"
+"98428bda88dbd040":
+  repo: wireguard-go
+  path: device/noise-protocol.go
+  line: 397
+  token: "chacha20poly1305.New"
+  verdict: site
+  note: "golang.org/x/crypto/chacha20poly1305.New real call"
+"9920ff0c10364942":
+  repo: wireguard-go
+  path: tun/checksum.go
+  line: 39
+  token: "Uint64"
+  verdict: not_site
+  note: "binary.NativeEndian/BigEndian Uint64/Uint32, IP checksum arithmetic, not crypto"
+"999516acca8a8bf7":
+  repo: wireguard-go
+  path: device/cookie.go
+  line: 60
+  token: "blake2s.New256"
+  verdict: site
+  note: "golang.org/x/crypto/blake2s.New256 real call"
+"9b61ce22ee892a77":
+  repo: borgbackup
+  path: src/borg/crypto/key.py
+  line: 341
+  token: "sha256"
+  verdict: site
+  note: "sha256(data).digest() PlaintextKey.id_hash"
+"9c0f2621f85ff503":
+  repo: cosign
+  path: pkg/oci/mutate/signature_test.go
+  line: 321
+  token: "Signature"
+  verdict: not_site
+  note: "in-repo oci.Signature interface method/wrapper, no crypto primitive invoked"
+"9c37ab2bbc6bfeca":
+  repo: borgbackup
+  path: src/borg/testsuite/crypto/crypto_test.py
+  line: 333
+  token: "sha256"
+  verdict: site
+  note: "expected = sha256(...).digest()[:size] reference value for derive_key test"
+"9e1ed49e039cff82":
+  repo: cosign
+  path: pkg/cosign/pivkey/pivkey.go
+  line: 176
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"9f0810f2817359fc":
+  repo: borgbackup
+  path: src/borg/helpers/fs.py
+  line: 378
+  token: "hashlib.sha256"
+  verdict: site
+  note: "hashlib.sha256(path.encode(...)).digest() hardlink id from path"
+"9f3f79cd9fc83446":
+  repo: cosign
+  path: pkg/cosign/tlog.go
+  line: 100
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"9f5ab78f898d5bf6":
+  repo: cosign
+  path: cmd/cosign/cli/publickey/public_key_test.go
+  line: 72
+  token: "rand.Read"
+  verdict: site
+  note: "real crypto/rand Read call (verified crypto/rand import)"
+"a0496efa97eecb7f":
+  repo: cosign
+  path: pkg/cosign/pkcs11key/pkcs11key.go
+  line: 237
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"a0a88cd2e3290b84":
+  repo: cosign
+  path: pkg/cosign/verify_sct_test.go
+  line: 90
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "real crypto/ecdsa GenerateKey call"
+"a285e0852bd2a0c8":
+  repo: borgbackup
+  path: src/borg/crypto/keymanager.py
+  line: 40
+  token: "sha256"
+  verdict: site
+  note: "h = sha256(); h.update(data) in sha256_truncated helper"
+"a2ea27194fb815c1":
+  repo: borgbackup
+  path: src/borg/testsuite/crypto/file_integrity_test.py
+  line: 170
+  token: "hashlib.sha256"
+  verdict: site
+  note: "hashlib.sha256(data).hexdigest() reference value in pure_hash read test"
+"a3e2858f68cde19e":
+  repo: cosign
+  path: pkg/oci/mutate/signature_test.go
+  line: 300
+  token: "Signature"
+  verdict: not_site
+  note: "in-repo oci.Signature interface method/wrapper, no crypto primitive invoked"
+"a43fc7410e08353f":
+  repo: cosign
+  path: cmd/cosign/cli/bundle/inspect_test.go
+  line: 637
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "real crypto/ecdsa GenerateKey call"
+"a44e185b0a9da62b":
+  repo: wireguard-go
+  path: device/endpoint_test.go
+  line: 22
+  token: "rand.Read"
+  verdict: site
+  note: "math/rand.Read real call (math/rand imported)"
+"a4d93a11c0e8dc1d":
+  repo: certbot
+  path: examples/http01_example.py
+  line: 72
+  token: "rsa.generate_private_key"
+  verdict: site
+  note: "cryptography rsa.generate_private_key call in new_csr_comp helper"
+"a5a6fe91ce7756ea":
+  repo: certmagic
+  path: ocsp_test.go
+  line: 383
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "test file, real call generating test certificate key"
+"a6534ba88ccebb2e":
+  repo: cosign
+  path: internal/key/svkeypair_test.go
+  line: 245
+  token: "ed25519.GenerateKey"
+  verdict: site
+  note: "real crypto/ed25519 GenerateKey call"
+"a69feec24b5961e2":
+  repo: cosign
+  path: pkg/oci/static/signature_test.go
+  line: 215
+  token: "SHA256"
+  verdict: site
+  note: "real v1.SHA256 digest computation call (go-containerregistry)"
+"a749cc6e20c5fecd":
+  repo: certmagic
+  path: certificates.go
+  line: 131
+  token: "rand.Int64N"
+  verdict: site
+  note: "real call, math/rand/v2 imported as rand for ARI renewal jitter"
+"a74dd7f4edd8bf53":
+  repo: wireguard-go
+  path: device/cookie.go
+  line: 230
+  token: "blake2s.New128"
+  verdict: site
+  note: "golang.org/x/crypto/blake2s.New128 real call"
+"a84a07fb2f49d244":
+  repo: borgbackup
+  path: src/borg/testsuite/repository_test.py
+  line: 899
+  token: "sha256"
+  verdict: site
+  note: "assert entry.pack_id == sha256(fchunk(b\"ZEROS\")).digest(), test file"
+"a8b2f59a1b439cc0":
+  repo: borgbackup
+  path: src/borg/hlfuse.py
+  line: 358
+  token: "hashlib.sha256"
+  verdict: site
+  note: "hashlib.sha256(b\"\".join(...)).digest()[:16] contents_id in _file_version"
+"a8fc40d0c6f1437d":
+  repo: cosign
+  path: cmd/cosign/cli/verify/verify_bundle.go
+  line: 108
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"a92ed4f30f2d965f":
+  repo: wireguard-go
+  path: device/cookie.go
+  line: 159
+  token: "rand.Read"
+  verdict: site
+  note: "crypto/rand.Read real call"
+"a944d776368b1a54":
+  repo: cosign
+  path: cmd/cosign/cli/importkeypair/import_key_pair_test.go
+  line: 86
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "real crypto/rsa GenerateKey call"
+"a96a07e835b341be":
+  repo: borgbackup
+  path: src/borg/testsuite/repository_test.py
+  line: 946
+  token: "sha256"
+  verdict: site
+  note: "pack_name built from bin_to_hex(sha256(pack).digest()), test file"
+"a9731c131b366d1a":
+  repo: borgbackup
+  path: src/borg/archiver/compact_cmd.py
+  line: 243
+  token: "hashlib.sha256"
+  verdict: site
+  note: "hashlib.sha256(data[:-32]).digest() verifying references-cache checksum"
+"aafe2377f7372861":
+  repo: wireguard-go
+  path: device/indextable.go
+  line: 27
+  token: "rand.Read"
+  verdict: site
+  note: "crypto/rand.Read real call"
+"ab00bfc2ede23d8c":
+  repo: cosign
+  path: pkg/cosign/verify_test.go
+  line: 465
+  token: "elliptic.P256"
+  verdict: site
+  note: "real crypto/elliptic P256() curve constructor call"
+"ab14498e93f449c7":
+  repo: wireguard-go
+  path: device/send.go
+  line: 180
+  token: "Uint32"
+  verdict: not_site
+  note: "encoding/binary.LittleEndian.Uint32 message field decode, not crypto"
+"ac3cb1f8a0ad902c":
+  repo: wireguard-go
+  path: device/allowedips.go
+  line: 39
+  token: "Uint32"
+  verdict: not_site
+  note: "encoding/binary Uint32/Uint64, not crypto (IP byte comparison)"
+"ad1b98e554faa2f8":
+  repo: cosign
+  path: pkg/oci/mutate/signature_test.go
+  line: 369
+  token: "Signature"
+  verdict: not_site
+  note: "in-repo oci.Signature interface method/wrapper, no crypto primitive invoked"
+"add098d60edef404":
+  repo: cosign
+  path: test/helpers.go
+  line: 715
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "real crypto/rsa GenerateKey call"
+"addfabd80eb18ec8":
+  repo: authlib
+  path: authlib/jose/rfc7518/jwe_algs.py
+  line: 159
+  token: "Cipher"
+  verdict: site
+  note: "Cipher(AES(op_key), GCM(iv), backend=default_backend()) real call"
+"ae0794e880531f09":
+  repo: cosign
+  path: pkg/cosign/keys_test.go
+  line: 353
+  token: "rand.Read"
+  verdict: site
+  note: "real crypto/rand Read call (verified crypto/rand import)"
+"ae088ae329a2772c":
+  repo: borgbackup
+  path: src/borg/testsuite/archiver/transfer_cmd_test.py
+  line: 484
+  token: "hashlib.sha256"
+  verdict: site
+  note: "hashlib.sha256(content).hexdigest() hashing source archive file content, test file"
+"af11befa3755e6a7":
+  repo: authlib
+  path: authlib/jose/rfc7518/rsa_key.py
+  line: 95
+  token: "rsa.generate_private_key"
+  verdict: site
+  note: "rsa.generate_private_key(public_exponent=65537, key_size=key_size, ...) real call"
+"af600697db664add":
+  repo: wireguard-go
+  path: tun/checksum.go
+  line: 21
+  token: "Uint64"
+  verdict: not_site
+  note: "binary.NativeEndian/BigEndian Uint64/Uint32, IP checksum arithmetic, not crypto"
+"b15f6154451d05d3":
+  repo: certmagic
+  path: crypto.go
+  line: 353
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "real call, RSA8192 key type"
+"b257b6993a905e43":
+  repo: wireguard-go
+  path: tun/checksum.go
+  line: 56
+  token: "Uint64"
+  verdict: not_site
+  note: "binary.NativeEndian/BigEndian Uint64/Uint32, IP checksum arithmetic, not crypto"
+"b2b7abe13f386f62":
+  repo: wireguard-go
+  path: device/allowedips_rand_test.go
+  line: 103
+  token: "rand.Intn"
+  verdict: site
+  note: "math/rand.Intn real call"
+"b4a4d91751a42091":
+  repo: borgbackup
+  path: src/borg/testsuite/crypto/crypto_test.py
+  line: 233
+  token: "AES"
+  verdict: site
+  note: "AES(key, b\"\\0\" * 16).encrypt(plain) exercising legacy AES-CTR key file crypto, test file"
+"b562049414c30e1e":
+  repo: cosign
+  path: cmd/cosign/cli/bundle/inspect_test.go
+  line: 330
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "real crypto/rsa GenerateKey call"
+"b5d8dfe935c5a355":
+  repo: cosign
+  path: cmd/cosign/cli/pivcli/commands.go
+  line: 251
+  token: "GenerateKey"
+  verdict: site
+  note: "yk.GenerateKey call on go-piv/piv-go YubiKey handle, real hardware key generation"
+"b6094061ecd6f5c1":
+  repo: cosign
+  path: cmd/cosign/cli/bundle/inspect_test.go
+  line: 327
+  token: "ed25519.GenerateKey"
+  verdict: site
+  note: "real crypto/ed25519 GenerateKey call"
+"b626aae48ca4d02e":
+  repo: cosign
+  path: pkg/oci/static/signature_test.go
+  line: 63
+  token: "SHA256"
+  verdict: not_site
+  note: "string literal v1.SHA256() inside t.Errorf/t.Fatalf message, not an actual call"
+"b646245a816d502a":
+  repo: cosign
+  path: internal/key/svkeypair_test.go
+  line: 217
+  token: "sha256.New"
+  verdict: site
+  note: "real crypto/sha256 New() call"
+"b75b95aeeae5635b":
+  repo: cosign
+  path: cmd/cosign/cli/trustedroot/trustedroot_test.go
+  line: 343
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "real crypto/ecdsa GenerateKey call"
+"b87cbfc4abf042b2":
+  repo: authlib
+  path: authlib/jose/rfc7518/jwe_algs.py
+  line: 329
+  token: "padding.OAEP"
+  verdict: site
+  note: "padding.OAEP(padding.MGF1(hashes.SHA1()), hashes.SHA1(), None) real call"
+"b8d3512db45b4140":
+  repo: cosign
+  path: pkg/cosign/verify_test.go
+  line: 410
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"b99b36692713917f":
+  repo: wireguard-go
+  path: device/device_test.go
+  line: 227
+  token: "rand.Intn"
+  verdict: site
+  note: "math/rand.Intn real call"
+"b9a9724599c9e571":
+  repo: borgbackup
+  path: src/borg/testsuite/repository_test.py
+  line: 959
+  token: "sha256"
+  verdict: not_site
+  note: "in a comment: 'index/ objects are named by sha256(content) like packs'"
+"ba835ce32bd50543":
+  repo: cosign
+  path: pkg/cosign/verify_test.go
+  line: 2492
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"bb33921ff0dbc2e5":
+  repo: certmagic
+  path: cache.go
+  line: 247
+  token: "IntN"
+  verdict: site
+  note: "weakrand.IntN(cacheSize), weakrand is aliased import of math/rand/v2"
+"bba6ea5d433c9fa2":
+  repo: certmagic
+  path: crypto.go
+  line: 349
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "real call, RSA2048 key type"
+"bca98212e9342419":
+  repo: certbot
+  path: src/acme/challenges.py
+  line: 265
+  token: "hashlib.sha256"
+  verdict: site
+  note: "hashlib.sha256(...).digest() call computing validation hash"
+"be73163e5c5edb09":
+  repo: cosign
+  path: pkg/cosign/verify_test.go
+  line: 882
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"bead8c4dc8b02b49":
+  repo: cosign
+  path: internal/pkg/cosign/tsa/mock/mock_tsa_client.go
+  line: 60
+  token: "elliptic.P256"
+  verdict: site
+  note: "real crypto/elliptic P256() curve constructor call"
+"bec95dbf47773859":
+  repo: cosign
+  path: internal/test/cert_utils.go
+  line: 79
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "real crypto/ecdsa GenerateKey call"
+"bf066a062ad46a3a":
+  repo: borgbackup
+  path: src/borg/storelocking.py
+  line: 105
+  token: "hashlib.sha256"
+  verdict: site
+  note: "key = hashlib.sha256(value).hexdigest() naming a lock object"
+"bfca00bc911f3192":
+  repo: cosign
+  path: pkg/oci/static/signature_test.go
+  line: 61
+  token: "SHA256"
+  verdict: site
+  note: "real v1.SHA256 digest computation call (go-containerregistry)"
+"c0cfb8eeac4c3b6b":
+  repo: borgbackup
+  path: src/borg/archiver/compact_cmd.py
+  line: 263
+  token: "hashlib.sha256"
+  verdict: site
+  note: "data += hashlib.sha256(data).digest() when storing references cache"
+"c117b96712d0ac57":
+  repo: wireguard-go
+  path: tun/checksum.go
+  line: 42
+  token: "Uint64"
+  verdict: not_site
+  note: "binary.NativeEndian/BigEndian Uint64/Uint32, IP checksum arithmetic, not crypto"
+"c11a95ce1ffa168f":
+  repo: cosign
+  path: pkg/cosign/verify_test.go
+  line: 348
+  token: "elliptic.P256"
+  verdict: site
+  note: "real crypto/elliptic P256() curve constructor call"
+"c14df96e75e20070":
+  repo: borgbackup
+  path: src/borg/crypto/key.py
+  line: 323
+  token: "sha256"
+  verdict: not_site
+  note: "IDHASH_NAME = \"sha256\" string literal class attribute, not a call"
+"c1e211506a029656":
+  repo: borgbackup
+  path: src/borg/crypto/key.py
+  line: 38
+  token: "sha256"
+  verdict: site
+  note: "from hashlib import sha256; sha256(content).hexdigest() naming keyfile"
+"c22b7c8216ebf15f":
+  repo: cosign
+  path: cmd/cosign/cli/bundle/bundle_test.go
+  line: 52
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "real crypto/ecdsa GenerateKey call"
+"c260b97019e0f872":
+  repo: cosign
+  path: cmd/cosign/cli/verify/verify_blob_test.go
+  line: 356
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"c2b951e8a48601b3":
+  repo: cosign
+  path: cmd/cosign/cli/bundle/inspect_test.go
+  line: 393
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "real crypto/ecdsa GenerateKey call"
+"c2e40fb4e9321599":
+  repo: cosign
+  path: pkg/cosign/verify.go
+  line: 1380
+  token: "Signature"
+  verdict: not_site
+  note: "in-repo oci.Signature interface method/wrapper, no crypto primitive invoked"
+"c35040731d9d230a":
+  repo: borgbackup
+  path: src/borg/helpers/parseformat.py
+  line: 1082
+  token: "sha256"
+  verdict: site
+  note: "sha256(conditions.encode()).hexdigest() computing conditions_hash"
+"c3e58720c3f1a6ec":
+  repo: authlib
+  path: authlib/oauth1/rfc5849/signature.py
+  line: 260
+  token: "SHA1"
+  verdict: not_site
+  note: "docstring text 'digest = HMAC - SHA1(key, text)'"
+"c413d288faac0660":
+  repo: cosign
+  path: pkg/cosign/pivkey/pivkey.go
+  line: 160
+  token: "GenerateKey"
+  verdict: site
+  note: "k.card.GenerateKey call on go-piv/piv-go Card, real hardware key generation"
+"c45d54f00f3e4c6c":
+  repo: wireguard-go
+  path: device/noise-protocol.go
+  line: 191
+  token: "Uint32"
+  verdict: not_site
+  note: "encoding/binary.LittleEndian.Uint32 message field decode, not crypto"
+"c47c2450af6c7ceb":
+  repo: wireguard-go
+  path: device/noise-protocol.go
+  line: 266
+  token: "Sum256"
+  verdict: site
+  note: "blake2s.Sum256 real call (init precomputation)"
+"c544857283cae7c2":
+  repo: cosign
+  path: cmd/cosign/cli/attach/sig.go
+  line: 120
+  token: "Signature"
+  verdict: not_site
+  note: "in-repo oci.Signature interface method/wrapper, no crypto primitive invoked"
+"c5d8b64c5ac6c2e8":
+  repo: cosign
+  path: pkg/cosign/tlog_test.go
+  line: 88
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "real crypto/rsa GenerateKey call"
+"c7285e626e1f6d13":
+  repo: cosign
+  path: pkg/cosign/verify_bundle_test.go
+  line: 327
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "real crypto/ecdsa GenerateKey call"
+"c81634f05774df65":
+  repo: wireguard-go
+  path: tun/checksum.go
+  line: 36
+  token: "Uint64"
+  verdict: not_site
+  note: "binary.NativeEndian/BigEndian Uint64/Uint32, IP checksum arithmetic, not crypto"
+"c8430897e80cfbc5":
+  repo: borgbackup
+  path: src/borg/cache.py
+  line: 56
+  token: "hashlib.sha256"
+  verdict: site
+  note: "hashlib.sha256(archive_name.encode()).hexdigest() for files-cache suffix"
+"c8e715308de95d34":
+  repo: cosign
+  path: pkg/cosign/verify_test.go
+  line: 398
+  token: "elliptic.P256"
+  verdict: site
+  note: "real crypto/elliptic P256() curve constructor call"
+"c8f0ab98994d02dd":
+  repo: authlib
+  path: authlib/jose/drafts/_jwe_algorithms.py
+  line: 75
+  token: "hashes.SHA256"
+  verdict: site
+  note: "ConcatKDFHash(algorithm=hashes.SHA256(), ...) real call"
+"c948064bfeeda794":
+  repo: cosign
+  path: cmd/cosign/cli/bundle/inspect.go
+  line: 314
+  token: "ECDH"
+  verdict: site
+  note: "real crypto/ecdsa PublicKey.ECDH() method call"
+"c9fb438a0a0ba4f2":
+  repo: wireguard-go
+  path: tun/checksum.go
+  line: 12
+  token: "Uint64"
+  verdict: not_site
+  note: "binary.NativeEndian/BigEndian Uint64/Uint32, IP checksum arithmetic, not crypto"
+"cb5535fef6c9e6c7":
+  repo: borgbackup
+  path: src/borg/testsuite/repository_test.py
+  line: 1004
+  token: "sha256"
+  verdict: site
+  note: "index_name built from bin_to_hex(sha256(index_content).digest()), test file"
+"cb697a4f2bc2f202":
+  repo: wireguard-go
+  path: tun/checksum.go
+  line: 41
+  token: "Uint64"
+  verdict: not_site
+  note: "binary.NativeEndian/BigEndian Uint64/Uint32, IP checksum arithmetic, not crypto"
+"cbaa519cc835b1b9":
+  repo: cosign
+  path: test/e2e_test.go
+  line: 5085
+  token: "sha256.New"
+  verdict: site
+  note: "real crypto/sha256 New() call"
+"cdb317cc2b5866cc":
+  repo: cosign
+  path: cmd/cosign/cli/verify/verify_blob_test.go
+  line: 761
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"cf05af5635ef51fd":
+  repo: wireguard-go
+  path: tun/checksum.go
+  line: 51
+  token: "Uint64"
+  verdict: not_site
+  note: "binary.NativeEndian/BigEndian Uint64/Uint32, IP checksum arithmetic, not crypto"
+"cf1cec82a992249d":
+  repo: cosign
+  path: pkg/cosign/pivkey/pivkey.go
+  line: 264
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"cf88c83f752e0812":
+  repo: wireguard-go
+  path: tun/checksum.go
+  line: 23
+  token: "Uint64"
+  verdict: not_site
+  note: "binary.NativeEndian/BigEndian Uint64/Uint32, IP checksum arithmetic, not crypto"
+"cfc5c787da72176a":
+  repo: cosign
+  path: pkg/cosign/verify_test.go
+  line: 2121
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "real crypto/ecdsa GenerateKey call"
+"d0aa7bfa64d55b5e":
+  repo: cosign
+  path: test/e2e_test.go
+  line: 5187
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "real crypto/ecdsa GenerateKey call"
+"d0b2f52b2a1bdc4a":
+  repo: cosign
+  path: pkg/cosign/verify.go
+  line: 1310
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"d1ec01792269b131":
+  repo: cosign
+  path: pkg/cosign/pkcs11key/pkcs11key.go
+  line: 211
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"d25d1a525bd19e2c":
+  repo: cosign
+  path: pkg/cosign/keys.go
+  line: 119
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "real crypto/rsa GenerateKey call"
+"d301b9367863ed05":
+  repo: borgbackup
+  path: src/borg/crypto/key.py
+  line: 805
+  token: "sha256"
+  verdict: site
+  note: "sha256(blob).hexdigest() used as key id when loading a keyfile"
+"d361468c87456303":
+  repo: cosign
+  path: pkg/cosign/verify_bundle_test.go
+  line: 325
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"d39088922bcde4b0":
+  repo: certmagic
+  path: crypto_test.go
+  line: 31
+  token: "rsa.GenerateKey"
+  verdict: site
+  note: "test file, real call with small key size for test speed"
+"d4da40e1aabdd11e":
+  repo: wireguard-go
+  path: conn/bindtest/bindtest.go
+  line: 74
+  token: "rand.Uint32"
+  verdict: site
+  note: "math/rand import; rand.Uint32() real call to catalog symbol"
+"d5c3f8375f84a14d":
+  repo: wireguard-go
+  path: device/pools_test.go
+  line: 135
+  token: "rand.Intn"
+  verdict: site
+  note: "math/rand.Intn real call"
+"d758a4e1589a536c":
+  repo: certbot
+  path: src/acme/crypto_util.py
+  line: 304
+  token: "hashes.SHA256"
+  verdict: site
+  note: "hashes.SHA256() passed as builder.sign() algorithm arg"
+"d7b20326551aaf47":
+  repo: borgbackup
+  path: src/borg/legacy/crypto/key.py
+  line: 41
+  token: "AES"
+  verdict: site
+  note: "AES(key, iv).decrypt(...); AES is legacy.crypto.low_level's direct cdef wrapper over OpenSSL EVP AES-256-CTR, not a same-name local passthrough"
+"d845bdb31ebc120b":
+  repo: borgbackup
+  path: src/borg/testsuite/crypto/crypto_test.py
+  line: 302
+  token: "sha256"
+  verdict: site
+  note: "expected = sha256(...).digest()[:size] reference value for derive_key test"
+"d8de6bac1d7418be":
+  repo: wireguard-go
+  path: tun/checksum.go
+  line: 17
+  token: "Uint64"
+  verdict: not_site
+  note: "binary.NativeEndian/BigEndian Uint64/Uint32, IP checksum arithmetic, not crypto"
+"d8e89168a8e921c6":
+  repo: cosign
+  path: internal/key/svkeypair_test.go
+  line: 73
+  token: "ed25519.GenerateKey"
+  verdict: site
+  note: "real crypto/ed25519 GenerateKey call"
+"d922329baa794952":
+  repo: wireguard-go
+  path: device/endpoint_test.go
+  line: 19
+  token: "rand.Read"
+  verdict: site
+  note: "math/rand.Read real call (math/rand imported)"
+"da0ad47f40ac735d":
+  repo: borgbackup
+  path: src/borg/testsuite/chunkers/fastcdc_test.py
+  line: 21
+  token: "sha256"
+  verdict: site
+  note: "sha256(data).digest() inside test helper H(), calls hashlib directly, test file"
+"db78e18ea286bc12":
+  repo: cosign
+  path: pkg/cosign/keys.go
+  line: 113
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "real crypto/ecdsa GenerateKey call"
+"dc2de3160fb13419":
+  repo: wireguard-go
+  path: device/allowedips.go
+  line: 43
+  token: "Uint64"
+  verdict: not_site
+  note: "encoding/binary Uint32/Uint64, not crypto (IP byte comparison)"
+"dc3dc37a3d777cd5":
+  repo: cosign
+  path: cmd/cosign/cli/trustedroot/trustedroot.go
+  line: 591
+  token: "elliptic.P521"
+  verdict: site
+  note: "real crypto/elliptic P521() curve constructor call"
+"dd6a87183932fa29":
+  repo: certmagic
+  path: crypto.go
+  line: 339
+  token: "GenerateKey"
+  verdict: not_site
+  note: "func (kg StandardKeyGenerator) GenerateKey() method definition, not a call"
+"dea1345cc4a59a12":
+  repo: authlib
+  path: authlib/jose/rfc7518/jwe_algs.py
+  line: 334
+  token: "padding.OAEP"
+  verdict: site
+  note: "padding.OAEP(padding.MGF1(hashes.SHA256()), hashes.SHA256(), None) real call"
+"dee8525244d641aa":
+  repo: wireguard-go
+  path: device/pools_test.go
+  line: 58
+  token: "rand.Intn"
+  verdict: site
+  note: "math/rand.Intn real call"
+"df3290d5161e53e6":
+  repo: cosign
+  path: cmd/cosign/cli/signingconfig/signingconfig_test.go
+  line: 311
+  token: "ed25519.GenerateKey"
+  verdict: site
+  note: "real crypto/ed25519 GenerateKey call"
+"df41c97a0a9259a2":
+  repo: certmagic
+  path: config.go
+  line: 630
+  token: "GenerateKey"
+  verdict: not_site
+  note: "cfg.KeySource.GenerateKey() dispatches through KeyGenerator interface field, not a direct crypto-library call"
+"e1c20ff5797092f7":
+  repo: wireguard-go
+  path: tun/offload_linux.go
+  line: 908
+  token: "Uint32"
+  verdict: not_site
+  note: "encoding/binary.BigEndian.Uint32 packet field decode, not crypto"
+"e23dd12c53a64c1d":
+  repo: wireguard-go
+  path: device/device_test.go
+  line: 231
+  token: "rand.Intn"
+  verdict: site
+  note: "math/rand.Intn real call"
+"e36f9b15b42c88b1":
+  repo: certmagic
+  path: handshake.go
+  line: 415
+  token: "Float64"
+  verdict: not_site
+  note: "zap.Float64 logging field constructor, unrelated to math/rand"
+"e3f93ae0adf3432e":
+  repo: wireguard-go
+  path: device/noise-protocol.go
+  line: 239
+  token: "blake2s.New256"
+  verdict: site
+  note: "golang.org/x/crypto/blake2s.New256 real call in mixHash"
+"e51849bf64367b2a":
+  repo: wireguard-go
+  path: device/allowedips_test.go
+  line: 47
+  token: "rand.New"
+  verdict: site
+  note: "math/rand.New(rand.NewSource(1)) real call"
+"e84151aec1fc4e6e":
+  repo: cosign
+  path: pkg/cosign/verify_test.go
+  line: 2402
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"e9ac5fdf913db2db":
+  repo: cosign
+  path: cmd/cosign/cli/bundle/inspect_test.go
+  line: 324
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "real crypto/ecdsa GenerateKey call"
+"e9ee1b9f9f77c7e9":
+  repo: wireguard-go
+  path: device/noise-helpers.go
+  line: 26
+  token: "blake2s.New256"
+  verdict: site
+  note: "golang.org/x/crypto/blake2s.New256 real call inside HMAC1/HMAC2"
+"ead1249326d1a87d":
+  repo: cosign
+  path: internal/test/cert_utils.go
+  line: 166
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "real crypto/ecdsa GenerateKey call"
+"ec6fd5834ef37bda":
+  repo: wireguard-go
+  path: device/allowedips.go
+  line: 49
+  token: "Uint64"
+  verdict: not_site
+  note: "encoding/binary Uint32/Uint64, not crypto (IP byte comparison)"
+"ec9336ee63dc6ead":
+  repo: wireguard-go
+  path: device/noise-helpers.go
+  line: 94
+  token: "curve25519.ScalarBaseMult"
+  verdict: site
+  note: "golang.org/x/crypto/curve25519.ScalarBaseMult real call"
+"ed0f8be858af353b":
+  repo: cosign
+  path: pkg/cosign/verify_test.go
+  line: 360
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"ee0fec50e376abd0":
+  repo: cosign
+  path: pkg/cosign/verify_test.go
+  line: 519
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"f07e4088be13deae":
+  repo: borgbackup
+  path: scripts/chunker_bench.py
+  line: 144
+  token: "hashlib.sha256"
+  verdict: site
+  note: "hashlib.sha256(b\"\\0\" * n).digest() over hole-chunk placeholder"
+"f09a24113186e5c3":
+  repo: cosign
+  path: cmd/cosign/cli/bundle/inspect_test.go
+  line: 635
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"f18ab35412404189":
+  repo: cosign
+  path: pkg/cosign/verify_test.go
+  line: 173
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"f19711828ac8ab8f":
+  repo: cosign
+  path: cmd/cosign/cli/trustedroot/trustedroot.go
+  line: 589
+  token: "elliptic.P384"
+  verdict: site
+  note: "real crypto/elliptic P384() curve constructor call"
+"f34b8fb4bb0559db":
+  repo: cosign
+  path: pkg/cosign/verify_test.go
+  line: 2060
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"f34df2c7bb4d8c2e":
+  repo: cosign
+  path: pkg/cosign/verify_test.go
+  line: 2305
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"f366d9fb77308047":
+  repo: certmagic
+  path: config.go
+  line: 1245
+  token: "Uint64"
+  verdict: site
+  note: "weakrand.Uint64(), aliased import of math/rand/v2"
+"f3ebc584b3ce51a8":
+  repo: cosign
+  path: pkg/cosign/keys.go
+  line: 121
+  token: "ed25519.GenerateKey"
+  verdict: site
+  note: "real crypto/ed25519 GenerateKey call"
+"f42055fb7cd39d3b":
+  repo: authlib
+  path: authlib/jose/rfc7518/jwe_algs.py
+  line: 325
+  token: "padding.PKCS1v15"
+  verdict: site
+  note: "RSAAlgorithm(..., padding.PKCS1v15()) real call, table construction"
+"f583751e951f5fde":
+  repo: wireguard-go
+  path: device/receive.go
+  line: 153
+  token: "Uint32"
+  verdict: not_site
+  note: "encoding/binary.LittleEndian.Uint32 message field decode, not crypto"
+"f5dc5888d3d6517a":
+  repo: authlib
+  path: authlib/jose/rfc7518/jwe_algs.py
+  line: 243
+  token: "hashes.SHA256"
+  verdict: site
+  note: "ConcatKDFHash(algorithm=hashes.SHA256(), ...) real call"
+"f5f789267d9ca0a2":
+  repo: borgbackup
+  path: src/borg/repository.py
+  line: 481
+  token: "sha256"
+  verdict: site
+  note: "digest = sha256(keydata).hexdigest() in store_key"
+"f6412d89f14bb130":
+  repo: wireguard-go
+  path: device/cookie.go
+  line: 79
+  token: "blake2s.New128"
+  verdict: site
+  note: "golang.org/x/crypto/blake2s.New128 real call"
+"f78213ea2a2100e1":
+  repo: wireguard-go
+  path: tun/checksum.go
+  line: 38
+  token: "Uint64"
+  verdict: not_site
+  note: "binary.NativeEndian/BigEndian Uint64/Uint32, IP checksum arithmetic, not crypto"
+"f81e8c9ed4a3a807":
+  repo: cosign
+  path: pkg/cosign/verify_test.go
+  line: 283
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"f8c677668d14396d":
+  repo: cosign
+  path: pkg/cosign/pkcs11key/pkcs11key.go
+  line: 246
+  token: "sha256.New"
+  verdict: site
+  note: "real crypto/sha256 New() call"
+"f91ce6ced562fccb":
+  repo: cosign
+  path: pkg/cosign/verify_test.go
+  line: 1897
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "real crypto/ecdsa GenerateKey call"
+"f995ac56e04ea805":
+  repo: wireguard-go
+  path: tun/netstack/tun.go
+  line: 541
+  token: "rand.Read"
+  verdict: site
+  note: "crypto/rand.Read real call"
+"fa4d48ec2f710893":
+  repo: certbot
+  path: src/acme/_internal/tests/crypto_util_test.py
+  line: 206
+  token: "rsa.generate_private_key"
+  verdict: site
+  note: "cryptography rsa.generate_private_key call in _call_with_key helper, test file"
+"fa767e8f10cf60c2":
+  repo: wireguard-go
+  path: device/pools_test.go
+  line: 87
+  token: "rand.Intn"
+  verdict: site
+  note: "math/rand.Intn real call"
+"fbd7159db097c3d9":
+  repo: cosign
+  path: internal/test/cert_utils.go
+  line: 202
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "real crypto/ecdsa GenerateKey call"
+"fca8dd634984884f":
+  repo: cosign
+  path: internal/key/svkeypair.go
+  line: 56
+  token: "sha256.Sum256"
+  verdict: site
+  note: "real crypto/sha256 Sum256 call"
+"fddc58c890a7a2e6":
+  repo: wireguard-go
+  path: device/allowedips_test.go
+  line: 58
+  token: "Uint32"
+  verdict: site
+  note: "rng.Uint32() on *rand.Rand from math/rand.New, real call"
+"fe24a2a710022576":
+  repo: cosign
+  path: pkg/oci/mutate/signature_test.go
+  line: 443
+  token: "Signature"
+  verdict: not_site
+  note: "in-repo oci.Signature interface method/wrapper, no crypto primitive invoked"
+"febec71ee50be4b1":
+  repo: wireguard-go
+  path: tun/checksum.go
+  line: 50
+  token: "Uint64"
+  verdict: not_site
+  note: "binary.NativeEndian/BigEndian Uint64/Uint32, IP checksum arithmetic, not crypto"
+"fec568579af5d828":
+  repo: certmagic
+  path: crypto.go
+  line: 342
+  token: "ed25519.GenerateKey"
+  verdict: site
+  note: "real call inside StandardKeyGenerator.GenerateKey for ED25519 key type"
+"ff255875e6f31828":
+  repo: cosign
+  path: cmd/cosign/cli/verify/verify_blob_test.go
+  line: 166
+  token: "ecdsa.GenerateKey"
+  verdict: site
+  note: "real crypto/ecdsa GenerateKey call"
+"ff569902d45212ff":
+  repo: certbot
+  path: src/acme/jws.py
+  line: 30
+  token: "Signature"
+  verdict: not_site
+  note: "class definition (class Signature(jose.Signature)), not a call site"
+"ff651d6c5f91bd2b":
+  repo: wireguard-go
+  path: device/noise-protocol.go
+  line: 365
+  token: "chacha20poly1305.New"
+  verdict: site
+  note: "golang.org/x/crypto/chacha20poly1305.New real call"
+"ff8ce81c5bd56094":
+  repo: cosign
+  path: pkg/oci/mutate/signature_test.go
+  line: 436
+  token: "Signature"
+  verdict: not_site
+  note: "in-repo oci.Signature interface method/wrapper, no crypto primitive invoked"
+"ff93b0390e609f6a":
+  repo: borgbackup
+  path: src/borg/crypto/key.py
+  line: 850
+  token: "sha256"
+  verdict: site
+  note: "sha256(key_data).hexdigest() naming saved legacy repokey"
+"ffbd6e53d04a5449":
+  repo: cosign
+  path: pkg/oci/static/signature.go
+  line: 189
+  token: "SHA256"
+  verdict: site
+  note: "real v1.SHA256 digest computation call (go-containerregistry)"

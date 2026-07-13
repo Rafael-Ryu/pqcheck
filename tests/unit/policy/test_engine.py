@@ -3,15 +3,17 @@ from pathlib import Path
 
 import pytest
 
+from pqcheck.detectors.go_detector import detect_go_file
 from pqcheck.models import (
     AlgorithmFamily,
     ConfidenceBand,
     CryptoFinding,
+    QuantumRisk,
     RuleAction,
     Severity,
     SourceLocation,
 )
-from pqcheck.policy.engine import confidence_to_band, demote, evaluate, rule_matches
+from pqcheck.policy.engine import confidence_to_band, demote, evaluate, gate, rule_matches
 from pqcheck.policy.loader import load_default_policy
 from pqcheck.policy.schema import (
     AlgorithmRule,
@@ -71,6 +73,23 @@ def test_rule_matches_refines_on_key_size_curve_mode():
     assert not rule_matches(ecb, _find("AES", AlgorithmFamily.SYMMETRIC_CIPHER, mode="GCM"))
 
 
+def test_rule_matches_refines_on_paddings():
+    pkcs1v15 = AlgorithmRule(family=PolicyFamily.ASYMMETRIC_ENCRYPTION, algorithm="RSA",
+                             paddings=["PKCS1v15", "OAEP-SHA1"], action=RuleAction.FAIL)
+    assert rule_matches(
+        pkcs1v15, _find("RSA", AlgorithmFamily.ASYMMETRIC_ENCRYPTION, padding="PKCS1v15")
+    )
+    assert not rule_matches(
+        pkcs1v15, _find("RSA", AlgorithmFamily.ASYMMETRIC_ENCRYPTION, padding="OAEP-SHA256")
+    )
+    assert not rule_matches(pkcs1v15, _find("RSA", AlgorithmFamily.ASYMMETRIC_ENCRYPTION))
+
+
+def test_rule_matches_rng_family_maps_to_policy_rng():
+    rule = AlgorithmRule(family=PolicyFamily.RNG, algorithm="MATH-RAND", action=RuleAction.WARN)
+    assert rule_matches(rule, _find("MATH-RAND", AlgorithmFamily.RNG))
+
+
 def _f(algo: str, fam: AlgorithmFamily, conf: float, **kw: object) -> CryptoFinding:
     return CryptoFinding(algorithm=algo, family=fam, confidence=conf,
                          location=SourceLocation(path=Path("a.py"), line=1, column=0),
@@ -102,6 +121,115 @@ def test_evaluate_unmatched_uses_default_action():
     assert d.rule_kind == "default"
     assert d.action == RuleAction.WARN
     assert d.matched == "default-action"
+
+
+def test_evaluate_sha512_unmatched_deliberately_warns_despite_quantum_safe():
+    # SHA-512 is QuantumRisk.SAFE (models._QUANTUM_MAP) but the policy's approved
+    # hash list is curated to {SHA-256, SHA-384} per plan 02 §2.4 — a minimal
+    # 8-algorithm set, not "every hash Grover doesn't break". SHA-512 therefore
+    # falls through to default-action WARN, same as any other unlisted hash.
+    # This is deliberate, not a gap: expanding the approved set is customer-demand
+    # driven (plan 02 §2 preamble), not preemptive.
+    policy = load_default_policy("cryptoct-default")
+    [d] = evaluate([_f("SHA-512", AlgorithmFamily.HASH, 0.9)], policy)
+    assert d.finding.quantum_risk == QuantumRisk.SAFE
+    assert d.rule_kind == "default"
+    assert d.action == RuleAction.WARN
+    assert d.matched == "default-action"
+
+
+def test_evaluate_ml_kem_768_via_kyber_py_is_allow_info():
+    # kyber-py bakes the parameter set into key_size (see algorithms.py) so
+    # this reaches the same approved/info disposition as the Go
+    # mlkem.GenerateKey768 path.
+    policy = load_default_policy("cryptoct-default")
+    finding = _f("ML-KEM", AlgorithmFamily.KEM, 1.0, key_size=768)
+    [d] = evaluate([finding], policy)
+    assert d.rule_kind == "approved"
+    assert d.action == RuleAction.ALLOW
+    assert d.base_severity == Severity.INFO
+
+
+def test_evaluate_go_mlkem_findings_are_allow_info(tmp_path):
+    # End-to-end for issue #217: the Go catalog bakes the parameter set into
+    # the crypto/mlkem entries, so real detector findings — not hand-built
+    # ones — match the approved parameter-sets rule instead of falling to
+    # default/warn.
+    src = tmp_path / "main.go"
+    src.write_text(
+        'package m\nimport "crypto/mlkem"\n'
+        "func f() { mlkem.GenerateKey768(); mlkem.GenerateKey1024() }\n"
+    )
+    findings = detect_go_file(src)
+    assert [f.key_size for f in findings] == [768, 1024]
+    policy = load_default_policy("cryptoct-default")
+    decisions = evaluate(findings, policy)
+    assert all(d.rule_kind == "approved" for d in decisions)
+    assert all(d.action == RuleAction.ALLOW for d in decisions)
+    assert all(d.base_severity == Severity.INFO for d in decisions)
+
+
+def test_evaluate_ml_dsa_65_is_allow_info():
+    policy = load_default_policy("cryptoct-default")
+    finding = _f("ML-DSA", AlgorithmFamily.SIGNATURE, 1.0, key_size=65)
+    [d] = evaluate([finding], policy)
+    assert d.rule_kind == "approved"
+    assert d.action == RuleAction.ALLOW
+
+
+def test_evaluate_slh_dsa_sha2_128s_is_allow_info():
+    policy = load_default_policy("cryptoct-default")
+    finding = _f("SLH-DSA", AlgorithmFamily.SIGNATURE, 1.0, key_size="SHA2-128s")
+    [d] = evaluate([finding], policy)
+    assert d.rule_kind == "approved"
+    assert d.action == RuleAction.ALLOW
+
+
+def test_evaluate_slh_dsa_other_parameter_set_falls_to_default():
+    # Only SHA2-128s is policy-approved (02 §13); SHAKE-128f is a valid FIPS
+    # 205 parameter set but not the curated one, so it stays default/warn —
+    # same "curated subset, not every safe option" pattern as SHA-512.
+    policy = load_default_policy("cryptoct-default")
+    finding = _f("SLH-DSA", AlgorithmFamily.SIGNATURE, 1.0, key_size="SHAKE-128f")
+    [d] = evaluate([finding], policy)
+    assert d.rule_kind == "default"
+    assert d.action == RuleAction.WARN
+
+
+def test_evaluate_ml_kem_unknown_variant_from_oqs_falls_to_default():
+    # oqs.KeyEncapsulation's variant is a runtime string; the detector cannot
+    # prove which parameter set it selects, so key_size is None and the
+    # finding cannot match a parameter-sets-scoped approved rule. Honest
+    # default/warn, not a silent approve.
+    policy = load_default_policy("cryptoct-default")
+    finding = _f("ML-KEM", AlgorithmFamily.KEM, 1.0)
+    [d] = evaluate([finding], policy)
+    assert d.rule_kind == "default"
+    assert d.action == RuleAction.WARN
+
+
+def test_evaluate_argon2_is_allow_info():
+    # Detector canonical is "ARGON2" (nacl.pwhash argon2id/argon2i collapse
+    # to it); the approved rule matches on that, not the display name
+    # "Argon2id" — see the fix in policy/defaults/*.yaml.
+    policy = load_default_policy("cryptoct-default")
+    finding = _f("ARGON2", AlgorithmFamily.KDF, 1.0)
+    [d] = evaluate([finding], policy)
+    assert d.rule_kind == "approved"
+    assert d.action == RuleAction.ALLOW
+    assert d.base_severity == Severity.INFO
+
+
+def test_evaluate_xsalsa20_poly1305_stays_default_warn():
+    # XSALSA20-POLY1305 (pynacl SecretBox) is quantum-safe but not one of
+    # the 8 curated algorithms (plan 02 §2) — same deliberate-gap precedent
+    # as SHA-512. It stays outside the approved list, not banned.
+    policy = load_default_policy("cryptoct-default")
+    finding = _f("XSALSA20-POLY1305", AlgorithmFamily.AEAD, 1.0)
+    [d] = evaluate([finding], policy)
+    assert d.finding.quantum_risk == QuantumRisk.SAFE
+    assert d.rule_kind == "default"
+    assert d.action == RuleAction.WARN
 
 
 def test_evaluate_does_not_auto_apply_exception_to_rsa():
@@ -155,6 +283,37 @@ def test_evaluate_accepts_a_tuple_of_findings():
     policy = load_default_policy("cryptoct-default")
     decisions = evaluate((_f("RSA", AlgorithmFamily.ASYMMETRIC_ENCRYPTION, 0.9),), policy)
     assert len(decisions) == 1
+
+
+def test_strict_gate_trips_on_unknown_quantum_risk():
+    # Whirlpool is unbanned/unapproved in the default policy, so it hits
+    # default-action WARN; strict must also trip it via UNKNOWN quantum_risk.
+    policy = load_default_policy("cryptoct-default")
+    decisions = evaluate([_f("Whirlpool", AlgorithmFamily.HASH, 0.9)], policy)
+    assert decisions[0].finding.quantum_risk == QuantumRisk.UNKNOWN
+    assert gate(decisions, strict=True) is not None
+
+
+def test_non_strict_gate_does_not_trip_on_unknown_quantum_risk():
+    policy = load_default_policy("cryptoct-default")
+    decisions = evaluate([_f("Whirlpool", AlgorithmFamily.HASH, 0.9)], policy)
+    assert gate(decisions, strict=False) is None
+
+
+def test_strict_gate_does_not_trip_when_unknown_algorithm_is_explicitly_approved():
+    rule = AlgorithmRule(
+        family=PolicyFamily.HASH, algorithm="Whirlpool", action=RuleAction.ALLOW
+    )
+    policy = CryptoPolicy(
+        apiVersion="pqcheck.cryptoct.com/v1", kind="CryptoPolicy",
+        metadata=PolicyMetadata(name="t", version="0.0.1", publisher="t",
+                                applies_to="t", effective_from=date.today(),
+                                review_date=date.today()),
+        spec=PolicySpec(default_action=RuleAction.WARN, approved=[rule]),
+    )
+    decisions = evaluate([_f("Whirlpool", AlgorithmFamily.HASH, 0.9)], policy)
+    assert decisions[0].rule_kind == "approved"
+    assert gate(decisions, strict=True) is None
 
 
 def test_evaluate_banned_medium_confidence_demotes_one_tier():

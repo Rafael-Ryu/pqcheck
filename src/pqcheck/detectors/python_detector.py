@@ -135,16 +135,20 @@ class PythonDetector(ast.NodeVisitor):
                 if hit.canonical == "CIPHER-WRAPPER":
                     self._emit_cipher_wrapper(node)
                     emitted = True
+                elif hit.padding == "OAEP":
+                    self._emit_oaep(node)
+                    emitted = True
                 else:
                     self._emit(
                         node,
                         hit.canonical,
                         hit.family,
                         confidence=1.0,
-                        key_size=self._extract_key_size(node, qualified),
+                        key_size=self._extract_key_size(node, qualified) or hit.key_size,
                         curve=hit.curve
                         or (self._extract_curve(node) if hit.canonical == "ECDSA" else None),
                         mode=self._extract_pycrypto_mode(node, qualified),
+                        padding=hit.padding,
                     )
                     emitted = True
         # hashlib.new("md5") — string-based dispatch. Only runs when the
@@ -186,6 +190,16 @@ class PythonDetector(ast.NodeVisitor):
         mode_arg = self._cipher_arg(node, position=1, keyword="mode")
         algo_hit = self._resolve_call_target(algorithm_arg)
         if algo_hit is None:
+            # The algorithm is dataflow-opaque (a variable/subscript, not a
+            # literal `algorithms.AES(...)` call) — e.g. paramiko picks the
+            # cipher class from a lookup table before constructing it. We
+            # cannot name the concrete algorithm, but a Cipher() is still
+            # being built, so surface that fact at low confidence rather than
+            # silently dropping a real construction site. `algorithm_arg is
+            # None` means Cipher() was called with no algorithm at all
+            # (a runtime TypeError), which is not worth flagging.
+            if algorithm_arg is not None:
+                self._emit(node, "CIPHER", AlgorithmFamily.SYMMETRIC_CIPHER, confidence=0.5)
             return
         if algo_hit.canonical == "CIPHER-WRAPPER":  # pragma: no cover - catalog has no nested
             return
@@ -208,6 +222,44 @@ class PythonDetector(ast.NodeVisitor):
             key_size=key_size,
             mode=mode_name,
         )
+        # When the algorithm construction sits on its own line (a Cipher(
+        # call spanning multiple lines), also emit a finding at that line —
+        # a line-level scanner/SARIF consumer expects the algorithm token
+        # itself to carry a finding, not just the wrapper's opening line.
+        # Same-line constructions already get exactly one finding above.
+        if isinstance(algorithm_arg, ast.Call) and algorithm_arg.lineno != node.lineno:
+            self._emit(
+                algorithm_arg,
+                algo_hit.canonical,
+                algo_hit.family,
+                confidence=1.0,
+                key_size=key_size,
+            )
+
+    def _emit_oaep(self, node: ast.Call) -> None:
+        """padding.OAEP(mgf=..., algorithm=hashes.X(), label=...) — resolve the
+        top-level `algorithm=` hash literal so only RSA-OAEP-SHA1 (§3-banned)
+        gets that specific padding token; other hashes still emit as "OAEP-<hash>"
+        for the CBOM, just without matching the SHA1-scoped policy rule.
+        """
+        hash_name = self._oaep_hash(node)
+        padding = f"OAEP-{hash_name.replace('-', '')}" if hash_name else "OAEP"
+        self._emit(node, "RSA", AlgorithmFamily.ASYMMETRIC_ENCRYPTION, confidence=1.0,
+                    padding=padding)
+
+    def _oaep_hash(self, node: ast.Call) -> str | None:
+        for kw in node.keywords:
+            # Only the top-level `algorithm=` kwarg — not the `mgf=MGF1(algorithm=...)`
+            # one nested inside it, which describes the mask-generation hash, not
+            # the OAEP hash itself.
+            if kw.arg == "algorithm" and isinstance(kw.value, ast.Call):
+                qualified = self._imports.resolve_attribute(kw.value.func)
+                if qualified is None:
+                    return None
+                hit = lookup_python_symbol(qualified)
+                if hit is not None and hit.family == AlgorithmFamily.HASH:
+                    return hit.canonical
+        return None
 
     @staticmethod
     def _cipher_arg(node: ast.Call, *, position: int, keyword: str) -> ast.expr | None:
@@ -336,7 +388,7 @@ class PythonDetector(ast.NodeVisitor):
         family: AlgorithmFamily,
         *,
         confidence: float,
-        key_size: int | None = None,
+        key_size: int | str | None = None,
         curve: str | None = None,
         mode: str | None = None,
         padding: str | None = None,
@@ -417,8 +469,9 @@ def detect_python_file(path: Path) -> list[CryptoFinding]:
     Returns an empty list (never raises) for: any condition that makes
     read_source_bytes return None (missing/symlink/non-regular/oversized
     file — see that function for the file-IO hardening), encoding failure on
-    both UTF-8 and Latin-1, or a parse that fails with SyntaxError,
-    ValueError, RecursionError, or MemoryError.
+    both UTF-8 and Latin-1, a parse that fails with SyntaxError, ValueError,
+    RecursionError, or MemoryError, or a visit pass that raises
+    RecursionError/MemoryError.
     """
     raw = read_source_bytes(path)
     if raw is None:
@@ -442,5 +495,12 @@ def detect_python_file(path: Path) -> list[CryptoFinding]:
         # abort the scan.
         return []
     detector = PythonDetector(source_path=path, source=source)
-    detector.visit(tree)
+    try:
+        detector.visit(tree)
+    except (RecursionError, MemoryError):
+        # Same latent-risk rationale as the ast.parse guard above: a
+        # deep-but-parseable tree should degrade to empty findings, not
+        # abort the scan. Not reachable on current CPython (parsing
+        # recurses first) but cheap insurance against future parser changes.
+        return []
     return detector.findings

@@ -9,6 +9,7 @@ from pqcheck.policy.schema import (
     HybridRule,
     PolicyException,
     PolicyFamily,
+    PolicyMetadata,
     PolicySpec,
     RuleAction,
     SeverityRule,
@@ -144,6 +145,27 @@ def test_policyspec_rejects_approved_rule_with_non_allow_action():
     rule = AlgorithmRule(family=PolicyFamily.HASH, algorithm="SHA-256", action=RuleAction.FAIL)
     with pytest.raises(ValidationError, match="must use action allow"):
         PolicySpec(default_action=RuleAction.WARN, approved=[rule])
+
+
+def test_metadata_rejects_review_date_before_effective_from():
+    with pytest.raises(ValidationError, match="review-date"):
+        PolicyMetadata(
+            name="t", version="1.0.0", publisher="t", applies_to="t",
+            effective_from="2030-01-01", review_date="2020-01-01",
+        )
+
+
+def test_metadata_accepts_review_date_on_or_after_effective_from():
+    same_day = PolicyMetadata(
+        name="t", version="1.0.0", publisher="t", applies_to="t",
+        effective_from="2026-05-22", review_date="2026-05-22",
+    )
+    assert same_day.review_date == same_day.effective_from
+    later = PolicyMetadata(
+        name="t", version="1.0.0", publisher="t", applies_to="t",
+        effective_from="2026-05-22", review_date="2026-11-22",
+    )
+    assert later.review_date > later.effective_from
 
 
 def test_policyspec_rejects_duplicate_confidence_band_in_severity_rules():

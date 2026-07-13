@@ -1,0 +1,48 @@
+{
+  "sites": 527,
+  "detected": 527,
+  "recall": 1.0,
+  "per_repo": {
+    "pyjwt": {
+      "sites": 6,
+      "detected": 6
+    },
+    "python-jose": {
+      "sites": 11,
+      "detected": 11
+    },
+    "paramiko": {
+      "sites": 27,
+      "detected": 27
+    },
+    "sigstore-python": {
+      "sites": 51,
+      "detected": 51
+    },
+    "oauthlib": {
+      "sites": 3,
+      "detected": 3
+    },
+    "golang-jwt": {
+      "sites": 1,
+      "detected": 1
+    },
+    "age": {
+      "sites": 77,
+      "detected": 77
+    },
+    "go-jose": {
+      "sites": 98,
+      "detected": 98
+    },
+    "sio": {
+      "sites": 2,
+      "detected": 2
+    },
+    "smallstep-crypto": {
+      "sites": 251,
+      "detected": 251
+    }
+  },
+  "misses": []
+}

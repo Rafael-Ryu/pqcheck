@@ -41,6 +41,7 @@ class PolicyFamily(StrEnum):
     KDF = "kdf"
     KEY_AGREEMENT = "key-agreement"
     ASYMMETRIC_ENCRYPTION = "asymmetric-encryption"
+    RNG = "rng"
 
 
 class AlgorithmRule(BaseModel):
@@ -53,6 +54,7 @@ class AlgorithmRule(BaseModel):
     parameter_sets: list[str] | None = None
     curves: list[str] | None = None
     modes: list[str] | None = None
+    paddings: list[str] | None = None
     hash: list[str] | None = None
     params: dict[str, Any] | None = None
     context: str | None = None
@@ -110,6 +112,15 @@ class PolicyMetadata(BaseModel):
     applies_to: str = Field(min_length=1)
     effective_from: date
     review_date: date
+
+    @model_validator(mode="after")
+    def _validate_review_after_effective(self) -> PolicyMetadata:
+        if self.review_date < self.effective_from:
+            raise ValueError(
+                f"review-date ({self.review_date}) must not be before "
+                f"effective-from ({self.effective_from})"
+            )
+        return self
 
 
 class PolicySpec(BaseModel):

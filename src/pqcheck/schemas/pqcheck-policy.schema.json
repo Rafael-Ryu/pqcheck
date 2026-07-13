@@ -83,6 +83,21 @@
           "default": null,
           "title": "Modes"
         },
+        "paddings": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Paddings"
+        },
         "parameter-sets": {
           "anyOf": [
             {
@@ -277,7 +292,8 @@
         "mac",
         "kdf",
         "key-agreement",
-        "asymmetric-encryption"
+        "asymmetric-encryption",
+        "rng"
       ],
       "title": "PolicyFamily",
       "type": "string"

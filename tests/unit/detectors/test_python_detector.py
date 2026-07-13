@@ -156,6 +156,60 @@ def test_detector_finds_rsa_keygen() -> None:
     assert findings[0].quantum_risk is QuantumRisk.VULNERABLE
 
 
+def test_detector_finds_rsa_pkcs1v15_padding() -> None:
+    src = (
+        "from cryptography.hazmat.primitives.asymmetric import padding\n"
+        "public_key.encrypt(message, padding.PKCS1v15())\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "RSA"
+    assert findings[0].family is AlgorithmFamily.ASYMMETRIC_ENCRYPTION
+    assert findings[0].padding == "PKCS1v15"
+
+
+def test_detector_finds_rsa_oaep_sha1_padding() -> None:
+    src = (
+        "from cryptography.hazmat.primitives.asymmetric import padding\n"
+        "from cryptography.hazmat.primitives import hashes\n"
+        "public_key.encrypt(message, padding.OAEP(\n"
+        "    mgf=padding.MGF1(algorithm=hashes.SHA1()),\n"
+        "    algorithm=hashes.SHA1(),\n"
+        "    label=None,\n"
+        "))\n"
+    )
+    findings = _scan(src)
+    oaep = [f for f in findings if f.algorithm == "RSA"]
+    assert len(oaep) == 1
+    assert oaep[0].padding == "OAEP-SHA1"
+
+
+def test_detector_finds_rsa_oaep_sha256_padding_not_sha1() -> None:
+    src = (
+        "from cryptography.hazmat.primitives.asymmetric import padding\n"
+        "from cryptography.hazmat.primitives import hashes\n"
+        "public_key.encrypt(message, padding.OAEP(\n"
+        "    mgf=padding.MGF1(algorithm=hashes.SHA256()),\n"
+        "    algorithm=hashes.SHA256(),\n"
+        "    label=None,\n"
+        "))\n"
+    )
+    findings = _scan(src)
+    oaep = [f for f in findings if f.algorithm == "RSA"]
+    assert len(oaep) == 1
+    assert oaep[0].padding == "OAEP-SHA256"
+
+
+def test_detector_oaep_without_algorithm_kwarg_emits_bare_marker() -> None:
+    src = (
+        "from cryptography.hazmat.primitives.asymmetric import padding\n"
+        "public_key.encrypt(message, padding.OAEP())\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].padding == "OAEP"
+
+
 def test_detector_finds_pycryptodome_aes() -> None:
     src = (
         "from Crypto.Cipher import AES\n"
@@ -306,6 +360,42 @@ def test_cipher_wrapper_unwraps_to_single_finding() -> None:
     assert all(f.algorithm != "CIPHER-WRAPPER" for f in findings)
 
 
+def test_multiline_cipher_emits_finding_at_algorithm_line_too() -> None:
+    # paramiko's transport.py/pkey.py/ed25519key.py construct Cipher() with
+    # the algorithm on its own line (corpus v2 recall gap): the wrapper
+    # finding still lands on the Cipher( line, but the algorithm construction
+    # gets its own finding at its own line too, since a line-level consumer
+    # expects the algorithm token itself to carry a finding.
+    src = (
+        "from cryptography.hazmat.primitives.ciphers import "
+        "Cipher, algorithms, modes\n"
+        "decryptor = Cipher(\n"
+        "    algorithms.AES(key),\n"
+        "    modes.CBC(iv),\n"
+        "    backend=default_backend(),\n"
+        ").decryptor()\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 2
+    wrapper, algo = findings
+    assert wrapper.algorithm == "AES" and wrapper.location.line == 2
+    assert wrapper.mode == "CBC"
+    assert algo.algorithm == "AES" and algo.location.line == 3
+    assert algo.mode is None
+
+
+def test_singleline_cipher_still_emits_one_finding() -> None:
+    # Same-line construction (the common case) must not double-emit now that
+    # multi-line Cipher() calls get a second finding.
+    src = (
+        "from cryptography.hazmat.primitives.ciphers import "
+        "Cipher, algorithms, modes\n"
+        "Cipher(algorithms.AES(b'k' * 32), modes.GCM(b'i' * 12))\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+
+
 def test_detector_finds_aes_gcm_cipher() -> None:
     src = (
         "from cryptography.hazmat.primitives.ciphers import "
@@ -356,13 +446,34 @@ def test_cipher_with_keyword_args() -> None:
     assert findings[0].mode == "GCM"
 
 
-def test_cipher_without_resolvable_algorithm_skipped() -> None:
+def test_cipher_without_resolvable_algorithm_emits_generic_finding() -> None:
+    # The algorithm is dataflow-opaque (not a literal algorithms.X() call) —
+    # e.g. a variable picked from a lookup table, as paramiko does. Still a
+    # real Cipher() construction, so it surfaces at low confidence rather
+    # than vanishing.
     src = (
         "from cryptography.hazmat.primitives.ciphers import Cipher\n"
         "Cipher(some_unknown_thing(), other_thing())\n"
     )
     findings = _scan(src)
-    assert findings == []
+    assert len(findings) == 1
+    assert findings[0].algorithm == "CIPHER"
+    assert findings[0].family is AlgorithmFamily.SYMMETRIC_CIPHER
+    assert findings[0].confidence == 0.5
+
+
+def test_cipher_with_variable_algorithm_emits_generic_finding() -> None:
+    # Same dataflow-opacity, but the algorithm arg is a bare Name/Subscript
+    # rather than a Call — paramiko's pkey.py picks `cipher` from a table
+    # then calls `Cipher(cipher(key), mode(salt))`.
+    src = (
+        "from cryptography.hazmat.primitives.ciphers import Cipher\n"
+        "cipher = lookup_table[name]\n"
+        "Cipher(cipher, mode, backend=default_backend())\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "CIPHER"
 
 
 def test_cipher_with_no_args_skipped() -> None:
@@ -773,6 +884,22 @@ def test_detect_python_file_deep_expression_returns_empty(tmp_path: Path) -> Non
     assert detect_python_file(f) == []
 
 
+def test_detect_python_file_visit_recursion_error_returns_empty(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Simulates a future parser that flattens parse-time recursion, reaching
+    # the visit pass with a deep-but-parseable tree. Forces the failure
+    # directly rather than relying on CPython's current recursion behavior.
+    f = tmp_path / "shallow.py"
+    f.write_text("import hashlib\nhashlib.md5(b'x')\n", encoding="utf-8")
+
+    def _raise(self: PythonDetector, node: ast.AST) -> None:
+        raise RecursionError
+
+    monkeypatch.setattr(PythonDetector, "visit", _raise)
+    assert detect_python_file(f) == []
+
+
 def test_detect_python_file_too_large_returns_empty(tmp_path: Path) -> None:
     f = tmp_path / "huge.py"
     f.write_bytes(b"# pad\n" * (400 * 1024))  # ~2.4 MiB
@@ -888,3 +1015,190 @@ def test_star_import_does_not_double_emit_with_direct_call() -> None:
     )
     assert len(findings) == 1
     assert findings[0].confidence == 1.0
+
+
+# ---- PQC catalog entries ----
+
+
+def test_oqs_key_encapsulation_emits_ml_kem() -> None:
+    findings = _scan("import oqs\noqs.KeyEncapsulation('ML-KEM-768')\n")
+    assert len(findings) == 1
+    assert findings[0].algorithm == "ML-KEM"
+    assert findings[0].family is AlgorithmFamily.KEM
+    assert findings[0].quantum_risk is QuantumRisk.SAFE
+    # The variant is a runtime string oqs takes as an argument, not a static
+    # class/module name — the detector has no dataflow to prove which
+    # parameter set "ML-KEM-768" (the literal) actually selects, so key_size
+    # stays None rather than trusting the string. Falls to the policy
+    # default-action; see test_policy_dispositions.py.
+    assert findings[0].key_size is None
+
+
+def test_oqs_signature_emits_ml_dsa() -> None:
+    findings = _scan("import oqs\noqs.Signature('ML-DSA-65')\n")
+    assert len(findings) == 1
+    assert findings[0].algorithm == "ML-DSA"
+    assert findings[0].family is AlgorithmFamily.SIGNATURE
+    assert findings[0].quantum_risk is QuantumRisk.SAFE
+    assert findings[0].key_size is None
+
+
+def test_kyber_py_keygen_encaps_decaps_emit_ml_kem() -> None:
+    src = (
+        "from kyber_py.ml_kem import ML_KEM_768\n"
+        "pk, sk = ML_KEM_768.keygen()\n"
+        "ct, ss = ML_KEM_768.encaps(pk)\n"
+        "ss2 = ML_KEM_768.decaps(sk, ct)\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 3
+    assert all(f.algorithm == "ML-KEM" for f in findings)
+    # kyber-py's variant is baked into the imported class name (ML_KEM_768),
+    # so the catalog carries it statically — key_size must survive to the
+    # finding so the policy's parameter-sets rule can match it.
+    assert all(f.key_size == 768 for f in findings)
+
+
+def test_dilithium_py_keygen_sign_verify_emit_ml_dsa() -> None:
+    src = (
+        "from dilithium_py.ml_dsa import ML_DSA_65\n"
+        "pk, sk = ML_DSA_65.keygen()\n"
+        "sig = ML_DSA_65.sign(sk, b'msg')\n"
+        "ok = ML_DSA_65.verify(pk, b'msg', sig)\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 3
+    assert all(f.algorithm == "ML-DSA" for f in findings)
+    assert all(f.key_size == 65 for f in findings)
+
+
+def test_cryptography_mlkem_generate_emits_ml_kem() -> None:
+    src = (
+        "from cryptography.hazmat.primitives.asymmetric import mlkem\n"
+        "mlkem.MLKEM768PrivateKey.generate()\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "ML-KEM"
+    assert findings[0].family is AlgorithmFamily.KEM
+    assert findings[0].key_size == 768
+
+
+def test_cryptography_mldsa_generate_emits_ml_dsa() -> None:
+    src = (
+        "from cryptography.hazmat.primitives.asymmetric import mldsa\n"
+        "mldsa.MLDSA65PrivateKey.generate()\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "ML-DSA"
+    assert findings[0].family is AlgorithmFamily.SIGNATURE
+    assert findings[0].key_size == 65
+
+
+def test_pyspx_generate_keypair_sign_verify_emit_slh_dsa() -> None:
+    src = (
+        "import pyspx.shake_128f\n"
+        "pk, sk = pyspx.shake_128f.generate_keypair(b's' * 96)\n"
+        "sig = pyspx.shake_128f.sign(b'msg', sk)\n"
+        "ok = pyspx.shake_128f.verify(b'msg', sig, pk)\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 3
+    assert all(f.algorithm == "SLH-DSA" for f in findings)
+    assert all(f.family is AlgorithmFamily.SIGNATURE for f in findings)
+    # Submodule name (shake_128f) is baked into key_size as the policy's
+    # "SHAKE-128f"-style parameter-set token.
+    assert all(f.key_size == "SHAKE-128f" for f in findings)
+
+
+def test_pyspx_sha2_128s_emits_approved_parameter_set_token() -> None:
+    findings = _scan(
+        "import pyspx.sha2_128s\npk, sk = pyspx.sha2_128s.generate_keypair(b's' * 96)\n"
+    )
+    assert findings[0].key_size == "SHA2-128s"
+
+
+# ---- pynacl catalog entries ----
+
+
+def test_nacl_signing_key_generate_emits_eddsa_ed25519() -> None:
+    src = "import nacl.signing\nnacl.signing.SigningKey.generate()\n"
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "EdDSA"
+    assert findings[0].curve == "Ed25519"
+    assert findings[0].family is AlgorithmFamily.SIGNATURE
+    assert findings[0].quantum_risk is QuantumRisk.VULNERABLE
+
+
+def test_nacl_private_key_generate_emits_x25519() -> None:
+    src = "import nacl.public\nnacl.public.PrivateKey.generate()\n"
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "X25519"
+    assert findings[0].family is AlgorithmFamily.KEY_AGREEMENT
+    assert findings[0].quantum_risk is QuantumRisk.VULNERABLE
+
+
+def test_nacl_secret_box_emits_xsalsa20_poly1305() -> None:
+    src = "import nacl.secret\nnacl.secret.SecretBox(b'k' * 32)\n"
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "XSALSA20-POLY1305"
+    assert findings[0].family is AlgorithmFamily.AEAD
+    assert findings[0].quantum_risk is QuantumRisk.SAFE
+
+
+def test_nacl_hash_blake2b_emits_blake2b() -> None:
+    src = "import nacl.hash\nnacl.hash.blake2b(b'x')\n"
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "BLAKE2B"
+    assert findings[0].family is AlgorithmFamily.HASH
+
+
+def test_nacl_pwhash_argon2id_str_and_kdf_emit_argon2() -> None:
+    src = (
+        "import nacl.pwhash\n"
+        "nacl.pwhash.argon2id.str(b'password')\n"
+        "nacl.pwhash.argon2id.kdf(32, b'password', b's' * 16)\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 2
+    assert all(f.algorithm == "ARGON2" for f in findings)
+    assert all(f.family is AlgorithmFamily.KDF for f in findings)
+    assert all(f.quantum_risk is QuantumRisk.SAFE for f in findings)
+
+
+def test_nacl_pwhash_argon2i_emits_argon2() -> None:
+    src = "import nacl.pwhash\nnacl.pwhash.argon2i.str(b'password')\n"
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "ARGON2"
+
+
+def test_nacl_pwhash_default_str_emits_argon2() -> None:
+    src = "import nacl.pwhash\nnacl.pwhash.str(b'password')\n"
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "ARGON2"
+
+
+def test_bcrypt_kdf_emits_bcrypt() -> None:
+    # bcrypt_pbkdf, as paramiko uses to decrypt bcrypt-encrypted private keys
+    # (corpus v2 recall gap) — distinct from bcrypt.hashpw()'s password use.
+    src = (
+        "import bcrypt\n"
+        "key = bcrypt.kdf(\n"
+        "    password=password,\n"
+        "    salt=salt,\n"
+        "    desired_key_bytes=48,\n"
+        "    rounds=rounds,\n"
+        ")\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "BCRYPT"
+    assert findings[0].family is AlgorithmFamily.KDF
+    assert findings[0].quantum_risk is QuantumRisk.SAFE

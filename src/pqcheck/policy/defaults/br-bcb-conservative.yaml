@@ -24,12 +24,17 @@ spec:
     - { family: hash, algorithm: SHA-384, action: allow, preferred: true }
     - { family: mac, algorithm: HMAC, hash: ["SHA-256", "SHA-384"], action: allow }
     - { family: kdf, algorithm: HKDF, hash: ["SHA-256"], action: allow }
+    # Detector canonical is "ARGON2" (nacl.pwhash argon2id/argon2i both
+    # collapse to it, matching AES not carrying its mode) — match on that,
+    # not the FIPS/RFC display name "Argon2id", or approved findings never
+    # match (02 SS2.5 approves Argon2 for password hashing).
     - family: kdf
-      algorithm: Argon2id
+      algorithm: ARGON2
       params: { memory-kib-min: 131072, iterations-min: 4, parallelism-min: 1 }
       action: allow
   banned:
     - { family: asymmetric-encryption, algorithm: RSA, action: fail, severity: critical, reason: "Shor-vulnerable; NIST IR 8547 deprecates by 2030 — migrate to ML-KEM-768" }
+    - { family: asymmetric-encryption, algorithm: RSA, paddings: ["PKCS1v15", "OAEP-SHA1"], action: fail, severity: critical, reason: "RSA-PKCS1v1.5 / RSA-OAEP-SHA1 padding — independently broken (Bleichenbacher / SHA-1) on top of Shor" }
     - { family: signature, algorithm: ECDSA, action: fail, severity: critical, reason: "Shor-vulnerable; NIST IR 8547 deprecates by 2030 — migrate to ML-DSA-65" }
     - { family: signature, algorithm: EdDSA, curves: ["Ed25519", "Ed448"], action: fail, severity: critical }
     - { family: key-agreement, algorithm: DH, action: fail, severity: critical }
@@ -54,6 +59,7 @@ spec:
       action: warn
       severity: medium
       reason: "Non-AEAD mode — prefer AES-256-GCM"
+    - { family: rng, algorithm: MATH-RAND, action: warn, severity: medium, reason: "math/rand (incl. rand/v2) is not cryptographically secure — use crypto/rand where randomness feeds key material, nonces, or tokens" }
   severity-rules:
     - { confidence-band: high, action: as-declared }
     - { confidence-band: medium, action: demote-one-tier }

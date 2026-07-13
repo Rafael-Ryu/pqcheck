@@ -3,7 +3,7 @@
 `scan` runs the end-to-end pipeline (walk → detect → parse → evaluate)
 and emits a terminal report, a CycloneDX 1.6 CBOM, or SARIF 2.1.0.
 Exit codes: 0 clean, 1 policy gate tripped, 2 usage/policy error,
-70 internal error (emitted CBOM failed self-validation).
+70 internal error (emitted CBOM/SARIF failed self-validation).
 """
 
 from __future__ import annotations
@@ -22,6 +22,7 @@ from pqcheck.cbom.builder import build_cbom
 from pqcheck.cbom.validator import validate_cyclonedx_16
 from pqcheck.models import ScanResult
 from pqcheck.output.sarif import build_sarif
+from pqcheck.output.sarif_validator import validate_sarif_210
 from pqcheck.policy.engine import gate
 from pqcheck.policy.loader import PolicyError, load_default_policy, load_policy
 from pqcheck.policy.schema import CryptoPolicy
@@ -53,6 +54,9 @@ class FailOn(StrEnum):
 
 
 _ACTION_MARKS = {"fail": "✗", "warn": "⚠", "allow": "✓"}
+
+_RELEASE_REPO = "Rafael-Ryu/pqcheck"
+_GITHUB_OIDC_ISSUER = "https://token.actions.githubusercontent.com"
 
 
 def _configure_output_streams() -> None:
@@ -169,7 +173,12 @@ def scan(
         ),
     ] = FailOn.POLICY,
     strict: Annotated[
-        bool, typer.Option("--strict", help="Gate WARN decisions as failures.")
+        bool,
+        typer.Option(
+            "--strict",
+            help="Fail on WARN, treat unknown quantum risk as vulnerable, "
+            "refuse policies without severity-rules.",
+        ),
     ] = False,
 ) -> None:
     """Scan a repository for cryptographic primitives and policy violations."""
@@ -183,6 +192,10 @@ def scan(
         )
 
     loaded = _load_policy_arg(policy) if policy is not None else None
+    if strict and loaded is not None and not loaded.spec.severity_rules:
+        raise typer.BadParameter(
+            "--strict refuses policies without a severity-rules section", param_hint="--policy"
+        )
     result = run_scan(target, loaded)
 
     if output_format is OutputFormat.CBOM:
@@ -194,7 +207,13 @@ def scan(
             raise typer.Exit(code=70)
         _emit_json(doc, output)
     elif output_format is OutputFormat.SARIF:
-        _emit_json(build_sarif(result), output)
+        doc = build_sarif(result)
+        violations = validate_sarif_210(doc)
+        if violations:
+            for violation in violations:
+                typer.echo(f"sarif self-validation: {violation}", err=True)
+            raise typer.Exit(code=70)
+        _emit_json(doc, output)
     else:
         _terminal_report(result)
 
@@ -239,6 +258,80 @@ def self_audit(
         typer.echo(f"self-audit: policy gate tripped at {worst.value}", err=True)
         raise typer.Exit(code=1)
     typer.echo(f"self-audit clean — CBOM at {output}")
+
+
+@app.command("verify-release")
+def verify_release(
+    artifact: Annotated[
+        Path,
+        typer.Argument(
+            help="Release artifact (wheel or sdist).",
+            exists=True,
+            dir_okay=False,
+            resolve_path=True,
+        ),
+    ],
+    bundle: Annotated[
+        Path | None,
+        typer.Option("--bundle", help="Sigstore bundle (default: <artifact>.sigstore.json)."),
+    ] = None,
+    identity: Annotated[
+        str | None,
+        typer.Option(
+            "--identity",
+            help="Exact certificate identity to require. Default accepts any signature "
+            "from the pqcheck release repository's GitHub Actions workflows.",
+        ),
+    ] = None,
+    issuer: Annotated[
+        str, typer.Option("--issuer", help="OIDC issuer to require.")
+    ] = _GITHUB_OIDC_ISSUER,
+) -> None:
+    """Verify a release artifact against its Sigstore keyless bundle.
+
+    Exit codes: 0 verified, 1 verification failed, 2 usage error
+    (missing sigstore extra, missing or malformed bundle).
+    """
+    # deferred import: sigstore is an optional extra; every other command works without it
+    try:
+        from sigstore.errors import Error as SigstoreError, VerificationError  # noqa: PLC0415, I001
+        from sigstore.models import Bundle  # noqa: PLC0415
+        from sigstore.verify import Verifier, policy as sigstore_policy  # noqa: PLC0415
+    except ImportError as exc:  # pragma: no cover - extra always present in test env
+        typer.echo(
+            "sigstore is not installed — install the extra: pip install 'pqcheck[sigstore]'",
+            err=True,
+        )
+        raise typer.Exit(code=2) from exc
+
+    bundle_path = bundle or artifact.with_name(artifact.name + ".sigstore.json")
+    if not bundle_path.is_file():
+        typer.echo(f"bundle not found: {bundle_path}", err=True)
+        raise typer.Exit(code=2)
+
+    verification_policy: sigstore_policy.VerificationPolicy
+    if identity is not None:
+        verification_policy = sigstore_policy.Identity(identity=identity, issuer=issuer)
+    else:
+        verification_policy = sigstore_policy.AllOf(
+            [
+                sigstore_policy.OIDCIssuer(issuer),
+                sigstore_policy.GitHubWorkflowRepository(_RELEASE_REPO),
+            ]
+        )
+
+    try:
+        parsed = Bundle.from_json(bundle_path.read_bytes())
+    except (SigstoreError, ValueError) as exc:
+        typer.echo(f"invalid bundle: {exc}", err=True)
+        raise typer.Exit(code=2) from exc
+
+    try:
+        Verifier.production().verify_artifact(artifact.read_bytes(), parsed, verification_policy)
+    except VerificationError as exc:
+        typer.echo(f"verification FAILED: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(f"OK: {artifact.name} verified against {bundle_path.name}")
 
 
 @policy_app.command("show")

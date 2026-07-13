@@ -27,11 +27,14 @@ class AlgorithmFamily(StrEnum):
     KDF = "key-derivation"
     RNG = "random"
     AEAD = "authenticated-encryption"
+    # crypto/elliptic.P256/384/521 return a curve object usable for either
+    # ECDSA or ECDH — static analysis cannot tell which without following the
+    # value into its consumer, so this family is deliberately neither.
+    ELLIPTIC_CURVE = "elliptic-curve"
 
 
 class QuantumRisk(StrEnum):
     SAFE = "quantum-safe"
-    # Reserved for hybrid PQC constructs (e.g., X25519MLKEM768) once detectors emit them.
     HYBRID = "hybrid"
     VULNERABLE = "quantum-vulnerable"
     BROKEN = "broken"
@@ -74,8 +77,33 @@ _QUANTUM_MAP: dict[str, QuantumRisk] = {
     "ED448": QuantumRisk.VULNERABLE,
     "X25519": QuantumRisk.VULNERABLE,
     "X448": QuantumRisk.VULNERABLE,
+    "ELGAMAL": QuantumRisk.VULNERABLE,
+    "GOST-R-34.10-2001": QuantumRisk.VULNERABLE,
+    "SM2": QuantumRisk.VULNERABLE,
+    "BLS12-381": QuantumRisk.VULNERABLE,
+    # crypto/elliptic curve constructors (family ELLIPTIC_CURVE, not
+    # signature/key-agreement — see the family's docstring): whatever the
+    # curve object ends up doing, an elliptic curve is Shor-breakable, so
+    # VULNERABLE is correct either way the ambiguity resolves.
+    "ECC": QuantumRisk.VULNERABLE,
     "AES": QuantumRisk.SAFE,
     "CHACHA20": QuantumRisk.SAFE,
+    # Same threat model as AES-256/ChaCha20 above: a symmetric AEAD with no
+    # Shor-vulnerable structure, and a 256-bit key gives 128-bit post-Grover
+    # margin like the others. Not a policy-approved algorithm
+    # (02 SS2.3 names AES-256-GCM specifically) but not banned either —
+    # SAFE reflects the quantum-risk verdict this field exists to encode,
+    # leaving the "not the house-approved AEAD" call to the policy layer.
+    "XSALSA20-POLY1305": QuantumRisk.SAFE,
+    # Policy 02 SS2.5 approves Argon2id by name for password hashing; the
+    # canonical does not carry the id/i variant (mirrors AES not carrying
+    # its mode), so ARGON2 covers both — argon2i lacks side-channel
+    # resistance but is still memory-hard and not a quantum concern either
+    # way.
+    "ARGON2": QuantumRisk.SAFE,
+    # Same precedent as ARGON2 above: bcrypt_pbkdf is a memory/CPU-hard KDF,
+    # not a quantum concern either way.
+    "BCRYPT": QuantumRisk.SAFE,
     "SHA-224": QuantumRisk.SAFE,
     "SHA-256": QuantumRisk.SAFE,
     "SHA-384": QuantumRisk.SAFE,
@@ -88,6 +116,17 @@ _QUANTUM_MAP: dict[str, QuantumRisk] = {
     "ML-KEM": QuantumRisk.SAFE,
     "ML-DSA": QuantumRisk.SAFE,
     "SLH-DSA": QuantumRisk.SAFE,
+    # FALCON (future FN-DSA; FIPS 206 is still draft, so the deployed name
+    # stays canonical) and HQC (NIST backup KEM, selected 2025-03). SAFE
+    # encodes the quantum-risk verdict only — neither is a policy-approved
+    # algorithm, same split as XSALSA20-POLY1305 above.
+    "FALCON": QuantumRisk.SAFE,
+    "HQC": QuantumRisk.SAFE,
+    # X25519MLKEM768 (filippo.io/hpke's hybrid KEM, also age's post-quantum
+    # recipient): classical X25519 plus ML-KEM-768 in one construct. HYBRID,
+    # not SAFE — the classical component is still there as defense in depth,
+    # not because the PQC component is in doubt.
+    "X25519MLKEM768": QuantumRisk.HYBRID,
     "MD5": QuantumRisk.BROKEN,
     "SHA-1": QuantumRisk.BROKEN,
     "DES": QuantumRisk.BROKEN,
@@ -99,6 +138,14 @@ _QUANTUM_MAP: dict[str, QuantumRisk] = {
     "BLOWFISH": QuantumRisk.BROKEN,
     "IDEA": QuantumRisk.BROKEN,
     "RIPEMD-160": QuantumRisk.VULNERABLE,
+    # Not a quantum concern — a classically predictable/seedable PRNG used
+    # where crypto/rand is required (policy §2.6). Treated as BROKEN like
+    # MD5/SHA-1/RC4: a practical, non-quantum break available today.
+    "MATH-RAND": QuantumRisk.BROKEN,
+    # crypto/rand.Read/Int/Prime: a cryptographically secure RNG, the
+    # opposite finding from MATH-RAND above. SAFE here is a positive
+    # attestation — pqcheck surfaces correct RNG choice, not just violations.
+    "CSPRNG": QuantumRisk.SAFE,
 }
 
 
@@ -117,7 +164,11 @@ class CryptoFinding(BaseModel):
 
     algorithm: str
     family: AlgorithmFamily
-    key_size: int | None = None
+    # int for classical bit-lengths (AES-256, RSA-2048); str for PQC parameter-set
+    # identifiers that aren't numeric (SLH-DSA's "SHA2-128s"). Both stringify the
+    # same way for policy `parameter-sets` matching and the CBOM
+    # parameterSetIdentifier property — see policy/engine.py rule_matches.
+    key_size: int | str | None = None
     curve: str | None = None
     mode: str | None = None
     padding: str | None = None
@@ -125,6 +176,15 @@ class CryptoFinding(BaseModel):
     evidence: str
     detector_id: str
     confidence: float = Field(default=1.0, ge=0.0, le=1.0)
+
+    @field_validator("key_size")
+    @classmethod
+    def _key_size_must_be_positive(cls, value: int | str | None) -> int | str | None:
+        # PQC parameter-set identifiers (str) pass through untouched; only
+        # the classical bit-length (int) case has a meaningful lower bound.
+        if isinstance(value, int) and value <= 0:
+            raise ValueError(f"key_size must be positive, got {value}")
+        return value
 
     @computed_field  # type: ignore[prop-decorator]
     @property

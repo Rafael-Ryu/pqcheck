@@ -441,17 +441,99 @@ func TestAnalyzeResolvesMLKEM(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var mlkem int
+	// The parameter set is baked into the catalog entry (key_size 768/1024)
+	// so the policy's parameter-sets approved rule can match — without it the
+	// finding falls to default/medium instead of approved/info.
+	sizes := map[int]int{}
 	for _, f := range fs {
 		if f.Algorithm == "ML-KEM" {
 			if f.Family != "key-encapsulation" {
 				t.Errorf("family = %q, want key-encapsulation", f.Family)
 			}
-			mlkem++
+			if f.KeySize == nil {
+				t.Errorf("KeySize = nil, want parameter set, finding %+v", f)
+				continue
+			}
+			sizes[*f.KeySize]++
 		}
 	}
-	if mlkem != 2 {
-		t.Fatalf("ML-KEM findings = %d, want 2 (768 + 1024), got %+v", mlkem, fs)
+	if sizes[768] != 1 || sizes[1024] != 1 {
+		t.Fatalf("ML-KEM parameter sets = %v, want one 768 and one 1024, got %+v", sizes, fs)
+	}
+}
+
+func TestAnalyzeResolvesEllipticCurveFamily(t *testing.T) {
+	// elliptic.PXXX() called bare (not as an ecdsa.GenerateKey argument) is
+	// its own call site — the curve object is usable for either ECDSA or
+	// ECDH, so it gets the deliberately-ambiguous "elliptic-curve" family
+	// and canonical "ECC" rather than guessing which one.
+	dir := writeModule(t, map[string]string{
+		"main.go": "package main\nimport \"crypto/elliptic\"\n" +
+			"func main(){ elliptic.P256(); elliptic.P384(); elliptic.P521() }\n",
+	})
+	fs, err := Analyze(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	curves := map[string]int{}
+	for _, f := range fs {
+		if f.Algorithm != "ECC" {
+			continue
+		}
+		if f.Family != "elliptic-curve" {
+			t.Errorf("family = %q, want elliptic-curve", f.Family)
+		}
+		curves[f.Curve]++
+	}
+	if curves["P-256"] != 1 || curves["P-384"] != 1 || curves["P-521"] != 1 {
+		t.Fatalf("ECC curves = %v, want one each of P-256/P-384/P-521, got %+v", curves, fs)
+	}
+}
+
+func TestAnalyzeResolvesCryptoRandAsCSPRNG(t *testing.T) {
+	dir := writeModule(t, map[string]string{
+		"main.go": "package main\nimport \"crypto/rand\"\n" +
+			"func main(){ _, _ = rand.Int(rand.Reader, nil); _, _ = rand.Prime(rand.Reader, 2048) }\n",
+	})
+	fs, err := Analyze(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	n := 0
+	for _, f := range fs {
+		if f.Algorithm != "CSPRNG" {
+			continue
+		}
+		if f.Family != "random" {
+			t.Errorf("family = %q, want random", f.Family)
+		}
+		n++
+	}
+	if n != 2 {
+		t.Fatalf("CSPRNG findings = %d, want 2, got %+v", n, fs)
+	}
+}
+
+func TestAnalyzeResolvesCurve25519ThroughVendor(t *testing.T) {
+	// x/crypto is not in the module cache in this test environment, so vendor
+	// a minimal stub — same pattern as TestAnalyzeResolvesVendoredThirdParty.
+	dir := writeModule(t, map[string]string{
+		"go.mod": "module testmod\n\ngo 1.24\n\nrequire golang.org/x/crypto v0.0.0\n",
+		"vendor/modules.txt": "# golang.org/x/crypto v0.0.0\n" +
+			"## explicit; go 1.24\n" +
+			"golang.org/x/crypto/curve25519\n",
+		"vendor/golang.org/x/crypto/curve25519/curve25519.go": "package curve25519\n\n" +
+			"func X25519(scalar, point []byte) ([]byte, error) { return nil, nil }\n",
+		"main.go": "package main\n\n" +
+			"import \"golang.org/x/crypto/curve25519\"\n\n" +
+			"func main() { _, _ = curve25519.X25519(nil, nil) }\n",
+	})
+	fs, err := Analyze(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := findingsByAlgo(fs)["X25519"]; !ok {
+		t.Fatalf("expected X25519 from vendored curve25519, got %+v", fs)
 	}
 }
 
@@ -578,4 +660,243 @@ func findingKeys(fs []Finding) []string {
 		keys[i] = filepath.Base(f.Path) + ":" + f.Algorithm
 	}
 	return keys
+}
+
+// ---- Method-call detection (typed receivers, no literal package call) ----
+
+func TestAnalyzeResolvesECDHMethodOnPointerReceiver(t *testing.T) {
+	dir := writeModule(t, map[string]string{
+		"main.go": "package main\n\nimport \"crypto/ecdsa\"\n\n" +
+			"func f(pub *ecdsa.PublicKey) { pub.ECDH() }\n",
+	})
+	fs, err := Analyze(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ecdh, ok := findingsByAlgo(fs)["ECDH"]
+	if !ok {
+		t.Fatalf("expected ECDH finding, got %+v", fs)
+	}
+	if ecdh.Family != "key-agreement" {
+		t.Errorf("family = %q, want key-agreement", ecdh.Family)
+	}
+	if ecdh.Confidence != 1.0 {
+		t.Errorf("confidence = %v, want 1.0 (go/types resolved)", ecdh.Confidence)
+	}
+}
+
+func TestAnalyzeResolvesECDHMethodThroughFieldSelector(t *testing.T) {
+	// k.PublicKey.ECDH(): the receiver is a field-access chain (embedded
+	// ecdsa.PublicKey), pemutil/ssh.go's actual shape in the smallstep/crypto
+	// corpus.
+	dir := writeModule(t, map[string]string{
+		"main.go": "package main\n\nimport \"crypto/ecdsa\"\n\n" +
+			"func f(k *ecdsa.PrivateKey) { k.PublicKey.ECDH() }\n",
+	})
+	fs, err := Analyze(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := findingsByAlgo(fs)["ECDH"]; !ok {
+		t.Fatalf("expected ECDH finding, got %+v", fs)
+	}
+}
+
+func TestAnalyzeResolvesECDHMethodOnEcdhPrivateKey(t *testing.T) {
+	dir := writeModule(t, map[string]string{
+		"main.go": "package main\n\nimport \"crypto/ecdh\"\n\n" +
+			"func f(k *ecdh.PrivateKey, pub *ecdh.PublicKey) { k.ECDH(pub) }\n",
+	})
+	fs, err := Analyze(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := findingsByAlgo(fs)["ECDH"]; !ok {
+		t.Fatalf("expected ECDH finding, got %+v", fs)
+	}
+}
+
+func TestAnalyzeUnrelatedECDHMethodDoesNotEmit(t *testing.T) {
+	// Same method name, receiver type is not a catalogued one -- the generic
+	// method resolution must not false-positive on a same-named method.
+	dir := writeModule(t, map[string]string{
+		"main.go": "package main\n\n" +
+			"type Foo struct{}\n" +
+			"func (f *Foo) ECDH() (int, error) { return 0, nil }\n" +
+			"func g(f *Foo) { f.ECDH() }\n",
+	})
+	fs, err := Analyze(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(fs) != 0 {
+		t.Fatalf("expected no findings, got %+v", fs)
+	}
+}
+
+func TestAnalyzeResolvesYubiKeyGenerateKeyAtReducedConfidence(t *testing.T) {
+	// go-piv is not in the module cache in this test environment, so vendor a
+	// minimal stub — same pattern as TestAnalyzeResolvesCurve25519ThroughVendor.
+	// The real kms/yubikey/yubikey.go in smallstep/crypto carries a
+	// `//go:build cgo` tag and is excluded from this module's build entirely
+	// under CGO_ENABLED=0 (hardenedEnv), so only the tree-sitter floor
+	// actually reaches that file in production; this test exercises the
+	// generic method-resolution mechanism in isolation.
+	dir := writeModule(t, map[string]string{
+		"go.mod": "module testmod\n\ngo 1.24\n\nrequire github.com/go-piv/piv-go/v2 v2.6.0\n",
+		"vendor/modules.txt": "# github.com/go-piv/piv-go/v2 v2.6.0\n" +
+			"## explicit; go 1.24\n" +
+			"github.com/go-piv/piv-go/v2/piv\n",
+		"vendor/github.com/go-piv/piv-go/v2/piv/piv.go": "package piv\n\n" +
+			"type Slot struct{}\n" +
+			"type Key struct{ Algorithm int }\n" +
+			"type YubiKey struct{}\n" +
+			"func (yk *YubiKey) GenerateKey(managementKey []byte, slot Slot, key Key) (any, error) {\n" +
+			"\treturn nil, nil\n}\n",
+		"main.go": "package main\n\n" +
+			"import \"github.com/go-piv/piv-go/v2/piv\"\n\n" +
+			"func f(yk *piv.YubiKey) { yk.GenerateKey(nil, piv.Slot{}, piv.Key{}) }\n",
+	})
+	fs, err := Analyze(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	keygen, ok := findingsByAlgo(fs)["KEYGEN"]
+	if !ok {
+		t.Fatalf("expected KEYGEN finding, got %+v", fs)
+	}
+	if keygen.Confidence != opaqueMethodConfidence {
+		t.Errorf("confidence = %v, want %v (opaque algorithm)", keygen.Confidence, opaqueMethodConfidence)
+	}
+	if keygen.Family != "signature" {
+		t.Errorf("family = %q, want signature", keygen.Family)
+	}
+}
+
+func TestAnalyzeResolvesHPKEHybridChain(t *testing.T) {
+	dir := writeModule(t, map[string]string{
+		"go.mod": "module testmod\n\ngo 1.24\n\nrequire filippo.io/hpke v0.4.0\n",
+		"vendor/modules.txt": "# filippo.io/hpke v0.4.0\n" +
+			"## explicit; go 1.24\n" +
+			"filippo.io/hpke\n",
+		"vendor/filippo.io/hpke/hpke.go": "package hpke\n\n" +
+			"type PrivateKey interface{}\n" +
+			"type KEM interface{ GenerateKey() (PrivateKey, error) }\n" +
+			"type hybridKEM struct{}\n" +
+			"func (hybridKEM) GenerateKey() (PrivateKey, error) { return nil, nil }\n" +
+			"func MLKEM768X25519() KEM { return hybridKEM{} }\n" +
+			"type dhKEM struct{}\n" +
+			"func (dhKEM) GenerateKey() (PrivateKey, error) { return nil, nil }\n" +
+			"func DHKEM() KEM { return dhKEM{} }\n",
+		"main.go": "package main\n\n" +
+			"import \"filippo.io/hpke\"\n\n" +
+			"func f() { hpke.MLKEM768X25519().GenerateKey() }\n",
+	})
+	fs, err := Analyze(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hybrid, ok := findingsByAlgo(fs)["X25519MLKEM768"]
+	if !ok {
+		t.Fatalf("expected X25519MLKEM768 finding, got %+v", fs)
+	}
+	if hybrid.Family != "key-encapsulation" {
+		t.Errorf("family = %q, want key-encapsulation", hybrid.Family)
+	}
+	if hybrid.Confidence != 1.0 {
+		t.Errorf("confidence = %v, want 1.0 (chain fully type-resolved)", hybrid.Confidence)
+	}
+}
+
+func TestAnalyzeClassicalHPKEKEMDoesNotClaimHybrid(t *testing.T) {
+	// Same interface, different constructor: hpke.DHKEM(...).GenerateKey()
+	// must not be misclassified as the post-quantum hybrid just because it
+	// shares hpke.KEM's GenerateKey method — this is exactly why the hybrid
+	// match is chain-shaped rather than a generic KEM.GenerateKey lookup.
+	dir := writeModule(t, map[string]string{
+		"go.mod": "module testmod\n\ngo 1.24\n\nrequire filippo.io/hpke v0.4.0\n",
+		"vendor/modules.txt": "# filippo.io/hpke v0.4.0\n" +
+			"## explicit; go 1.24\n" +
+			"filippo.io/hpke\n",
+		"vendor/filippo.io/hpke/hpke.go": "package hpke\n\n" +
+			"type PrivateKey interface{}\n" +
+			"type KEM interface{ GenerateKey() (PrivateKey, error) }\n" +
+			"type dhKEM struct{}\n" +
+			"func (dhKEM) GenerateKey() (PrivateKey, error) { return nil, nil }\n" +
+			"func DHKEM() KEM { return dhKEM{} }\n",
+		"main.go": "package main\n\n" +
+			"import \"filippo.io/hpke\"\n\n" +
+			"func f() { hpke.DHKEM().GenerateKey() }\n",
+	})
+	fs, err := Analyze(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(fs) != 0 {
+		t.Fatalf("expected no findings for classical-only hpke KEM, got %+v", fs)
+	}
+}
+
+func TestAnalyzeResolvesMathRandV2VersionedImportPath(t *testing.T) {
+	// go/types resolves the call through the type-checked package object, so
+	// the qualified callee is built from Pkg().Path() (the literal import
+	// path, "math/rand/v2") regardless of the identifier bound at the call
+	// site ("rand") -- this engine never had the tree-sitter bug where the
+	// resolver bound the "/v2" path segment itself.
+	dir := writeModule(t, map[string]string{
+		"main.go": "package main\n\nimport \"math/rand/v2\"\n\n" +
+			"func main() { _ = rand.Int64N(10) }\n",
+	})
+	fs, err := Analyze(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := findingsByAlgo(fs)["MATH-RAND"]; !ok {
+		t.Fatalf("expected MATH-RAND from math/rand/v2.Int64N, got %+v", fs)
+	}
+}
+
+func TestAnalyzeResolvesGoContainerRegistrySHA256(t *testing.T) {
+	// go-containerregistry's pkg/v1 directory *is* the package "v1" (Go's
+	// semantic import versioning never applies to v0/v1, only v2+), so the
+	// unaliased import binds "v1" at call sites -- this is a real, non-SIV
+	// use of a trailing "/v1" path segment.
+	dir := writeModule(t, map[string]string{
+		"go.mod": "module testmod\n\ngo 1.24\n\nrequire github.com/google/go-containerregistry v0.0.0\n",
+		"vendor/modules.txt": "# github.com/google/go-containerregistry v0.0.0\n" +
+			"## explicit; go 1.24\n" +
+			"github.com/google/go-containerregistry/pkg/v1\n",
+		"vendor/github.com/google/go-containerregistry/pkg/v1/hash.go": "package v1\n\n" +
+			"import \"io\"\n\n" +
+			"type Hash struct{}\n\n" +
+			"func SHA256(r io.Reader) (Hash, int64, error) { return Hash{}, 0, nil }\n",
+		"main.go": "package main\n\n" +
+			"import (\n\t\"strings\"\n\n\tv1 \"github.com/google/go-containerregistry/pkg/v1\"\n)\n\n" +
+			"func main() { _, _, _ = v1.SHA256(strings.NewReader(\"x\")) }\n",
+	})
+	fs, err := Analyze(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := findingsByAlgo(fs)["SHA-256"]; !ok {
+		t.Fatalf("expected SHA-256 from go-containerregistry pkg/v1.SHA256, got %+v", fs)
+	}
+}
+
+func TestAnalyzeResolvesRandRandReceiverMethod(t *testing.T) {
+	// *rand.Rand method calls resolve generically through methodKey's named-
+	// type receiver lookup (same machinery as crypto/ecdsa.PublicKey.ECDH) --
+	// no new mechanism needed, just catalog entries for the Rand type's
+	// methods alongside the package-level funcs already catalogued.
+	dir := writeModule(t, map[string]string{
+		"main.go": "package main\n\nimport \"math/rand\"\n\n" +
+			"func main() { r := rand.New(rand.NewSource(1)); _ = r.Uint32() }\n",
+	})
+	fs, err := Analyze(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := findingsByAlgo(fs)["MATH-RAND"]; !ok {
+		t.Fatalf("expected MATH-RAND from (*rand.Rand).Uint32, got %+v", fs)
+	}
 }

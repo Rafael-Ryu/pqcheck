@@ -1,0 +1,63 @@
+name: Packaging
+
+# The branch CI builds its wheel with `uv build --wheel` on the host — a
+# different artifact than the release ships (manylinux container + auditwheel
+# via cibuildwheel). A repair- or tag-related regression would only surface at
+# tag time (#202). This workflow exercises the real Linux packaging path, but
+# only when packaging inputs change, so the cost stays off the hot path.
+
+on:
+  pull_request:
+    paths:
+      - pyproject.toml
+      - uv.lock
+      - hatch_build.py
+      - tools/crypto-analyzer/**
+      - tools/ci/smoke_bundled_analyzer.py
+      - .github/workflows/packaging.yml
+      - .github/workflows/cli-release.yml
+  push:
+    branches: [develop]
+    paths:
+      - pyproject.toml
+      - uv.lock
+      - hatch_build.py
+      - tools/crypto-analyzer/**
+      - tools/ci/smoke_bundled_analyzer.py
+      - .github/workflows/packaging.yml
+      - .github/workflows/cli-release.yml
+
+permissions:
+  contents: read
+
+jobs:
+  wheel-linux:
+    # Mirrors the linux entry of the release matrix (cli-release.yml) exactly:
+    # same action pin, same CIBW_ENVIRONMENT, same native smoke.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      # Host Go is for the smoke step (the analyzer bridge shells out to `go`);
+      # the wheel build itself uses the container's curl'd go1.25.0 (before-all).
+      - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version: "1.25.0"
+          cache-dependency-path: tools/crypto-analyzer/go.sum
+      - uses: pypa/cibuildwheel@8d2b08b68458a16aeb24b64e68a09ab1c8e82084 # v3.4.1
+        env:
+          CIBW_ARCHS: x86_64
+          CIBW_ENVIRONMENT: "GOOS=linux GOARCH=amd64 PATH=/usr/local/go/bin:$PATH"
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+      - name: Smoke-test the bundled analyzer on the container-built wheel
+        # This runner is glibc: the wheelhouse now holds both the manylinux
+        # and musllinux x86_64 wheels. `head -1` relies on "manylinux"
+        # sorting before "musllinux" to pick the one this host can install.
+        shell: bash
+        run: |
+          whl=$(ls wheelhouse/*.whl | head -1)
+          python -m venv .smoke
+          .smoke/bin/python -m pip install --quiet "$whl"
+          .smoke/bin/python tools/ci/smoke_bundled_analyzer.py

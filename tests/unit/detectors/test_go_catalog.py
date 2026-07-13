@@ -12,6 +12,8 @@ _ASYM = AlgorithmFamily.ASYMMETRIC_ENCRYPTION
 _SIG = AlgorithmFamily.SIGNATURE
 _KA = AlgorithmFamily.KEY_AGREEMENT
 _KEM = AlgorithmFamily.KEM
+_EC = AlgorithmFamily.ELLIPTIC_CURVE
+_RNG = AlgorithmFamily.RNG
 
 # Frozen snapshot of the per-symbol crypto knowledge that lived in the deleted
 # `_GO_SYMBOLS` dict (algorithms.py, before commit e47eb8a moved it into
@@ -123,6 +125,50 @@ def test_lookup_mlkem_is_kem() -> None:
     assert hit.family is AlgorithmFamily.KEM
 
 
+def test_lookup_mlkem_carries_parameter_set() -> None:
+    # The parameter set is baked into the catalog entry, same as EdDSA's
+    # curve — the policy's approved ML-KEM rule matches on parameter-sets,
+    # so without it the finding falls to default/medium instead of
+    # approved/info (issue #217).
+    hit768 = lookup_go_symbol("crypto/mlkem.GenerateKey768")
+    hit1024 = lookup_go_symbol("crypto/mlkem.GenerateKey1024")
+    assert hit768 is not None and hit768.key_size == 768
+    assert hit1024 is not None and hit1024.key_size == 1024
+
+
+def test_lookup_elliptic_p256_is_ambiguous_ecc_family() -> None:
+    # Neither ECDSA nor ECDH: elliptic.PXXX() returns a curve object usable
+    # for both, so it gets its own family rather than guessing.
+    hit = lookup_go_symbol("crypto/elliptic.P256")
+    assert hit is not None
+    assert hit.canonical == "ECC"
+    assert hit.family is _EC
+    assert hit.curve == "P-256"
+
+
+def test_lookup_elliptic_p384_and_p521_carry_curve() -> None:
+    hit384 = lookup_go_symbol("crypto/elliptic.P384")
+    hit521 = lookup_go_symbol("crypto/elliptic.P521")
+    assert hit384 is not None and hit384.curve == "P-384"
+    assert hit521 is not None and hit521.curve == "P-521"
+
+
+def test_lookup_curve25519_symbols_are_x25519() -> None:
+    x25519 = lookup_go_symbol("golang.org/x/crypto/curve25519.X25519")
+    scalar = lookup_go_symbol("golang.org/x/crypto/curve25519.ScalarBaseMult")
+    assert x25519 is not None and x25519.canonical == "X25519"
+    assert x25519.family is _KA
+    assert scalar is not None and scalar.canonical == "X25519"
+
+
+def test_lookup_crypto_rand_symbols_are_csprng() -> None:
+    for symbol in ("crypto/rand.Read", "crypto/rand.Int", "crypto/rand.Prime"):
+        hit = lookup_go_symbol(symbol)
+        assert hit is not None, symbol
+        assert hit.canonical == "CSPRNG"
+        assert hit.family is _RNG
+
+
 def test_lookup_xcrypto_chacha20poly1305() -> None:
     hit = lookup_go_symbol("golang.org/x/crypto/chacha20poly1305.New")
     assert hit is not None
@@ -149,4 +195,5 @@ def test_go_canonicals_are_emittable() -> None:
     canonicals = emittable_canonicals()
     assert {"RSA", "ECDSA", "ECDH", "X25519", "EdDSA", "DSA", "ML-KEM",
             "AES", "DES", "3DES", "RC4", "CHACHA20",
-            "MD5", "SHA-1", "SHA-256", "SHA3-256", "BLAKE2B"} <= canonicals
+            "MD5", "SHA-1", "SHA-256", "SHA3-256", "BLAKE2B",
+            "ECC", "CSPRNG"} <= canonicals

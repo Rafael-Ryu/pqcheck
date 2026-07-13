@@ -66,6 +66,16 @@ def test_quantum_risk_resolved_from_algorithm_name() -> None:
     assert unknown.quantum_risk is QuantumRisk.UNKNOWN
 
 
+@pytest.mark.parametrize("algo", ["ELGAMAL", "GOST-R-34.10-2001", "SM2", "BLS12-381"])
+def test_quantum_risk_new_asymmetric_algorithms_are_vulnerable(algo: str) -> None:
+    loc = SourceLocation(path=Path("a.py"), line=1, column=0)
+    finding = CryptoFinding(
+        algorithm=algo, family=AlgorithmFamily.ASYMMETRIC_ENCRYPTION, location=loc,
+        evidence="x", detector_id="python-ast",
+    )
+    assert finding.quantum_risk is QuantumRisk.VULNERABLE
+
+
 def test_confidence_bounded_0_to_1() -> None:
     loc = SourceLocation(path=Path("a.py"), line=1, column=0)
     with pytest.raises(ValidationError):
@@ -78,6 +88,26 @@ def test_confidence_bounded_0_to_1() -> None:
             algorithm="MD5", family=AlgorithmFamily.HASH, location=loc,
             evidence="x", detector_id="python-ast", confidence=-0.1,
         )
+
+
+@pytest.mark.parametrize("bad_size", [0, -1, -256])
+def test_crypto_finding_rejects_non_positive_int_key_size(bad_size: int) -> None:
+    loc = SourceLocation(path=Path("a.py"), line=1, column=0)
+    with pytest.raises(ValidationError):
+        CryptoFinding(
+            algorithm="AES", family=AlgorithmFamily.SYMMETRIC_CIPHER, location=loc,
+            evidence="x", detector_id="python-ast", key_size=bad_size,
+        )
+
+
+@pytest.mark.parametrize("good_size", [1, 128, 256, "SHA2-128s", None])
+def test_crypto_finding_accepts_valid_key_size(good_size: int | str | None) -> None:
+    loc = SourceLocation(path=Path("a.py"), line=1, column=0)
+    finding = CryptoFinding(
+        algorithm="AES", family=AlgorithmFamily.SYMMETRIC_CIPHER, location=loc,
+        evidence="x", detector_id="python-ast", key_size=good_size,
+    )
+    assert finding.key_size == good_size
 
 
 def test_crypto_dependency_minimal_construction() -> None:

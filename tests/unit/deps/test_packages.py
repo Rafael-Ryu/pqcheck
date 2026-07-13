@@ -85,6 +85,54 @@ def test_lookup_maven_commons_codec_includes_legacy_hashes() -> None:
     assert "SHA-1" in result
 
 
+def test_lookup_pypi_liboqs_python_surfaces_pqc() -> None:
+    result = lookup_introduces("pypi", "liboqs-python")
+    assert "ML-KEM" in result
+    assert "ML-DSA" in result
+    assert "SLH-DSA" in result
+    assert "FALCON" in result
+    assert "HQC" in result
+
+
+def test_lookup_golang_liboqs_go_surfaces_falcon_and_hqc() -> None:
+    result = lookup_introduces("golang", "github.com/open-quantum-safe/liboqs-go")
+    assert "FALCON" in result
+    assert "HQC" in result
+
+
+def test_lookup_maven_bouncycastle_includes_falcon() -> None:
+    assert "FALCON" in lookup_introduces("maven", "bcprov-jdk18on")
+
+
+def test_lookup_pypi_cryptography_includes_pqc() -> None:
+    result = lookup_introduces("pypi", "cryptography")
+    assert "ML-KEM" in result
+    assert "ML-DSA" in result
+
+
+def test_lookup_golang_circl_surfaces_pqc_and_classical() -> None:
+    result = lookup_introduces("golang", "github.com/cloudflare/circl")
+    assert "ML-KEM" in result
+    assert "ML-DSA" in result
+    assert "ED25519" in result
+
+
+def test_lookup_golang_mlkem768_resolves() -> None:
+    assert lookup_introduces("golang", "filippo.io/mlkem768") == ("ML-KEM",)
+
+
+def test_lookup_npm_noble_post_quantum_resolves() -> None:
+    result = lookup_introduces("npm", "@noble/post-quantum")
+    assert "ML-KEM" in result
+    assert "SLH-DSA" in result
+
+
+def test_lookup_maven_bouncycastle_includes_pqc() -> None:
+    result = lookup_introduces("maven", "bcprov-jdk18on")
+    assert "ML-KEM" in result
+    assert "SLH-DSA" in result
+
+
 def test_every_catalog_canonical_has_a_quantum_risk() -> None:
     # Deps-side counterpart to the detector catalog guard (#45): a package
     # canonical absent from _QUANTUM_MAP would score UNKNOWN risk with no

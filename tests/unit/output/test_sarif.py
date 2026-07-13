@@ -12,6 +12,7 @@ from pqcheck.models import (
     SourceLocation,
 )
 from pqcheck.output.sarif import build_sarif
+from pqcheck.output.sarif_validator import validate_sarif_210
 
 
 def _finding(**kw: Any) -> CryptoFinding:
@@ -126,3 +127,17 @@ def test_policy_id_lands_in_run_properties() -> None:
     assert _run(doc)["properties"]["policy_id"] == "cryptoct-default-1.0.0"
     [res] = _run(doc)["results"]
     assert res["ruleId"] == "pqcheck/banned/RSA"
+
+
+def test_built_sarif_validates_against_official_schema() -> None:
+    f = _finding()
+    doc = build_sarif(_result(
+        policy_decisions=(_decision(f, RuleAction.FAIL),), policy_id="cryptoct-default-1.0.0",
+    ))
+    assert validate_sarif_210(doc) == []
+
+
+def test_validator_rejects_malformed_document() -> None:
+    errors = validate_sarif_210({"version": "2.1.0"})
+    assert errors
+    assert any("runs" in error for error in errors)
