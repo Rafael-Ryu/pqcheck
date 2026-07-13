@@ -72,6 +72,13 @@ _YUBIKEY_KEYGEN_HIT = AlgorithmHit("KEYGEN", AlgorithmFamily.SIGNATURE)
 _HPKE_IMPORT_PATH = "filippo.io/hpke"
 _HPKE_HYBRID_CATALOG_KEY = "filippo.io/hpke.MLKEM768X25519.GenerateKey"
 _METHOD_CONFIDENCE = 0.5
+_DOT_IMPORT_CONFIDENCE = 0.7
+# More than one dot-imported package resolves the same call name: which
+# package actually supplied it is genuinely ambiguous (unlike the ordinary
+# case, this isn't just a display artifact of picking the first sorted
+# path), so confidence drops below the medium-band threshold rather than
+# picking a winner.
+_AMBIGUOUS_DOT_IMPORT_CONFIDENCE = 0.4
 
 # The 2 MiB byte cap bounds input size but not node count: a small blob of
 # deeply nested expressions can explode into millions of nodes, and walking
@@ -320,11 +327,15 @@ class GoDetector:
 
     def _emit_dot_import(self, node: Node, func: Node) -> None:
         name = _node_text(func, self._source)
-        for path in self._imports.dot_imports():
-            hit = lookup_go_symbol(f"{path}.{name}")
-            if hit is not None:
-                self._emit(node, hit, confidence=0.7)
-                return
+        hits = [
+            hit
+            for path in self._imports.dot_imports()
+            if (hit := lookup_go_symbol(f"{path}.{name}")) is not None
+        ]
+        if not hits:
+            return
+        confidence = _DOT_IMPORT_CONFIDENCE if len(hits) == 1 else _AMBIGUOUS_DOT_IMPORT_CONFIDENCE
+        self._emit(node, hits[0], confidence=confidence)
 
     def _emit(self, node: Node, hit: AlgorithmHit, *, confidence: float) -> None:
         key_size = hit.key_size
