@@ -4792,3 +4792,262 @@
   token: "digest"
   verdict: not_site
   note: "digest(crypto.SHA224) calls a local test-file helper function, not a crypto library primitive"
+"0406e79f798c7107":
+  repo: smallstep-crypto
+  path: pemutil/pkcs8.go
+  line: 233
+  token: "pbkdf2.Key"
+  verdict: site
+  note: "golang.org/x/crypto/pbkdf2.Key call"
+"0711abefd60a0414":
+  repo: smallstep-crypto
+  path: pemutil/pkcs8.go
+  line: 236
+  token: "pbkdf2.Key"
+  verdict: site
+  note: "golang.org/x/crypto/pbkdf2.Key call"
+"106f56d468c100f7":
+  repo: go-jose
+  path: symmetric.go
+  line: 527
+  token: "hmac.New"
+  verdict: site
+  note: "crypto/hmac.New call"
+"12c6daaf6083b23a":
+  repo: sio
+  path: cmd/ncrypt/main.go
+  line: 254
+  token: "scrypt.Key"
+  verdict: site
+  note: "golang.org/x/crypto/scrypt.Key call"
+"13af75059713bbbe":
+  repo: age
+  path: agessh/agessh.go
+  line: 233
+  token: "hkdf.New"
+  verdict: site
+  note: "golang.org/x/crypto/hkdf.New call"
+"19715f248945a536":
+  repo: smallstep-crypto
+  path: pemutil/pkcs8.go
+  line: 230
+  token: "pbkdf2.Key"
+  verdict: site
+  note: "golang.org/x/crypto/pbkdf2.Key call"
+"1b9529a84b141389":
+  repo: age
+  path: scrypt.go
+  line: 77
+  token: "scrypt.Key"
+  verdict: site
+  note: "golang.org/x/crypto/scrypt.Key call"
+"1e7ab5a9d562e0df":
+  repo: age
+  path: agessh/agessh.go
+  line: 218
+  token: "hkdf.New"
+  verdict: site
+  note: "golang.org/x/crypto/hkdf.New call"
+"2f2894e42551afaf":
+  repo: age
+  path: primitives.go
+  line: 53
+  token: "hkdf.New"
+  verdict: site
+  note: "golang.org/x/crypto/hkdf.New call"
+"39874486853a7466":
+  repo: smallstep-crypto
+  path: pemutil/pkcs8.go
+  line: 165
+  token: "pbkdf2.Key"
+  verdict: site
+  note: "golang.org/x/crypto/pbkdf2.Key call"
+"46e06837ab88326b":
+  repo: golang-jwt
+  path: hmac.go
+  line: 73
+  token: "hmac.New"
+  verdict: site
+  note: "crypto/hmac.New call"
+"4d02d9dd2f465146":
+  repo: go-jose
+  path: symmetric.go
+  line: 332
+  token: "pbkdf2.Key"
+  verdict: site
+  note: "golang.org/x/crypto/pbkdf2.Key call"
+"56174f1045a3539d":
+  repo: age
+  path: agessh/agessh.go
+  line: 330
+  token: "hkdf.New"
+  verdict: site
+  note: "golang.org/x/crypto/hkdf.New call"
+"60953e89309dbf66":
+  repo: smallstep-crypto
+  path: pemutil/cosign.go
+  line: 68
+  token: "secretbox.Open"
+  verdict: site
+  note: "golang.org/x/crypto/nacl/secretbox.Open call"
+"662b2a6b7fa92c53":
+  repo: age
+  path: tag/tag.go
+  line: 122
+  token: "hkdf.Extract"
+  verdict: site
+  note: "golang.org/x/crypto/hkdf.Extract call"
+"6aad7b4ca0b0fba2":
+  repo: age
+  path: x25519.go
+  line: 88
+  token: "hkdf.New"
+  verdict: site
+  note: "golang.org/x/crypto/hkdf.New call"
+"6b5499a90d4e8aed":
+  repo: smallstep-crypto
+  path: pemutil/cosign.go
+  line: 58
+  token: "scrypt.Key"
+  verdict: site
+  note: "golang.org/x/crypto/scrypt.Key call"
+"6c6ceaebaa4574e3":
+  repo: age
+  path: x25519.go
+  line: 184
+  token: "hkdf.New"
+  verdict: site
+  note: "golang.org/x/crypto/hkdf.New call"
+"73d14eff3e55fe3e":
+  repo: age
+  path: primitives.go
+  line: 58
+  token: "hmac.New"
+  verdict: site
+  note: "crypto/hmac.New call"
+"7c5b299afa26efcf":
+  repo: sio
+  path: examples_test.go
+  line: 159
+  token: "hkdf.New"
+  verdict: site
+  note: "golang.org/x/crypto/hkdf.New call"
+"7f38dd8c4b4cad63":
+  repo: go-jose
+  path: symmetric.go
+  line: 447
+  token: "pbkdf2.Key"
+  verdict: site
+  note: "golang.org/x/crypto/pbkdf2.Key call"
+"84c2bf878600b1a1":
+  repo: smallstep-crypto
+  path: nssdb/encrypt.go
+  line: 239
+  token: "pbkdf2.Key"
+  verdict: site
+  note: "golang.org/x/crypto/pbkdf2.Key call"
+"8b70eac48a79bcdc":
+  repo: golang-jwt
+  path: hmac.go
+  line: 97
+  token: "hmac.New"
+  verdict: site
+  note: "crypto/hmac.New call"
+"92cd51692c825693":
+  repo: smallstep-crypto
+  path: pemutil/cosign_test.go
+  line: 128
+  token: "scrypt.Key"
+  verdict: site
+  note: "golang.org/x/crypto/scrypt.Key call"
+"a33288ac6fa27060":
+  repo: age
+  path: testkit_test.go
+  line: 409
+  token: "hkdf.New"
+  verdict: site
+  note: "golang.org/x/crypto/hkdf.New call"
+"a615581f3fd3ef43":
+  repo: age
+  path: agessh/agessh.go
+  line: 339
+  token: "hkdf.New"
+  verdict: site
+  note: "golang.org/x/crypto/hkdf.New call"
+"a9381769107e1c98":
+  repo: go-jose
+  path: symmetric_test.go
+  line: 184
+  token: "pbkdf2.Key"
+  verdict: site
+  note: "golang.org/x/crypto/pbkdf2.Key call"
+"b5667e5278ba8173":
+  repo: smallstep-crypto
+  path: nssdb/sign.go
+  line: 73
+  token: "hmac.New"
+  verdict: site
+  note: "crypto/hmac.New call"
+"b8b8376fe58f1aad":
+  repo: smallstep-crypto
+  path: pemutil/pkcs8.go
+  line: 240
+  token: "pbkdf2.Key"
+  verdict: site
+  note: "golang.org/x/crypto/pbkdf2.Key call"
+"b8c77cbe684cd1cd":
+  repo: sio
+  path: examples_test.go
+  line: 80
+  token: "hkdf.New"
+  verdict: site
+  note: "golang.org/x/crypto/hkdf.New call"
+"ba426c5cf2c32112":
+  repo: age
+  path: scrypt.go
+  line: 193
+  token: "scrypt.Key"
+  verdict: site
+  note: "golang.org/x/crypto/scrypt.Key call"
+"c88f0e66435b19a0":
+  repo: sio
+  path: examples_test.go
+  line: 48
+  token: "hkdf.New"
+  verdict: site
+  note: "golang.org/x/crypto/hkdf.New call"
+"cfd17383104a0641":
+  repo: age
+  path: primitives.go
+  line: 66
+  token: "hkdf.New"
+  verdict: site
+  note: "golang.org/x/crypto/hkdf.New call"
+"d291c886114ab925":
+  repo: sio
+  path: examples_test.go
+  line: 119
+  token: "hkdf.New"
+  verdict: site
+  note: "golang.org/x/crypto/hkdf.New call"
+"dcbb1ccd45adc05b":
+  repo: smallstep-crypto
+  path: pemutil/cosign_test.go
+  line: 135
+  token: "secretbox.Seal"
+  verdict: site
+  note: "golang.org/x/crypto/nacl/secretbox.Seal call"
+"e12bca8d858a0880":
+  repo: smallstep-crypto
+  path: pemutil/pkcs8.go
+  line: 243
+  token: "pbkdf2.Key"
+  verdict: site
+  note: "golang.org/x/crypto/pbkdf2.Key call"
+"e2c84b875e425ea3":
+  repo: go-jose
+  path: cipher/cbc_hmac.go
+  line: 147
+  token: "hmac.New"
+  verdict: site
+  note: "crypto/hmac.New call"

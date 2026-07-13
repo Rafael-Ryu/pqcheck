@@ -52,6 +52,12 @@ CORPUS_DIR = Path(__file__).parent
 _GENERIC_TAILS = {
     "new", "New", "generate", "Read", "verify", "sign", "Sum", "Int", "Int64", "Int31",
     "str",  # nacl.pwhash.str — bare form is the Python builtin
+    # Go catalog depth (W1): tails that collide with near-universal
+    # identifiers (file/db handles, generic map methods, the cipher.Stream
+    # interface method every stream cipher implements) — the qualified
+    # spelling (`pbkdf2.Key(`, `secretbox.Seal(`, `salsa20.XORKeyStream(`)
+    # still covers real usage without the bare form drowning the oracle.
+    "Key", "Open", "Seal", "GenerateKeyPair", "XORKeyStream",
 }
 
 
