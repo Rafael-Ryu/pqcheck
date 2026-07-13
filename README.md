@@ -59,8 +59,8 @@ Verify a release yourself (needs the `sigstore` extra; the `.sigstore.json`
 bundle ships next to each wheel on the GitHub release):
 
 ```console
-$ pqcheck verify-release pqcheck-0.0.1-py3-none-any.whl
-OK: pqcheck-0.0.1-py3-none-any.whl verified against pqcheck-0.0.1-py3-none-any.whl.sigstore.json
+$ pqcheck verify-release pqcheck-0.1.0-py3-none-any.whl
+OK: pqcheck-0.1.0-py3-none-any.whl verified against pqcheck-0.1.0-py3-none-any.whl.sigstore.json
 ```
 
 ## What it detects

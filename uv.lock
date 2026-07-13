@@ -748,7 +748,7 @@ wheels = [
 
 [[package]]
 name = "pqcheck"
-version = "0.0.1"
+version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "cyclonedx-python-lib" },
