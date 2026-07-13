@@ -1,1 +1,380 @@
-[]
+[
+  {
+    "fingerprint": "b5b2adcc54b003ce",
+    "repo": "pyjwt",
+    "path": "jwt/algorithms.py",
+    "line": 202,
+    "token": "digest"
+  },
+  {
+    "fingerprint": "afcdfb454d541491",
+    "repo": "pyjwt",
+    "path": "jwt/algorithms.py",
+    "line": 408,
+    "token": "hmac.new"
+  },
+  {
+    "fingerprint": "2ea3712c80ea9872",
+    "repo": "pyjwt",
+    "path": "jwt/algorithms.py",
+    "line": 830,
+    "token": "padding.PSS"
+  },
+  {
+    "fingerprint": "e74fdd3439348d6d",
+    "repo": "pyjwt",
+    "path": "jwt/algorithms.py",
+    "line": 843,
+    "token": "padding.PSS"
+  },
+  {
+    "fingerprint": "4cd1d03fc3761cbd",
+    "repo": "pyjwt",
+    "path": "tests/test_api_jws.py",
+    "line": 1041,
+    "token": "digest"
+  },
+  {
+    "fingerprint": "449bfbc621f72186",
+    "repo": "pyjwt",
+    "path": "tests/test_api_jws.py",
+    "line": 1064,
+    "token": "digest"
+  },
+  {
+    "fingerprint": "fdfa3958f8b43e56",
+    "repo": "python-jose",
+    "path": "jose/backends/cryptography_backend.py",
+    "line": 137,
+    "token": "digest"
+  },
+  {
+    "fingerprint": "6be6a6bb98fae53b",
+    "repo": "python-jose",
+    "path": "jose/backends/cryptography_backend.py",
+    "line": 462,
+    "token": "aead.AESGCM"
+  },
+  {
+    "fingerprint": "de76b346cea75f72",
+    "repo": "python-jose",
+    "path": "jose/backends/cryptography_backend.py",
+    "line": 486,
+    "token": "aead.AESGCM"
+  },
+  {
+    "fingerprint": "ca8b1d73d2c5b273",
+    "repo": "python-jose",
+    "path": "jose/backends/native.py",
+    "line": 59,
+    "token": "hmac.new"
+  },
+  {
+    "fingerprint": "cea047786c9ae219",
+    "repo": "python-jose",
+    "path": "jose/utils.py",
+    "line": 59,
+    "token": "digest"
+  },
+  {
+    "fingerprint": "00c396eb1c524dad",
+    "repo": "paramiko",
+    "path": "paramiko/hostkeys.py",
+    "line": 300,
+    "token": "digest"
+  },
+  {
+    "fingerprint": "1ba9f8995bdc17f5",
+    "repo": "paramiko",
+    "path": "paramiko/kex_curve25519.py",
+    "line": 90,
+    "token": "digest"
+  },
+  {
+    "fingerprint": "5385a675116e9b79",
+    "repo": "paramiko",
+    "path": "paramiko/kex_curve25519.py",
+    "line": 129,
+    "token": "digest"
+  },
+  {
+    "fingerprint": "5d3207c5a889d25a",
+    "repo": "paramiko",
+    "path": "paramiko/kex_ecdh_nist.py",
+    "line": 91,
+    "token": "digest"
+  },
+  {
+    "fingerprint": "d328c8513a59a71f",
+    "repo": "paramiko",
+    "path": "paramiko/kex_ecdh_nist.py",
+    "line": 137,
+    "token": "digest"
+  },
+  {
+    "fingerprint": "ec58cc40041d44cc",
+    "repo": "paramiko",
+    "path": "paramiko/kex_gex.py",
+    "line": 236,
+    "token": "digest"
+  },
+  {
+    "fingerprint": "811fcdfd79e512b1",
+    "repo": "paramiko",
+    "path": "paramiko/kex_gex.py",
+    "line": 278,
+    "token": "digest"
+  },
+  {
+    "fingerprint": "df8aab981b50ebd8",
+    "repo": "paramiko",
+    "path": "paramiko/kex_group14.py",
+    "line": 117,
+    "token": "digest"
+  },
+  {
+    "fingerprint": "f7a3e0df22b9baa5",
+    "repo": "paramiko",
+    "path": "paramiko/kex_group14.py",
+    "line": 141,
+    "token": "digest"
+  },
+  {
+    "fingerprint": "8aeaeb13103c8b8f",
+    "repo": "paramiko",
+    "path": "paramiko/packet.py",
+    "line": 47,
+    "token": "digest"
+  },
+  {
+    "fingerprint": "4a733b50b43fba8e",
+    "repo": "paramiko",
+    "path": "paramiko/pkey.py",
+    "line": 403,
+    "token": "digest"
+  },
+  {
+    "fingerprint": "f0290950e9a2671f",
+    "repo": "paramiko",
+    "path": "paramiko/sftp_server.py",
+    "line": 350,
+    "token": "digest"
+  },
+  {
+    "fingerprint": "d94ec45d54f9d000",
+    "repo": "paramiko",
+    "path": "paramiko/transport.py",
+    "line": 1882,
+    "token": "digest"
+  },
+  {
+    "fingerprint": "7d4dbb5bed5d2bdf",
+    "repo": "paramiko",
+    "path": "paramiko/transport.py",
+    "line": 1888,
+    "token": "digest"
+  },
+  {
+    "fingerprint": "7f7993d0f9835b92",
+    "repo": "paramiko",
+    "path": "paramiko/util.py",
+    "line": 166,
+    "token": "digest"
+  },
+  {
+    "fingerprint": "ddd0779b41a99ba7",
+    "repo": "sigstore-python",
+    "path": "sigstore/_internal/rekor/client_v2.py",
+    "line": 149,
+    "token": "digest"
+  },
+  {
+    "fingerprint": "a371d2f0023c20c8",
+    "repo": "sigstore-python",
+    "path": "sigstore/_utils.py",
+    "line": 209,
+    "token": "digest"
+  },
+  {
+    "fingerprint": "82ceb2c17440c571",
+    "repo": "sigstore-python",
+    "path": "sigstore/verify/verifier.py",
+    "line": 604,
+    "token": "digest"
+  },
+  {
+    "fingerprint": "83602b9ee9cc13a3",
+    "repo": "sigstore-python",
+    "path": "test/unit/internal/test_key_details.py",
+    "line": 134,
+    "token": "padding.PSS"
+  },
+  {
+    "fingerprint": "9c57a00db5723973",
+    "repo": "sigstore-python",
+    "path": "test/unit/internal/test_key_details.py",
+    "line": 148,
+    "token": "padding.PSS"
+  },
+  {
+    "fingerprint": "ddd6c289f9ac3a7f",
+    "repo": "sigstore-python",
+    "path": "test/unit/internal/test_key_details.py",
+    "line": 162,
+    "token": "padding.PSS"
+  },
+  {
+    "fingerprint": "66f26710021340da",
+    "repo": "sigstore-python",
+    "path": "test/unit/test_sign.py",
+    "line": 88,
+    "token": "secrets.token_bytes"
+  },
+  {
+    "fingerprint": "bd53959194334035",
+    "repo": "sigstore-python",
+    "path": "test/unit/test_sign.py",
+    "line": 112,
+    "token": "secrets.token_bytes"
+  },
+  {
+    "fingerprint": "70fb115f6a9d9f66",
+    "repo": "sigstore-python",
+    "path": "test/unit/test_sign.py",
+    "line": 132,
+    "token": "secrets.token_bytes"
+  },
+  {
+    "fingerprint": "a0a60cc141d145c4",
+    "repo": "sigstore-python",
+    "path": "test/unit/test_sign.py",
+    "line": 151,
+    "token": "secrets.token_bytes"
+  },
+  {
+    "fingerprint": "46ffd66a7d956c66",
+    "repo": "sigstore-python",
+    "path": "test/unit/test_sign.py",
+    "line": 170,
+    "token": "secrets.token_bytes"
+  },
+  {
+    "fingerprint": "34e862f15b6b5c8e",
+    "repo": "sigstore-python",
+    "path": "test/unit/test_sign.py",
+    "line": 184,
+    "token": "secrets.token_bytes"
+  },
+  {
+    "fingerprint": "9f6acf7f0ffab949",
+    "repo": "oauthlib",
+    "path": "oauthlib/common.py",
+    "line": 196,
+    "token": "SystemRandom"
+  },
+  {
+    "fingerprint": "98a9df832a405e52",
+    "repo": "oauthlib",
+    "path": "oauthlib/common.py",
+    "line": 197,
+    "token": "choice"
+  },
+  {
+    "fingerprint": "6d2a99ab7bddcc30",
+    "repo": "oauthlib",
+    "path": "oauthlib/oauth1/rfc5849/signature.py",
+    "line": 421,
+    "token": "hmac.new"
+  },
+  {
+    "fingerprint": "362ab31de9f1c64b",
+    "repo": "oauthlib",
+    "path": "oauthlib/oauth1/rfc5849/signature.py",
+    "line": 428,
+    "token": "digest"
+  },
+  {
+    "fingerprint": "563751a9d0c6db51",
+    "repo": "oauthlib",
+    "path": "oauthlib/oauth2/rfc6749/clients/base.py",
+    "line": 540,
+    "token": "digest"
+  },
+  {
+    "fingerprint": "745dbedd93dce54c",
+    "repo": "oauthlib",
+    "path": "oauthlib/oauth2/rfc6749/tokens.py",
+    "line": 131,
+    "token": "digest"
+  },
+  {
+    "fingerprint": "4dab9c6cbb7e8a0b",
+    "repo": "oauthlib",
+    "path": "oauthlib/oauth2/rfc6749/tokens.py",
+    "line": 154,
+    "token": "hmac.new"
+  },
+  {
+    "fingerprint": "4e734e004f7d2dce",
+    "repo": "oauthlib",
+    "path": "oauthlib/oauth2/rfc6749/tokens.py",
+    "line": 155,
+    "token": "digest"
+  },
+  {
+    "fingerprint": "250202e1d179af5b",
+    "repo": "oauthlib",
+    "path": "oauthlib/openid/connect/core/grant_types/base.py",
+    "line": 70,
+    "token": "digest"
+  },
+  {
+    "fingerprint": "505515d0912900de",
+    "repo": "age",
+    "path": "pq.go",
+    "line": 72,
+    "token": "ChaCha20Poly1305"
+  },
+  {
+    "fingerprint": "5761dfc431e65264",
+    "repo": "age",
+    "path": "pq.go",
+    "line": 158,
+    "token": "ChaCha20Poly1305"
+  },
+  {
+    "fingerprint": "94ee8269371b0081",
+    "repo": "age",
+    "path": "tag/internal/tagtest/tagtest.go",
+    "line": 80,
+    "token": "ChaCha20Poly1305"
+  },
+  {
+    "fingerprint": "cc78f1b98202a765",
+    "repo": "age",
+    "path": "tag/internal/tagtest/tagtest.go",
+    "line": 145,
+    "token": "ChaCha20Poly1305"
+  },
+  {
+    "fingerprint": "0adb007fdc8ef0fd",
+    "repo": "age",
+    "path": "tag/tag.go",
+    "line": 142,
+    "token": "ChaCha20Poly1305"
+  },
+  {
+    "fingerprint": "392db132ec4bbd7d",
+    "repo": "go-jose",
+    "path": "doc_test.go",
+    "line": 84,
+    "token": "PSS"
+  },
+  {
+    "fingerprint": "d2a112a336ba5a90",
+    "repo": "smallstep-crypto",
+    "path": "tpm/tss2/signer_test.go",
+    "line": 328,
+    "token": "digest"
+  }
+]

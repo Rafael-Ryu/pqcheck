@@ -1,27 +1,27 @@
 {
-  "sites": 527,
-  "detected": 527,
+  "sites": 547,
+  "detected": 547,
   "recall": 1.0,
   "per_repo": {
     "pyjwt": {
-      "sites": 6,
-      "detected": 6
-    },
-    "python-jose": {
       "sites": 11,
       "detected": 11
+    },
+    "python-jose": {
+      "sites": 14,
+      "detected": 14
     },
     "paramiko": {
       "sites": 27,
       "detected": 27
     },
     "sigstore-python": {
-      "sites": 51,
-      "detected": 51
+      "sites": 60,
+      "detected": 60
     },
     "oauthlib": {
-      "sites": 3,
-      "detected": 3
+      "sites": 6,
+      "detected": 6
     },
     "golang-jwt": {
       "sites": 1,

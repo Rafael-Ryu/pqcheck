@@ -4411,3 +4411,384 @@
   token: "rsa.GenerateKey"
   verdict: site
   note: "crypto/rsa.GenerateKey call in test file, crypto/rsa imported"
+
+# --- W2 (Python catalog depth) additions: HMAC/PBKDF2/SCRYPT/HKDF/AEAD/
+# Fernet/PSS/argon2/bcrypt/secrets oracle candidates, adjudicated 2026-07-13.
+"b5b2adcc54b003ce":
+  repo: pyjwt
+  path: jwt/algorithms.py
+  line: 202
+  token: "digest"
+  verdict: not_site
+  note: "hash_alg(bytestr).digest(), generic hash-object method call"
+"afcdfb454d541491":
+  repo: pyjwt
+  path: jwt/algorithms.py
+  line: 408
+  token: "hmac.new"
+  verdict: site
+  note: "hmac.new(key, msg, self.hash_alg).digest(), plain hmac import"
+"2ea3712c80ea9872":
+  repo: pyjwt
+  path: jwt/algorithms.py
+  line: 830
+  token: "padding.PSS"
+  verdict: site
+  note: "padding.PSS(mgf=padding.MGF1(...)) RSA-PSS signature construction"
+"e74fdd3439348d6d":
+  repo: pyjwt
+  path: jwt/algorithms.py
+  line: 843
+  token: "padding.PSS"
+  verdict: site
+  note: "padding.PSS(mgf=padding.MGF1(...)) RSA-PSS verify construction"
+"4cd1d03fc3761cbd":
+  repo: pyjwt
+  path: tests/test_api_jws.py
+  line: 1041
+  token: "digest"
+  verdict: site
+  note: "_hmac.new(secret, signing_input, _hashlib.sha256).digest() — hmac imported as _hmac, the real detectable call is hmac.new on this line"
+"449bfbc621f72186":
+  repo: pyjwt
+  path: tests/test_api_jws.py
+  line: 1064
+  token: "digest"
+  verdict: site
+  note: "_hmac.new(secret, signing_input, _hashlib.sha256).digest() — same as line 1041"
+"fdfa3958f8b43e56":
+  repo: python-jose
+  path: jose/backends/cryptography_backend.py
+  line: 137
+  token: "digest"
+  verdict: not_site
+  note: "string literal 'for your digest (%d)' in an exception message, not a call"
+"6be6a6bb98fae53b":
+  repo: python-jose
+  path: jose/backends/cryptography_backend.py
+  line: 462
+  token: "aead.AESGCM"
+  verdict: site
+  note: "aead.AESGCM(self._key) direct AEAD construction"
+"de76b346cea75f72":
+  repo: python-jose
+  path: jose/backends/cryptography_backend.py
+  line: 486
+  token: "aead.AESGCM"
+  verdict: site
+  note: "aead.AESGCM(self._key) direct AEAD construction (decrypt path)"
+"ca8b1d73d2c5b273":
+  repo: python-jose
+  path: jose/backends/native.py
+  line: 59
+  token: "hmac.new"
+  verdict: site
+  note: "hmac.new(self.prepared_key, msg, self._hash_alg).digest(), plain hmac import"
+"cea047786c9ae219":
+  repo: python-jose
+  path: jose/utils.py
+  line: 59
+  token: "digest"
+  verdict: not_site
+  note: "hash_alg(...).digest(), hash_alg is a caller-supplied callable, generic method call"
+"00c396eb1c524dad":
+  repo: paramiko
+  path: paramiko/hostkeys.py
+  line: 300
+  token: "digest"
+  verdict: not_site
+  note: "HMAC(salt, hostname, sha1).digest() — HMAC class construction not catalogued (only hmac.new/hmac.digest), .digest() is a generic method call"
+"1ba9f8995bdc17f5":
+  repo: paramiko
+  path: paramiko/kex_curve25519.py
+  line: 90
+  token: "digest"
+  verdict: not_site
+  note: "self.hash_algo(hm.asbytes()).digest(), generic hash-object method call"
+"5385a675116e9b79":
+  repo: paramiko
+  path: paramiko/kex_curve25519.py
+  line: 129
+  token: "digest"
+  verdict: not_site
+  note: "self.hash_algo(hm.asbytes()).digest(), generic hash-object method call"
+"5d3207c5a889d25a":
+  repo: paramiko
+  path: paramiko/kex_ecdh_nist.py
+  line: 91
+  token: "digest"
+  verdict: not_site
+  note: "self.hash_algo(hm.asbytes()).digest(), generic hash-object method call"
+"d328c8513a59a71f":
+  repo: paramiko
+  path: paramiko/kex_ecdh_nist.py
+  line: 137
+  token: "digest"
+  verdict: not_site
+  note: "self.hash_algo(hm.asbytes()).digest(), generic hash-object method call"
+"ec58cc40041d44cc":
+  repo: paramiko
+  path: paramiko/kex_gex.py
+  line: 236
+  token: "digest"
+  verdict: not_site
+  note: "self.hash_algo(hm.asbytes()).digest(), generic hash-object method call"
+"811fcdfd79e512b1":
+  repo: paramiko
+  path: paramiko/kex_gex.py
+  line: 278
+  token: "digest"
+  verdict: not_site
+  note: "self.hash_algo(hm.asbytes()).digest(), generic hash-object method call"
+"df8aab981b50ebd8":
+  repo: paramiko
+  path: paramiko/kex_group14.py
+  line: 117
+  token: "digest"
+  verdict: not_site
+  note: "self.hash_algo(hm.asbytes()).digest(), generic hash-object method call"
+"f7a3e0df22b9baa5":
+  repo: paramiko
+  path: paramiko/kex_group14.py
+  line: 141
+  token: "digest"
+  verdict: not_site
+  note: "self.hash_algo(hm.asbytes()).digest(), generic hash-object method call"
+"8aeaeb13103c8b8f":
+  repo: paramiko
+  path: paramiko/packet.py
+  line: 47
+  token: "digest"
+  verdict: not_site
+  note: "HMAC(key, message, digest_class).digest() — HMAC class construction not catalogued, .digest() is a generic method call"
+"4a733b50b43fba8e":
+  repo: paramiko
+  path: paramiko/pkey.py
+  line: 403
+  token: "digest"
+  verdict: not_site
+  note: "hashy.digest(), generic hash-object method call"
+"f0290950e9a2671f":
+  repo: paramiko
+  path: paramiko/sftp_server.py
+  line: 350
+  token: "digest"
+  verdict: not_site
+  note: "hash_obj.digest(), generic hash-object method call"
+"d94ec45d54f9d000":
+  repo: paramiko
+  path: paramiko/transport.py
+  line: 1882
+  token: "digest"
+  verdict: not_site
+  note: "hash_algo(m.asbytes()).digest(), generic hash-object method call"
+"7d4dbb5bed5d2bdf":
+  repo: paramiko
+  path: paramiko/transport.py
+  line: 1888
+  token: "digest"
+  verdict: not_site
+  note: "hash_algo(m.asbytes()).digest(), generic hash-object method call"
+"7f7993d0f9835b92":
+  repo: paramiko
+  path: paramiko/util.py
+  line: 166
+  token: "digest"
+  verdict: not_site
+  note: "hash_obj.digest(), generic hash-object method call"
+"ddd0779b41a99ba7":
+  repo: sigstore-python
+  path: sigstore/_internal/rekor/client_v2.py
+  line: 149
+  token: "digest"
+  verdict: not_site
+  note: "hash_func(envelope.pae()).digest(), generic hash-object method call"
+"a371d2f0023c20c8":
+  repo: sigstore-python
+  path: sigstore/_utils.py
+  line: 209
+  token: "digest"
+  verdict: not_site
+  note: "sha256.digest(), generic hash-object method call"
+"82ceb2c17440c571":
+  repo: sigstore-python
+  path: sigstore/verify/verifier.py
+  line: 604
+  token: "digest"
+  verdict: not_site
+  note: "hash_func(envelope.pae()).digest(), generic hash-object method call"
+"83602b9ee9cc13a3":
+  repo: sigstore-python
+  path: test/unit/internal/test_key_details.py
+  line: 134
+  token: "padding.PSS"
+  verdict: site
+  note: "padding.PSS(...) RSA-PSS construction, test file"
+"9c57a00db5723973":
+  repo: sigstore-python
+  path: test/unit/internal/test_key_details.py
+  line: 148
+  token: "padding.PSS"
+  verdict: site
+  note: "padding.PSS(...) RSA-PSS construction, test file"
+"ddd6c289f9ac3a7f":
+  repo: sigstore-python
+  path: test/unit/internal/test_key_details.py
+  line: 162
+  token: "padding.PSS"
+  verdict: site
+  note: "padding.PSS(...) RSA-PSS construction, test file"
+"66f26710021340da":
+  repo: sigstore-python
+  path: test/unit/test_sign.py
+  line: 88
+  token: "secrets.token_bytes"
+  verdict: site
+  note: "secrets.token_bytes(32), test file"
+"bd53959194334035":
+  repo: sigstore-python
+  path: test/unit/test_sign.py
+  line: 112
+  token: "secrets.token_bytes"
+  verdict: site
+  note: "secrets.token_bytes(32), test file"
+"70fb115f6a9d9f66":
+  repo: sigstore-python
+  path: test/unit/test_sign.py
+  line: 132
+  token: "secrets.token_bytes"
+  verdict: site
+  note: "secrets.token_bytes(32), test file"
+"a0a60cc141d145c4":
+  repo: sigstore-python
+  path: test/unit/test_sign.py
+  line: 151
+  token: "secrets.token_bytes"
+  verdict: site
+  note: "secrets.token_bytes(32), test file"
+"46ffd66a7d956c66":
+  repo: sigstore-python
+  path: test/unit/test_sign.py
+  line: 170
+  token: "secrets.token_bytes"
+  verdict: site
+  note: "secrets.token_bytes(32), test file"
+"34e862f15b6b5c8e":
+  repo: sigstore-python
+  path: test/unit/test_sign.py
+  line: 184
+  token: "secrets.token_bytes"
+  verdict: site
+  note: "secrets.token_bytes(32), test file"
+"9f6acf7f0ffab949":
+  repo: oauthlib
+  path: oauthlib/common.py
+  line: 196
+  token: "SystemRandom"
+  verdict: site
+  note: "SystemRandom() constructed; try/except imports from secrets with a random.SystemRandom fallback for pre-3.6 — our import resolver takes the last binding (random.SystemRandom), both map to CSPRNG"
+"98a9df832a405e52":
+  repo: oauthlib
+  path: oauthlib/common.py
+  line: 197
+  token: "choice"
+  verdict: not_site
+  note: "rand.choice(chars) is an instance method on a local SystemRandom object, not the secrets.choice module function — dataflow-dependent, not catalogued"
+"6d2a99ab7bddcc30":
+  repo: oauthlib
+  path: oauthlib/oauth1/rfc5849/signature.py
+  line: 421
+  token: "hmac.new"
+  verdict: site
+  note: "hmac.new(key_utf8, text_utf8, hash_alg), plain hmac import"
+"362ab31de9f1c64b":
+  repo: oauthlib
+  path: oauthlib/oauth1/rfc5849/signature.py
+  line: 428
+  token: "digest"
+  verdict: not_site
+  note: "signature.digest(), generic method call on the hmac.new() result from line 421"
+"563751a9d0c6db51":
+  repo: oauthlib
+  path: oauthlib/oauth2/rfc6749/clients/base.py
+  line: 540
+  token: "digest"
+  verdict: not_site
+  note: "h.digest() where h = hashlib.sha256(), generic hash-object method call"
+"745dbedd93dce54c":
+  repo: oauthlib
+  path: oauthlib/oauth2/rfc6749/tokens.py
+  line: 131
+  token: "digest"
+  verdict: not_site
+  note: "h(body).digest(), h is a caller-supplied hash constructor, generic method call"
+"4dab9c6cbb7e8a0b":
+  repo: oauthlib
+  path: oauthlib/oauth2/rfc6749/tokens.py
+  line: 154
+  token: "hmac.new"
+  verdict: site
+  note: "hmac.new(key, base_string.encode('utf-8'), h), plain hmac import"
+"4e734e004f7d2dce":
+  repo: oauthlib
+  path: oauthlib/oauth2/rfc6749/tokens.py
+  line: 155
+  token: "digest"
+  verdict: not_site
+  note: "sign.digest(), generic method call on the hmac.new() result from line 154"
+"250202e1d179af5b":
+  repo: oauthlib
+  path: oauthlib/openid/connect/core/grant_types/base.py
+  line: 70
+  token: "digest"
+  verdict: not_site
+  note: "hashfunc(value.encode()).digest(), hashfunc is a caller-supplied callable, generic method call"
+"505515d0912900de":
+  repo: age
+  path: pq.go
+  line: 72
+  token: "ChaCha20Poly1305"
+  verdict: not_site
+  note: "hpke.ChaCha20Poly1305() from filippo.io/hpke, a different package than the catalogued cryptography.hazmat...ciphers.aead.ChaCha20Poly1305"
+"5761dfc431e65264":
+  repo: age
+  path: pq.go
+  line: 158
+  token: "ChaCha20Poly1305"
+  verdict: not_site
+  note: "hpke.ChaCha20Poly1305() from filippo.io/hpke, a different package than the catalogued cryptography.hazmat...ciphers.aead.ChaCha20Poly1305"
+"94ee8269371b0081":
+  repo: age
+  path: tag/internal/tagtest/tagtest.go
+  line: 80
+  token: "ChaCha20Poly1305"
+  verdict: not_site
+  note: "hpke.ChaCha20Poly1305() from filippo.io/hpke, a different package than the catalogued cryptography.hazmat...ciphers.aead.ChaCha20Poly1305"
+"cc78f1b98202a765":
+  repo: age
+  path: tag/internal/tagtest/tagtest.go
+  line: 145
+  token: "ChaCha20Poly1305"
+  verdict: not_site
+  note: "hpke.ChaCha20Poly1305() from filippo.io/hpke, a different package than the catalogued cryptography.hazmat...ciphers.aead.ChaCha20Poly1305"
+"0adb007fdc8ef0fd":
+  repo: age
+  path: tag/tag.go
+  line: 142
+  token: "ChaCha20Poly1305"
+  verdict: not_site
+  note: "hpke.ChaCha20Poly1305() from filippo.io/hpke, a different package than the catalogued cryptography.hazmat...ciphers.aead.ChaCha20Poly1305"
+"392db132ec4bbd7d":
+  repo: go-jose
+  path: doc_test.go
+  line: 84
+  token: "PSS"
+  verdict: not_site
+  note: "'RSASSA-PSS (SHA512)' appears in a comment, not a call"
+"d2a112a336ba5a90":
+  repo: smallstep-crypto
+  path: tpm/tss2/signer_test.go
+  line: 328
+  token: "digest"
+  verdict: not_site
+  note: "digest(crypto.SHA224) calls a local test-file helper function, not a crypto library primitive"

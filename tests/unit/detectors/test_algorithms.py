@@ -1,5 +1,6 @@
 from pqcheck.detectors.algorithms import (
     AlgorithmHit,
+    hashlib_new_table,
     lookup_cipher_mode,
     lookup_go_symbol,
     lookup_python_symbol,
@@ -172,3 +173,91 @@ def test_normalize_curve_unknown_passes_through() -> None:
     # A curve without a policy spelling keeps its original casing.
     assert normalize_curve("X25519") == "X25519"
     assert normalize_curve("brainpoolP256r1") == "brainpoolP256r1"
+
+
+# --- W2 catalog additions: representative direct lookups ---
+
+
+def test_hmac_new_resolves() -> None:
+    hit = lookup_python_symbol("hmac.new")
+    assert hit == AlgorithmHit(canonical="HMAC", family=AlgorithmFamily.MAC)
+
+
+def test_hashlib_pbkdf2_hmac_resolves() -> None:
+    hit = lookup_python_symbol("hashlib.pbkdf2_hmac")
+    assert hit == AlgorithmHit(canonical="PBKDF2", family=AlgorithmFamily.KDF)
+
+
+def test_secrets_token_bytes_resolves() -> None:
+    hit = lookup_python_symbol("secrets.token_bytes")
+    assert hit == AlgorithmHit(canonical="CSPRNG", family=AlgorithmFamily.RNG)
+
+
+def test_cryptography_hkdf_resolves() -> None:
+    hit = lookup_python_symbol("cryptography.hazmat.primitives.kdf.hkdf.HKDF")
+    assert hit == AlgorithmHit(canonical="HKDF", family=AlgorithmFamily.KDF)
+
+
+def test_cryptography_aesgcm_resolves() -> None:
+    hit = lookup_python_symbol("cryptography.hazmat.primitives.ciphers.aead.AESGCM")
+    assert hit == AlgorithmHit(canonical="AES-GCM", family=AlgorithmFamily.AEAD)
+
+
+def test_cryptography_pss_padding_resolves() -> None:
+    hit = lookup_python_symbol("cryptography.hazmat.primitives.asymmetric.padding.PSS")
+    assert hit == AlgorithmHit(
+        canonical="RSA", family=AlgorithmFamily.ASYMMETRIC_ENCRYPTION, padding="PSS"
+    )
+
+
+def test_cryptography_fernet_resolves() -> None:
+    hit = lookup_python_symbol("cryptography.fernet.Fernet")
+    assert hit == AlgorithmHit(canonical="FERNET", family=AlgorithmFamily.AEAD)
+
+
+def test_argon2_password_hasher_resolves() -> None:
+    hit = lookup_python_symbol("argon2.PasswordHasher")
+    assert hit == AlgorithmHit(canonical="ARGON2", family=AlgorithmFamily.KDF)
+
+
+def test_bcrypt_hashpw_resolves() -> None:
+    hit = lookup_python_symbol("bcrypt.hashpw")
+    assert hit == AlgorithmHit(canonical="BCRYPT", family=AlgorithmFamily.KDF)
+
+
+def test_pycryptodome_pbkdf1_resolves() -> None:
+    hit = lookup_python_symbol("Crypto.Protocol.KDF.PBKDF1")
+    assert hit == AlgorithmHit(canonical="PBKDF1", family=AlgorithmFamily.KDF)
+
+
+def test_pycryptodome_pkcs1_15_resolves() -> None:
+    hit = lookup_python_symbol("Crypto.Signature.pkcs1_15.new")
+    assert hit == AlgorithmHit(
+        canonical="RSA", family=AlgorithmFamily.SIGNATURE, padding="PKCS1v15"
+    )
+
+
+def test_pycryptodome_eddsa_new_resolves_without_curve() -> None:
+    hit = lookup_python_symbol("Crypto.Signature.eddsa.new")
+    assert hit == AlgorithmHit(canonical="EdDSA", family=AlgorithmFamily.SIGNATURE)
+
+
+def test_pycryptodome_dh_key_agreement_resolves() -> None:
+    hit = lookup_python_symbol("Crypto.Protocol.DH.key_agreement")
+    assert hit == AlgorithmHit(canonical="DH", family=AlgorithmFamily.KEY_AGREEMENT)
+
+
+def test_pycryptodome_dss_new_is_not_catalogued() -> None:
+    assert lookup_python_symbol("Crypto.Signature.DSS.new") is None
+
+
+def test_ecc_construct_is_not_catalogued() -> None:
+    assert lookup_python_symbol("Crypto.PublicKey.ECC.construct") is None
+
+
+def test_hashlib_new_table_excludes_kdf_entries() -> None:
+    # hashlib.pbkdf2_hmac/scrypt share the hashlib.* prefix but are not
+    # digest algorithms hashlib.new() can dispatch to.
+    table = hashlib_new_table()
+    assert "pbkdf2_hmac" not in table
+    assert "scrypt" not in table

@@ -146,6 +146,37 @@ _QUANTUM_MAP: dict[str, QuantumRisk] = {
     # opposite finding from MATH-RAND above. SAFE here is a positive
     # attestation — pqcheck surfaces correct RNG choice, not just violations.
     "CSPRNG": QuantumRisk.SAFE,
+    # Python catalog depth (W2): MACs/KDFs/AEADs added for pyca/cryptography,
+    # argon2-cffi, bcrypt, and pycryptodome coverage. None of these carry a
+    # Shor-breakable structure — they are hash/block-cipher-based
+    # constructions, so classification follows the SHA-2/AES/ARGON2/BCRYPT
+    # precedents above rather than introducing a new risk tier.
+    "HMAC": QuantumRisk.SAFE,
+    "HKDF": QuantumRisk.SAFE,
+    "PBKDF2": QuantumRisk.SAFE,
+    "SCRYPT": QuantumRisk.SAFE,
+    # PBKDF1 (RFC 2898 legacy, deprecated by RFC 8018 SS3): capped at the
+    # underlying hash's digest length and long superseded by PBKDF2.
+    # Not quantum-relevant either way, but the classical weakness is real
+    # enough that treating it as equivalent to PBKDF2 would be dishonest —
+    # VULNERABLE mirrors RIPEMD-160's "known-weak but not practically
+    # broken" tier above, not PBKDF2's SAFE.
+    "PBKDF1": QuantumRisk.VULNERABLE,
+    # Direct AEAD constructions (cryptography.hazmat.primitives.ciphers.aead):
+    # each fuses a symmetric cipher with its mode into one canonical, same
+    # SAFE verdict as the underlying AES/ChaCha20 entries above.
+    "AES-GCM": QuantumRisk.SAFE,
+    "AES-GCM-SIV": QuantumRisk.SAFE,
+    "AES-OCB3": QuantumRisk.SAFE,
+    "AES-SIV": QuantumRisk.SAFE,
+    "AES-CCM": QuantumRisk.SAFE,
+    "CHACHA20-POLY1305": QuantumRisk.SAFE,
+    # Fernet: AES-128-CBC + HMAC-SHA256 fused behind one API (cryptography.
+    # fernet.Fernet). Same precedent as XSALSA20-POLY1305 above — a
+    # symmetric construction with no Shor-vulnerable structure, SAFE on the
+    # quantum-risk axis even though AES-128-in-new-code is a separate
+    # policy-severity concern (02 SS3) this field does not encode.
+    "FERNET": QuantumRisk.SAFE,
 }
 
 

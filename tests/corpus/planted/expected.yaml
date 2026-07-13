@@ -76,3 +76,47 @@ planted:
   - {path: python/pynacl_primitives.py, line: 18, algorithm: ARGON2}
   - {path: python/pynacl_primitives.py, line: 19, algorithm: ARGON2}
   - {path: python/pynacl_primitives.py, line: 20, algorithm: ARGON2}
+
+  - {path: python/kdf_mac.py, line: 19, algorithm: HMAC}
+  - {path: python/kdf_mac.py, line: 20, algorithm: HMAC}
+  - {path: python/kdf_mac.py, line: 21, algorithm: PBKDF2}
+  - {path: python/kdf_mac.py, line: 22, algorithm: SCRYPT}
+  - {path: python/kdf_mac.py, line: 24, algorithm: CSPRNG}
+  - {path: python/kdf_mac.py, line: 25, algorithm: CSPRNG}
+  - {path: python/kdf_mac.py, line: 26, algorithm: CSPRNG}
+  - {path: python/kdf_mac.py, line: 27, algorithm: CSPRNG}
+  - {path: python/kdf_mac.py, line: 28, algorithm: CSPRNG}
+  - {path: python/kdf_mac.py, line: 29, algorithm: CSPRNG}
+  - {path: python/kdf_mac.py, line: 31, algorithm: HKDF}
+  - {path: python/kdf_mac.py, line: 32, algorithm: HKDF}
+  - {path: python/kdf_mac.py, line: 33, algorithm: PBKDF2}
+  - {path: python/kdf_mac.py, line: 34, algorithm: SCRYPT}
+  - {path: python/kdf_mac.py, line: 36, algorithm: ARGON2}
+  - {path: python/kdf_mac.py, line: 37, algorithm: ARGON2}
+  - {path: python/kdf_mac.py, line: 38, algorithm: ARGON2}
+  - {path: python/kdf_mac.py, line: 39, algorithm: ARGON2}
+  - {path: python/kdf_mac.py, line: 42, algorithm: BCRYPT}
+  - {path: python/kdf_mac.py, line: 43, algorithm: BCRYPT}
+  - {path: python/kdf_mac.py, line: 45, algorithm: PBKDF2}
+  - {path: python/kdf_mac.py, line: 46, algorithm: PBKDF1}
+  - {path: python/kdf_mac.py, line: 47, algorithm: SCRYPT}
+  - {path: python/kdf_mac.py, line: 48, algorithm: HKDF}
+  - {path: python/kdf_mac.py, line: 49, algorithm: BCRYPT}
+  - {path: python/kdf_mac.py, line: 50, algorithm: BCRYPT}
+  - {path: python/kdf_mac.py, line: 52, algorithm: HMAC}
+
+  - {path: python/aead_and_padding.py, line: 19, algorithm: AES-GCM}
+  - {path: python/aead_and_padding.py, line: 20, algorithm: AES-GCM-SIV}
+  - {path: python/aead_and_padding.py, line: 21, algorithm: AES-OCB3}
+  - {path: python/aead_and_padding.py, line: 22, algorithm: AES-SIV}
+  - {path: python/aead_and_padding.py, line: 23, algorithm: AES-CCM}
+  - {path: python/aead_and_padding.py, line: 24, algorithm: CHACHA20-POLY1305}
+  - {path: python/aead_and_padding.py, line: 26, algorithm: RSA}
+  - {path: python/aead_and_padding.py, line: 29, algorithm: FERNET}
+
+  - {path: python/pycryptodome_signatures.py, line: 14, algorithm: RSA}
+  - {path: python/pycryptodome_signatures.py, line: 15, algorithm: RSA}
+  - {path: python/pycryptodome_signatures.py, line: 16, algorithm: RSA}
+  - {path: python/pycryptodome_signatures.py, line: 18, algorithm: ECDSA}
+  - {path: python/pycryptodome_signatures.py, line: 19, algorithm: EdDSA}
+  - {path: python/pycryptodome_signatures.py, line: 21, algorithm: DH}
