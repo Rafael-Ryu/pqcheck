@@ -177,6 +177,37 @@ _QUANTUM_MAP: dict[str, QuantumRisk] = {
     # quantum-risk axis even though AES-128-in-new-code is a separate
     # policy-severity concern (02 SS3) this field does not encode.
     "FERNET": QuantumRisk.SAFE,
+    # Go catalog depth (W1). HMAC/HKDF/PBKDF2/SCRYPT are shared with the
+    # Python catalog entries above (same canonicals, same SAFE verdict —
+    # cross-language parity by construction).
+    # x/crypto/salsa20: same threat model as CHACHA20 above — a stream
+    # cipher with a 256-bit key and no Shor-vulnerable structure.
+    "SALSA20": QuantumRisk.SAFE,
+    # Twofish: AES-finalist block cipher, 128/192/256-bit keys. Same
+    # precedent as AES/CHACHA20 — not Shor-breakable, not policy-approved
+    # either (mirrors XSALSA20-POLY1305's split above).
+    "TWOFISH": QuantumRisk.SAFE,
+    # §3-reconciliation style (see BLOWFISH/IDEA above): CAST5 and TEA are
+    # 64-bit-block ciphers, Sweet32-class broken regardless of quantum
+    # computing.
+    "CAST5": QuantumRisk.BROKEN,
+    "TEA": QuantumRisk.BROKEN,
+    # MD4: weaker than MD5, practical collisions long since demonstrated.
+    "MD4": QuantumRisk.BROKEN,
+    # circl's pre-standardization NIST submission names for the algorithms
+    # that became ML-KEM/ML-DSA (FIPS 203/204). Same quantum-risk verdict as
+    # their standardized counterparts; kept as distinct canonicals because
+    # the encodings are not bit-compatible (see catalog entries).
+    "KYBER": QuantumRisk.SAFE,
+    "DILITHIUM": QuantumRisk.SAFE,
+    # circl's hpke.NewSuite: the concrete KEM is a runtime constant argument
+    # (KEM_P256_HKDF_SHA256 … KEM_X25519_HKDF_SHA256, but also the hybrid
+    # KEM_X25519_KYBER768_DRAFT00 / KEM_XWING) that static analysis cannot
+    # resolve — the same dataflow-opaque situation as ECC above. Most
+    # deployed suites still pick a classical-only KEM, so this defaults to
+    # the conservative (flagged) verdict rather than assuming the hybrid
+    # case; a real hybrid deployment should be verified manually.
+    "HPKE": QuantumRisk.VULNERABLE,
 }
 
 

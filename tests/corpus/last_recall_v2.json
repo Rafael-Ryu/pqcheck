@@ -1,6 +1,6 @@
 {
-  "sites": 547,
-  "detected": 547,
+  "sites": 584,
+  "detected": 584,
   "recall": 1.0,
   "per_repo": {
     "pyjwt": {
@@ -24,24 +24,24 @@
       "detected": 6
     },
     "golang-jwt": {
-      "sites": 1,
-      "detected": 1
+      "sites": 3,
+      "detected": 3
     },
     "age": {
-      "sites": 77,
-      "detected": 77
+      "sites": 90,
+      "detected": 90
     },
     "go-jose": {
-      "sites": 98,
-      "detected": 98
+      "sites": 103,
+      "detected": 103
     },
     "sio": {
-      "sites": 2,
-      "detected": 2
+      "sites": 7,
+      "detected": 7
     },
     "smallstep-crypto": {
-      "sites": 251,
-      "detected": 251
+      "sites": 263,
+      "detected": 263
     }
   },
   "misses": []

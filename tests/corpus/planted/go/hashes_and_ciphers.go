@@ -8,9 +8,11 @@ package planted
 
 import (
 	"crypto/des"
+	"crypto/hmac"
 	"crypto/md5"
 	"crypto/rc4"
 	"crypto/sha1"
+	"crypto/sha256"
 
 	"golang.org/x/crypto/blowfish"
 	"golang.org/x/crypto/chacha20poly1305"
@@ -26,4 +28,5 @@ func plantedHashesAndCiphers() {
 	_, _ = blowfish.NewCipher([]byte("blowfishkey12345"))
 	_ = ripemd160.New()
 	_, _ = chacha20poly1305.New([]byte("0123456789abcdef0123456789abcdef"))
+	_ = hmac.New(sha256.New, []byte("key"))
 }
