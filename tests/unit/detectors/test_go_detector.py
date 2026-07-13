@@ -299,6 +299,15 @@ def test_dot_import_resolves_at_reduced_confidence() -> None:
     assert fs[0].confidence == 0.7
 
 
+def test_dot_import_ambiguous_call_lowers_confidence() -> None:
+    fs = _findings(
+        'package m\nimport (\n . "crypto/md5"\n . "crypto/sha1"\n)\nfunc f() { New() }\n'
+    )
+    assert len(fs) == 1
+    assert fs[0].algorithm in {"MD5", "SHA-1"}
+    assert fs[0].confidence == 0.4
+
+
 def test_unrelated_calls_emit_nothing() -> None:
     fs = _findings(
         'package m\nimport "fmt"\nfunc f() { fmt.Println("hi") }\n'
