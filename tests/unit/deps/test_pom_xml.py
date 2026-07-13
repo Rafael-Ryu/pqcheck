@@ -470,3 +470,23 @@ def test_parse_oversized_file_returns_empty_list(tmp_path: Path) -> None:
     # parse — safe_read_bytes rejects before lxml sees it.
     f.write_bytes(b"<project/>" + b" " * MAX_FILE_BYTES)
     assert parse(f) == []
+
+
+def test_parse_property_expansion_bomb_fails_closed_fast(tmp_path: Path) -> None:
+    # A ~1 KB pom whose properties each fan out to ten references grows the
+    # resolved version string 10x per pass. The depth cap alone would let it
+    # reach hundreds of MB before giving up; the length cap must abort within a
+    # pass or two so the parser stays fast and returns no bogus version.
+    props = "".join(f"<p{n}>" + f"${{p{n - 1}}}" * 10 + f"</p{n}>" for n in range(1, 16))
+    body = (
+        '<?xml version="1.0"?><project><properties><p0>AAAA</p0>'
+        f"{props}</properties><dependencies><dependency>"
+        "<groupId>g</groupId><artifactId>a</artifactId>"
+        "<version>${p15}</version></dependency></dependencies></project>"
+    )
+    f = _write(tmp_path, body)
+    start = time.monotonic()
+    deps = parse(f)
+    elapsed = time.monotonic() - start
+    assert elapsed < 1.0
+    assert deps[0].version is None

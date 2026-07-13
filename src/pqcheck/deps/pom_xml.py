@@ -35,6 +35,13 @@ _PROPERTY_REF_RE = re.compile(r"\$\{([^}]+)\}")
 # instead of looping; real POMs nest a handful of levels at most.
 _MAX_PROPERTY_DEPTH = 16
 
+# The depth cap bounds the number of passes, not the string each pass produces:
+# a chain of properties that each fan out to several references grows the value
+# multiplicatively per pass (a billion-laughs-style expansion). Cap the working
+# string so a hostile pom.xml fails closed within the first pass or two instead
+# of allocating hundreds of MB. Real version strings are a handful of bytes.
+_MAX_RESOLVED_LEN = 8 * 1024
+
 
 def _build_parser() -> etree.XMLParser[etree._Element]:
     # Hardening flags passed explicitly (not via dict-unpack) so mypy can
@@ -215,7 +222,7 @@ def _resolve_version(version_raw: str | None, properties: dict[str, str]) -> str
             return value
 
         substituted = _PROPERTY_REF_RE.sub(_sub, result)
-        if unresolved or substituted == result:
+        if unresolved or substituted == result or len(substituted) > _MAX_RESOLVED_LEN:
             return None
         result = substituted
     return None
