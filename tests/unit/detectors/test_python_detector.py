@@ -1185,6 +1185,33 @@ def test_nacl_pwhash_default_str_emits_argon2() -> None:
     assert findings[0].algorithm == "ARGON2"
 
 
+# ---- blake3 catalog entries ----
+
+
+def test_blake3_from_import_emits_blake3() -> None:
+    # Mirrors borgbackup's usage style (held-out benchmark, 2026-07-13).
+    src = "from blake3 import blake3\nblake3(b'x').digest()\n"
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "BLAKE3"
+    assert findings[0].family is AlgorithmFamily.HASH
+    assert findings[0].quantum_risk is QuantumRisk.SAFE
+
+
+def test_blake3_keyed_hashing_emits_blake3() -> None:
+    src = "from blake3 import blake3\nblake3(b'x', key=b'k' * 32).digest()\n"
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "BLAKE3"
+
+
+def test_blake3_module_attribute_access_emits_blake3() -> None:
+    src = "import blake3\nblake3.blake3(b'x')\n"
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "BLAKE3"
+
+
 def test_bcrypt_kdf_emits_bcrypt() -> None:
     # bcrypt_pbkdf, as paramiko uses to decrypt bcrypt-encrypted private keys
     # (corpus v2 recall gap) — distinct from bcrypt.hashpw()'s password use.

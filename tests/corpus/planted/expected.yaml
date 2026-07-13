@@ -147,6 +147,9 @@ planted:
   - {path: python/pynacl_primitives.py, line: 19, algorithm: ARGON2}
   - {path: python/pynacl_primitives.py, line: 20, algorithm: ARGON2}
 
+  - {path: python/blake3_hash.py, line: 11, algorithm: BLAKE3}
+  - {path: python/blake3_hash.py, line: 12, algorithm: BLAKE3}
+
   - {path: python/kdf_mac.py, line: 19, algorithm: HMAC}
   - {path: python/kdf_mac.py, line: 20, algorithm: HMAC}
   - {path: python/kdf_mac.py, line: 21, algorithm: PBKDF2}

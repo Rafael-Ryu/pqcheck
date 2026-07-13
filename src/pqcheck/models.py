@@ -113,6 +113,8 @@ _QUANTUM_MAP: dict[str, QuantumRisk] = {
     "SHA3-512": QuantumRisk.SAFE,
     "BLAKE2B": QuantumRisk.SAFE,
     "BLAKE2S": QuantumRisk.SAFE,
+    # 256-bit hash, Grover-only exposure — same tier as SHA-256/BLAKE2B.
+    "BLAKE3": QuantumRisk.SAFE,
     "ML-KEM": QuantumRisk.SAFE,
     "ML-DSA": QuantumRisk.SAFE,
     "SLH-DSA": QuantumRisk.SAFE,

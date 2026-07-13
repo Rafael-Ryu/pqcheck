@@ -113,6 +113,11 @@ def test_pycryptodome_blake2b_resolves() -> None:
     assert hit == AlgorithmHit(canonical="BLAKE2B", family=AlgorithmFamily.HASH)
 
 
+def test_blake3_resolves() -> None:
+    hit = lookup_python_symbol("blake3.blake3")
+    assert hit == AlgorithmHit(canonical="BLAKE3", family=AlgorithmFamily.HASH)
+
+
 # --- lookup_go_symbol ---
 
 

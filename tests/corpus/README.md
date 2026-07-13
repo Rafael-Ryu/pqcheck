@@ -172,3 +172,19 @@ the import-resolution model by construction); `certbot`
 lines — the finding lands on the `sha256(` line, the oracle marks the
 `.digest()` line, the same multi-line call-site-vs-oracle-line mismatch
 documented for paramiko in the corpus v2 section above).
+
+**Second held-out-driven fix round (2026-07-13, blake3, user-directed):** of
+the 9 misses above, the 3 borgbackup `blake3` sites (`benchmark_cmd.py:229`,
+`benchmark_cmd.py:230`, `crypto/key.py:1016`) are the only ones this round
+targets — the Python detector catalog had no entry for the `blake3`
+PyPI package (`blake3.blake3(...)`, plain and keyed hashing). Same
+contamination caveat as the first pass: fixing a held-out-surfaced gap
+means this set is no longer strictly untouched for that gap. Recall after
+the fix: **0.9801** (295/301), up from 0.9701. The remaining 6 misses are
+unchanged (authlib dataflow x2, borgbackup Cython/OpenSSL binding x3,
+certbot multi-line call site x1). Measured with `PQCHECK_CRYPTO_ANALYZER`
+pointed at a built `crypto-analyzer` binary, per the note above — without
+it, `wireguard-go:device/allowedips_test.go:58` (`Uint32()` on a
+`*rand.Rand` receiver) also shows as a miss, since that site depends on
+the go/types engine's receiver-method resolution and tree-sitter alone
+does not catch it. That is a measurement-setup pitfall, not a new gap.

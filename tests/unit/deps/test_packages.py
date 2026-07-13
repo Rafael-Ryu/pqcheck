@@ -29,6 +29,11 @@ def test_lookup_maven_bouncycastle_returns_algorithms() -> None:
     assert "AES" in result
 
 
+def test_lookup_pypi_blake3_returns_blake3() -> None:
+    result = lookup_introduces("pypi", "blake3")
+    assert result == ("BLAKE3",)
+
+
 def test_lookup_unknown_package_returns_empty_tuple() -> None:
     result = lookup_introduces("pypi", "nonexistent-package-xyz")
     assert result == ()
