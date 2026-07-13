@@ -163,7 +163,42 @@ class PythonDetector(ast.NodeVisitor):
         # cannot prove the runtime binding without importing the module.
         if not emitted and qualified is None and isinstance(node.func, ast.Name):
             self._emit_via_star_import(node, node.func.id)
+        if not emitted:
+            self._emit_chained_digest(node)
         self.generic_visit(node)
+
+    def _emit_chained_digest(self, node: ast.Call) -> None:
+        """`hashlib.sha256(...).digest()` spanning multiple lines: also emit a
+        finding at the .digest()/.hexdigest() token's own line, mirroring
+        _emit_cipher_wrapper's sub-call emission (#224) — a line-level SARIF
+        consumer expects a finding at the chained-call token line, not just
+        the hash constructor's opening line. The hash call itself still gets
+        emitted separately (at its own line) via the normal visit_Call path.
+
+        The Call node's own lineno/col_offset track the *start* of the whole
+        expression (the receiver's start), same as node.func's — the ".digest"
+        token position only shows up in node.func.end_lineno/end_col_offset,
+        so that is what we report a location override for.
+        """
+        func = node.func
+        if not (isinstance(func, ast.Attribute) and func.attr in ("digest", "hexdigest")):
+            return
+        receiver = func.value
+        if not isinstance(receiver, ast.Call) or func.end_lineno == node.lineno:
+            return
+        qualified = self._imports.resolve_attribute(receiver.func)
+        hit = lookup_python_symbol(qualified) if qualified is not None else None
+        if hit is None or hit.family != AlgorithmFamily.HASH:
+            return
+        assert func.end_lineno is not None and func.end_col_offset is not None
+        self._emit(
+            node,
+            hit.canonical,
+            hit.family,
+            confidence=1.0,
+            line=func.end_lineno,
+            column=func.end_col_offset - len(func.attr),
+        )
 
     def _emit_via_star_import(self, node: ast.Call, short_name: str) -> None:
         for module in self._imports.iter_star_imports():
@@ -392,11 +427,16 @@ class PythonDetector(ast.NodeVisitor):
         curve: str | None = None,
         mode: str | None = None,
         padding: str | None = None,
+        line: int | None = None,
+        column: int | None = None,
     ) -> None:
+        # line/column override: used only for the chained-digest sub-finding,
+        # where the reportable token (.digest()/.hexdigest()) sits on a
+        # different line than node itself (see _emit_chained_digest).
         location = SourceLocation(
             path=self._path,
-            line=node.lineno,
-            column=node.col_offset,
+            line=line if line is not None else node.lineno,
+            column=column if column is not None else node.col_offset,
             end_line=node.end_lineno,
             end_column=node.end_col_offset,
         )
@@ -409,14 +449,14 @@ class PythonDetector(ast.NodeVisitor):
                 mode=mode,
                 padding=padding,
                 location=location,
-                evidence=self._evidence(node),
+                evidence=self._evidence(node, line=line),
                 detector_id=_DETECTOR_ID,
                 confidence=confidence,
             )
         )
 
-    def _evidence(self, node: ast.Call) -> str:
-        line_idx = node.lineno - 1
+    def _evidence(self, node: ast.Call, *, line: int | None = None) -> str:
+        line_idx = (line if line is not None else node.lineno) - 1
         if 0 <= line_idx < len(self._source_lines):
             return self._source_lines[line_idx].strip()
         return ""  # pragma: no cover - empty file has no Call nodes to visit

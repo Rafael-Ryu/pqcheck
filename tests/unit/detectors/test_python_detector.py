@@ -396,6 +396,30 @@ def test_singleline_cipher_still_emits_one_finding() -> None:
     assert len(findings) == 1
 
 
+def test_multiline_chained_digest_emits_finding_at_digest_line_too() -> None:
+    # certbot's challenges.py (held-out recall gap): hashlib.sha256(...).digest()
+    # spans two lines. Ground truth expects a finding at each — the sha256(
+    # call line and the .digest() line — mirroring the cipher sub-call fix (#224).
+    src = (
+        "import hashlib\n"
+        "hashlib.sha256(data.encode(\n"
+        "    'utf-8')).digest()\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 2
+    lines = sorted(f.location.line for f in findings)
+    assert lines == [2, 3]
+    assert all(f.algorithm == "SHA-256" for f in findings)
+
+
+def test_singleline_chained_digest_still_emits_one_finding() -> None:
+    # Same-line construction (the common case) must not double-emit.
+    src = "import hashlib\nhashlib.sha256(b'x').digest()\n"
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "SHA-256"
+
+
 def test_detector_finds_aes_gcm_cipher() -> None:
     src = (
         "from cryptography.hazmat.primitives.ciphers import "
