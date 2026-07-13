@@ -26,7 +26,14 @@ _LEVEL_BY_ACTION: dict[RuleAction, str] = {
 
 
 def _sanitize(raw: str) -> str:
-    return "".join(c for c in raw if unicodedata.category(c) != "Cc" or c in ("\n", "\t"))
+    # Strip control (Cc) and format (Cf) characters. Cf covers the bidirectional
+    # override codes (U+202A-202E, U+2066-2069) behind Trojan-Source visual
+    # spoofing (CVE-2021-42574): evidence text is taken verbatim from untrusted
+    # scanned source, so a hostile comment could otherwise reorder how a SARIF
+    # consumer renders the finding. Newlines and tabs are kept for readability.
+    return "".join(
+        c for c in raw if unicodedata.category(c) not in ("Cc", "Cf") or c in ("\n", "\t")
+    )
 
 
 def _relative_uri(path: Path, target: Path) -> str:

@@ -107,6 +107,19 @@ def test_message_strips_control_characters() -> None:
     assert "generate" in text
 
 
+def test_message_strips_bidi_override_characters() -> None:
+    # U+202E/U+202C and the isolate codes (Cf) are the Trojan-Source visual
+    # spoofing vector; evidence comes from untrusted source, so they must not
+    # reach a SARIF consumer that honors Unicode bidi.
+    bidi = ("\u202e", "\u202c", "\u2066", "\u2069")
+    hostile = _finding(evidence=f"md5(b'x')  # {bidi[0]}evil{bidi[1]} {bidi[2]}spoof{bidi[3]}")
+    doc = build_sarif(_result(findings=(hostile,)))
+    [res] = _run(doc)["results"]
+    text = res["message"]["text"]
+    assert all(c not in text for c in bidi)
+    assert "evil" in text and "spoof" in text
+
+
 def test_rules_are_deduplicated_and_indexed() -> None:
     f1, f2 = _finding(), _finding(
         location=SourceLocation(path=Path("/repo/b.py"), line=1, column=0)

@@ -21,9 +21,9 @@ roadmap, FS-ISAC guidance) makes inventory the first step. The existing
 open tooling for that step needs a SonarQube server; the commercial
 options start at enterprise pricing. This is the `pip install` version.
 
-**Status: pre-release.** v0.1.0 lands on PyPI with Sigstore-signed
-wheels. Until then: `uv sync --all-extras && uv run pqcheck --help`.
-[Leia em português](README.pt-br.md).
+**Status: v0.1.0** is on PyPI with Sigstore-signed wheels:
+`pip install pqcheck`. From a clone: `uv sync --all-extras && uv run
+pqcheck --help`. [Leia em português](README.pt-br.md).
 
 ## Quickstart
 
@@ -97,13 +97,16 @@ does not exist.
 
 Every HIGH/CRITICAL finding across a 10-repo public corpus (pyjwt,
 paramiko, sigstore-python, age, go-jose, smallstep/crypto, …) was
-human-adjudicated by reading the flagged line: **260 findings, 0 false
+human-adjudicated by reading the flagged line: **261 findings, 0 false
 positives**. Recall on the same repos, against a ground truth of 584
 adjudicated call sites, is 1.00. The honest caveat: that corpus's miss
 list drove the catalog expansion, so it is a tuning set and says
 nothing about generalization. A held-out set of 6 unseen repos
 (authlib, borgbackup, certbot, cosign, wireguard-go, certmagic)
-measures recall 0.9834 (296/301) and precision 0.99 (76/77). The 5
+measures recall 0.9834 (296/301). Precision on that set was a one-time
+manual adjudication (76/77 when measured on 2026-07-12); unlike the
+tuning-corpus precision it is not re-checked on every change, so read it
+as indicative rather than a live gate. The 5
 remaining misses are all structural — authlib's dataflow-dependent
 digest calls and borgbackup's Cython/OpenSSL binding, the same gap
 classes documented under [Known limitations](#known-limitations)
@@ -139,8 +142,10 @@ that design:
   false positive in the held-out set). Context-scoped policy rules are
   parsed but not shipped in the bundled policies until detectors emit
   context.
-- Hybrid-scheme detection covers `filippo.io/hpke` (X25519MLKEM768)
-  only; other hybrid constructions read as their classical component.
+- Hybrid-scheme detection covers the catalogued hybrid KEM identifiers
+  (`filippo.io/hpke` X25519MLKEM768, `crypto/tls` X25519MLKEM768 on Go
+  1.24+, and cloudflare/circl's X-Wing and Kyber768-draft); other hybrid
+  constructions read as their classical component.
 - Only the repo root's `.gitignore`/`.pqcheckignore` are honored.
 - Dependency findings are inventory (`introduces` metadata in the CBOM);
   they do not trip the policy gate in v0.1 — call sites do.

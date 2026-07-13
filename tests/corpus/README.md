@@ -100,9 +100,12 @@ miss list — so it can no longer say whether the detectors generalize. The
 held-out set (`holdout.yaml`: authlib, borgbackup, certbot restricted to
 `acme/`, cosign, wireguard-go, certmagic — different authors, domains and
 idioms from `corpus.yaml`) is measured with the same oracle and protocol,
-but its misses are **reported, never patched**. Fixing a gap found here
-would turn the held-out set into another tuning set; expansion backlog
-still comes from corpus v2 only.
+its misses are **reported by default, not patched**: fixing a catalog gap
+found here would turn the held-out set into another tuning set, so the
+expansion backlog still comes from corpus v2 only. The exception is a
+clear general-detector bug (as opposed to catalog tuning) — those are
+fixed and logged below with their contamination caveat, which is why the
+set is no longer strictly untouched.
 
 Same tooling, parametrized:
 
