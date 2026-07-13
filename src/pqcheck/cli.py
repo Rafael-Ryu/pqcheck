@@ -3,7 +3,7 @@
 `scan` runs the end-to-end pipeline (walk → detect → parse → evaluate)
 and emits a terminal report, a CycloneDX 1.6 CBOM, or SARIF 2.1.0.
 Exit codes: 0 clean, 1 policy gate tripped, 2 usage/policy error,
-70 internal error (emitted CBOM failed self-validation).
+70 internal error (emitted CBOM/SARIF failed self-validation).
 """
 
 from __future__ import annotations
@@ -22,6 +22,7 @@ from pqcheck.cbom.builder import build_cbom
 from pqcheck.cbom.validator import validate_cyclonedx_16
 from pqcheck.models import ScanResult
 from pqcheck.output.sarif import build_sarif
+from pqcheck.output.sarif_validator import validate_sarif_210
 from pqcheck.policy.engine import gate
 from pqcheck.policy.loader import PolicyError, load_default_policy, load_policy
 from pqcheck.policy.schema import CryptoPolicy
@@ -206,7 +207,13 @@ def scan(
             raise typer.Exit(code=70)
         _emit_json(doc, output)
     elif output_format is OutputFormat.SARIF:
-        _emit_json(build_sarif(result), output)
+        doc = build_sarif(result)
+        violations = validate_sarif_210(doc)
+        if violations:
+            for violation in violations:
+                typer.echo(f"sarif self-validation: {violation}", err=True)
+            raise typer.Exit(code=70)
+        _emit_json(doc, output)
     else:
         _terminal_report(result)
 

@@ -128,6 +128,17 @@ def test_sarif_output_to_stdout(tmp_path: Path) -> None:
     assert doc["runs"][0]["results"]
 
 
+def test_invalid_sarif_is_internal_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("pqcheck.cli.build_sarif", lambda result: {"version": "2.1.0"})
+    result = runner.invoke(
+        app, ["scan", str(_repo(tmp_path, _RSA_SRC)), "--format", "sarif"]
+    )
+    assert result.exit_code == 70
+    assert "sarif self-validation" in result.stderr
+
+
 def test_output_flag_requires_machine_format(tmp_path: Path) -> None:
     result = runner.invoke(
         app, ["scan", str(tmp_path), "-o", str(tmp_path / "x.json")]
