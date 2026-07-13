@@ -28,6 +28,15 @@ dependencies = [
     assert all(d.declared_in == f for d in deps)
 
 
+def test_parse_utf8_bom_still_parses(tmp_path: Path) -> None:
+    # A BOM'd manifest (routine Windows tooling output) made tomllib raise,
+    # which parse() swallowed into zero deps. utf-8-sig strips the BOM.
+    f = tmp_path / "pyproject.toml"
+    f.write_bytes(b"\xef\xbb\xbf" + b'[project]\ndependencies = ["pycryptodome"]\n')
+    deps = parse(f)
+    assert [d.name for d in deps] == ["pycryptodome"]
+
+
 def test_parse_populates_introduces_algorithms_from_catalog(tmp_path: Path) -> None:
     f = _write(tmp_path, """
 [project]

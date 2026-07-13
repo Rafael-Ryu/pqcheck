@@ -34,7 +34,7 @@ def parse(path: Path) -> list[CryptoDependency]:
     # input size does not bound nesting depth. Catch it to keep the never-raise
     # contract.
     try:
-        data: Any = json.loads(raw.decode("utf-8"))
+        data: Any = json.loads(raw.decode("utf-8-sig"))
     except (json.JSONDecodeError, UnicodeDecodeError, RecursionError, MemoryError):
         return []
     if not isinstance(data, dict):

@@ -31,7 +31,7 @@ def parse(path: Path) -> list[CryptoDependency]:
     # exhaust the stack; the size cap does not bound nesting depth. Catch it
     # to keep the never-raise contract.
     try:
-        data: dict[str, Any] = tomllib.loads(raw.decode("utf-8"))
+        data: dict[str, Any] = tomllib.loads(raw.decode("utf-8-sig"))
     except (tomllib.TOMLDecodeError, UnicodeDecodeError, RecursionError, MemoryError):
         return []
 

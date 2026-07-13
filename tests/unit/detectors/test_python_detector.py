@@ -887,6 +887,17 @@ def test_detect_python_file_finds_md5(tmp_path: Path) -> None:
     assert findings[0].location.path == f
 
 
+def test_detect_python_file_utf8_bom_still_detects(tmp_path: Path) -> None:
+    # Files saved by common Windows tooling carry a leading UTF-8 BOM. Decoding
+    # with plain utf-8 leaves U+FEFF in the string and ast.parse raises, which
+    # the detector swallows into a silent zero-finding scan. utf-8-sig strips it.
+    f = tmp_path / "bom.py"
+    f.write_bytes(b"\xef\xbb\xbf" + b"import hashlib\nhashlib.md5(b'x')\n")
+    findings = detect_python_file(f)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "MD5"
+
+
 def test_detect_python_file_empty_returns_empty(tmp_path: Path) -> None:
     f = tmp_path / "x.py"
     f.write_text("", encoding="utf-8")
