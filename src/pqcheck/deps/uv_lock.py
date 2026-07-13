@@ -45,6 +45,13 @@ def parse(path: Path) -> list[CryptoDependency]:
         name = entry.get("name")
         if not isinstance(name, str) or not name:
             continue
+        source = entry.get("source")
+        if isinstance(source, dict) and ("virtual" in source or "editable" in source):
+            # The workspace root itself (this project) is emitted as a
+            # [[package]] entry with source.virtual or source.editable —
+            # not a real dependency, so it would otherwise show up as a
+            # bogus self-dependency.
+            continue
         version_raw = entry.get("version")
         version = version_raw if isinstance(version_raw, str) else None
         key = (name.lower(), version)
