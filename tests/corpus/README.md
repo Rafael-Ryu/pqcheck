@@ -188,3 +188,14 @@ it, `wireguard-go:device/allowedips_test.go:58` (`Uint32()` on a
 `*rand.Rand` receiver) also shows as a miss, since that site depends on
 the go/types engine's receiver-method resolution and tree-sitter alone
 does not catch it. That is a measurement-setup pitfall, not a new gap.
+
+**Third held-out-driven fix round (2026-07-13, multi-line chained digest):**
+targets the remaining certbot miss (`acme/challenges.py:266`). The Python
+detector already emitted a finding for `hashlib.sha256(...)` at its call
+line; it now also emits a second finding at the `.digest()`/`.hexdigest()`
+token's own line when that token sits on a different line than the hash
+call — mirroring the multi-line `Cipher()` sub-call fix from the first
+round. Same contamination caveat again: this gap is now fixed specifically
+because it showed up here. Recall after the fix: **0.9834** (296/301), up
+from 0.9801. The remaining 5 misses are unchanged (authlib dataflow x2,
+borgbackup Cython/OpenSSL binding x3).
