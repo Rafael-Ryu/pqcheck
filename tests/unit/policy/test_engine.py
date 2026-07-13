@@ -324,3 +324,28 @@ def test_evaluate_banned_medium_confidence_demotes_one_tier():
     assert d.base_severity == Severity.HIGH
     assert d.confidence_band == ConfidenceBand.MEDIUM
     assert d.severity == Severity.MEDIUM
+
+
+@pytest.mark.parametrize("policy_name", ["cryptoct-default", "cryptoct-strict"])
+@pytest.mark.parametrize(
+    "algorithm", ["X25519MLKEM768", "X-WING", "X25519KYBER768-DRAFT"]
+)
+def test_evaluate_hybrid_kem_is_allow_info_not_default_warn(policy_name, algorithm):
+    # Without an approved rule, a HYBRID finding would fall to default-action
+    # (warn/fail) — mislabeling the best available TLS key-agreement posture
+    # as a policy concern. The approved rule added for W3 must classify it
+    # allow/info on both the permissive and the maximum-gate profile.
+    policy = load_default_policy(policy_name)
+    finding = _f(algorithm, AlgorithmFamily.KEM, 1.0)
+    assert finding.quantum_risk == QuantumRisk.HYBRID
+    [d] = evaluate([finding], policy)
+    assert d.rule_kind == "approved"
+    assert d.action == RuleAction.ALLOW
+    assert d.base_severity == Severity.INFO
+
+
+@pytest.mark.parametrize("policy_name", ["cryptoct-default", "cryptoct-strict"])
+def test_strict_gate_does_not_trip_on_hybrid_kem_finding(policy_name):
+    policy = load_default_policy(policy_name)
+    decisions = evaluate([_f("X25519MLKEM768", AlgorithmFamily.KEM, 1.0)], policy)
+    assert gate(decisions, strict=True) is None

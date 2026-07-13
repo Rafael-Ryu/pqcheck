@@ -71,6 +71,22 @@ _YUBIKEY_IMPORT_PATH = "github.com/go-piv/piv-go/v2/piv"
 _YUBIKEY_KEYGEN_HIT = AlgorithmHit("KEYGEN", AlgorithmFamily.SIGNATURE)
 _HPKE_IMPORT_PATH = "filippo.io/hpke"
 _HPKE_HYBRID_CATALOG_KEY = "filippo.io/hpke.MLKEM768X25519.GenerateKey"
+# Package-level constants (not calls): crypto/tls's Go 1.24+ hybrid CurveID and
+# circl hpke's two hybrid KEM identifiers. Unlike every other catalog key above,
+# these are never called -- they are referenced as plain selector expressions
+# (`tls.X25519MLKEM768`, `hpke.KEM_XWING`), so _visit_selector_value matches
+# them directly against this small allowlist rather than the general call-site
+# catalog (matching every selector_expression against the full catalog would
+# double-emit every existing pkg.Func(...) call, whose function selector is
+# also a selector_expression node in the same walk).
+_HPKE_NEWSUITE_CATALOG_KEY = "github.com/cloudflare/circl/hpke.NewSuite"
+_HPKE_KEM_CONSTANT_CATALOG_KEYS = (
+    "github.com/cloudflare/circl/hpke.KEM_X25519_KYBER768_DRAFT00",
+    "github.com/cloudflare/circl/hpke.KEM_XWING",
+)
+_GO_CONSTANT_CATALOG_KEYS = frozenset(
+    ("crypto/tls.X25519MLKEM768", *_HPKE_KEM_CONSTANT_CATALOG_KEYS)
+)
 _METHOD_CONFIDENCE = 0.5
 _DOT_IMPORT_CONFIDENCE = 0.7
 # More than one dot-imported package resolves the same call name: which
@@ -246,6 +262,8 @@ class GoDetector:
         for node in _walk(root):
             if node.type == "call_expression":
                 self._visit_call(node)
+            elif node.type == "selector_expression":
+                self._visit_selector_value(node)
 
     def _visit_call(self, node: Node) -> None:
         func = node.child_by_field_name("function")
@@ -266,7 +284,16 @@ class GoDetector:
             operand_name = _node_text(operand, self._source)
             import_path = self._imports.resolve(operand_name)
             if import_path is not None:
-                hit = lookup_go_symbol(f"{import_path}.{field_name}")
+                key = f"{import_path}.{field_name}"
+                # hpke.NewSuite(hpke.KEM_X25519_KYBER768_DRAFT00, ...): when the
+                # concrete KEM is a recognized hybrid constant literal, that
+                # argument's own selector_expression node (see
+                # _visit_selector_value) already emits the precise hybrid
+                # finding -- skip the generic HPKE/VULNERABLE finding here so
+                # one call site does not carry two contradictory verdicts.
+                if key == _HPKE_NEWSUITE_CATALOG_KEY and self._call_has_constant_kem_arg(node):
+                    return
+                hit = lookup_go_symbol(key)
                 if hit is not None:
                     self._emit(node, hit, confidence=1.0)
                     return
@@ -324,6 +351,47 @@ class GoDetector:
         hit = lookup_go_symbol(_HPKE_HYBRID_CATALOG_KEY)
         if hit is not None:
             self._emit(node, hit, confidence=_METHOD_CONFIDENCE)
+
+    def _call_has_constant_kem_arg(self, call: Node) -> bool:
+        arglist = call.child_by_field_name("arguments")
+        if arglist is None:  # pragma: no cover - call_expression always has arguments
+            return False
+        for arg in arglist.named_children:
+            if arg.type != "selector_expression":
+                continue
+            operand = arg.child_by_field_name("operand")
+            field = arg.child_by_field_name("field")
+            if operand is None or field is None or operand.type != "identifier":
+                continue
+            import_path = self._imports.resolve(_node_text(operand, self._source))
+            if import_path is None:
+                continue
+            key = f"{import_path}.{_node_text(field, self._source)}"
+            if key in _HPKE_KEM_CONSTANT_CATALOG_KEYS:
+                return True
+        return False
+
+    def _visit_selector_value(self, node: Node) -> None:
+        # Package-level constant reference (`tls.X25519MLKEM768`,
+        # `hpke.KEM_XWING`), as opposed to a call -- see
+        # _GO_CONSTANT_CATALOG_KEYS. Matched against a small explicit allowlist
+        # rather than the general catalog: every ordinary pkg.Func(...) call's
+        # function selector is also a selector_expression node in this same
+        # walk, and matching those against the full catalog here would
+        # double-emit findings _visit_call already produced.
+        operand = node.child_by_field_name("operand")
+        field = node.child_by_field_name("field")
+        if operand is None or field is None or operand.type != "identifier":
+            return
+        import_path = self._imports.resolve(_node_text(operand, self._source))
+        if import_path is None:
+            return
+        key = f"{import_path}.{_node_text(field, self._source)}"
+        if key not in _GO_CONSTANT_CATALOG_KEYS:
+            return
+        hit = lookup_go_symbol(key)
+        if hit is not None:
+            self._emit(node, hit, confidence=1.0)
 
     def _emit_dot_import(self, node: Node, func: Node) -> None:
         name = _node_text(func, self._source)

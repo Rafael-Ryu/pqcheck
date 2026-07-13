@@ -837,6 +837,93 @@ func TestAnalyzeClassicalHPKEKEMDoesNotClaimHybrid(t *testing.T) {
 	}
 }
 
+func TestAnalyzeResolvesTLSX25519MLKEM768Constant(t *testing.T) {
+	// crypto/tls.X25519MLKEM768 (Go 1.24+) is a CurveID constant, never
+	// called -- resolved via TypesInfo.Uses to a *types.Const, not the
+	// *types.Func path qualifiedCallee follows for ordinary calls.
+	dir := writeModule(t, map[string]string{
+		"main.go": "package main\n\nimport \"crypto/tls\"\n\n" +
+			"func f() *tls.Config {\n" +
+			"    return &tls.Config{CurvePreferences: []tls.CurveID{tls.X25519MLKEM768}}\n" +
+			"}\n",
+	})
+	fs, err := Analyze(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hybrid, ok := findingsByAlgo(fs)["X25519MLKEM768"]
+	if !ok {
+		t.Fatalf("expected X25519MLKEM768 finding, got %+v", fs)
+	}
+	if hybrid.Family != "key-encapsulation" {
+		t.Errorf("family = %q, want key-encapsulation", hybrid.Family)
+	}
+	if hybrid.Confidence != 1.0 {
+		t.Errorf("confidence = %v, want 1.0", hybrid.Confidence)
+	}
+}
+
+// circlHPKEStub is a minimal vendor stand-in for github.com/cloudflare/circl/hpke,
+// carrying only the KEM constants and NewSuite signature the analyzer resolves
+// against -- the real package pulls in ML-KEM/Kyber implementations this test
+// has no need to vendor.
+const circlHPKEStub = "package hpke\n\n" +
+	"type KEM uint16\n" +
+	"type KDF uint16\n" +
+	"type AEAD uint16\n" +
+	"type Suite struct{}\n\n" +
+	"const (\n" +
+	"\tKEM_X25519_HKDF_SHA256 KEM = 0x20\n" +
+	"\tKEM_X25519_KYBER768_DRAFT00 KEM = 0x30\n" +
+	"\tKEM_XWING KEM = 0x647a\n" +
+	")\n" +
+	"const KDF_HKDF_SHA256 KDF = 0x1\n" +
+	"const AEAD_AES256GCM AEAD = 0x2\n\n" +
+	"func NewSuite(kemID KEM, kdfID KDF, aeadID AEAD) Suite { return Suite{} }\n"
+
+func TestAnalyzeResolvesCirclHPKEHybridKEMConstants(t *testing.T) {
+	dir := writeModule(t, map[string]string{
+		"go.mod": "module testmod\n\ngo 1.24\n\nrequire github.com/cloudflare/circl v1.5.0\n",
+		"vendor/modules.txt": "# github.com/cloudflare/circl v1.5.0\n" +
+			"## explicit; go 1.24\n" +
+			"github.com/cloudflare/circl/hpke\n",
+		"vendor/github.com/cloudflare/circl/hpke/hpke.go": circlHPKEStub,
+		"main.go": "package main\n\n" +
+			"import \"github.com/cloudflare/circl/hpke\"\n\n" +
+			"func f() {\n" +
+			"    _ = hpke.KEM_XWING\n" +
+			"    _ = hpke.NewSuite(hpke.KEM_X25519_KYBER768_DRAFT00, hpke.KDF_HKDF_SHA256, hpke.AEAD_AES256GCM)\n" +
+			"    _ = hpke.NewSuite(hpke.KEM_X25519_HKDF_SHA256, hpke.KDF_HKDF_SHA256, hpke.AEAD_AES256GCM)\n" +
+			"}\n",
+	})
+	fs, err := Analyze(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	byAlgo := findingsByAlgo(fs)
+	if _, ok := byAlgo["X-WING"]; !ok {
+		t.Fatalf("expected X-WING finding, got %+v", fs)
+	}
+	if _, ok := byAlgo["X25519KYBER768-DRAFT"]; !ok {
+		t.Fatalf("expected X25519KYBER768-DRAFT finding, got %+v", fs)
+	}
+	hpkeFindings := 0
+	for _, f := range fs {
+		if f.Algorithm == "HPKE" {
+			hpkeFindings++
+		}
+	}
+	// Exactly one generic HPKE/VULNERABLE finding: the classical-KEM
+	// NewSuite call. The hybrid-KEM NewSuite call must not also emit it --
+	// that would contradict the precise hybrid finding at the same call site.
+	if hpkeFindings != 1 {
+		t.Errorf("generic HPKE findings = %d, want 1: %+v", hpkeFindings, fs)
+	}
+	if len(fs) != 3 {
+		t.Errorf("total findings = %d, want 3 (X-WING, X25519KYBER768-DRAFT, HPKE): %+v", len(fs), fs)
+	}
+}
+
 func TestAnalyzeResolvesMathRandV2VersionedImportPath(t *testing.T) {
 	// go/types resolves the call through the type-checked package object, so
 	// the qualified callee is built from Pkg().Path() (the literal import

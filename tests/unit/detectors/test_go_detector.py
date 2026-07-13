@@ -502,6 +502,75 @@ def test_hpke_hybrid_chain_gated_on_hpke_import() -> None:
     assert fs == []
 
 
+def test_tls_x25519mlkem768_constant_resolves() -> None:
+    fs = _findings(
+        'package m\nimport "crypto/tls"\n'
+        "func f() *tls.Config {\n"
+        "    return &tls.Config{CurvePreferences: []tls.CurveID{tls.X25519MLKEM768}}\n"
+        "}\n"
+    )
+    assert [f.algorithm for f in fs] == ["X25519MLKEM768"]
+    assert fs[0].family == AlgorithmFamily.KEM
+    assert fs[0].confidence == 1.0
+    assert fs[0].quantum_risk == QuantumRisk.HYBRID
+
+
+def test_tls_x25519mlkem768_gated_on_tls_import() -> None:
+    # Same identifier text, but not actually crypto/tls.
+    fs = _findings(
+        "package m\n"
+        "type tls struct{ X25519MLKEM768 int }\n"
+        "func f(t tls) int { return t.X25519MLKEM768 }\n"
+    )
+    assert fs == []
+
+
+def test_circl_hpke_kem_xwing_constant_resolves() -> None:
+    fs = _findings(
+        'package m\nimport "github.com/cloudflare/circl/hpke"\n'
+        "func f() { _ = hpke.KEM_XWING }\n"
+    )
+    assert [f.algorithm for f in fs] == ["X-WING"]
+    assert fs[0].quantum_risk == QuantumRisk.HYBRID
+
+
+def test_circl_hpke_kem_x25519_kyber768_draft_constant_resolves() -> None:
+    fs = _findings(
+        'package m\nimport "github.com/cloudflare/circl/hpke"\n'
+        "func f() { _ = hpke.KEM_X25519_KYBER768_DRAFT00 }\n"
+    )
+    assert [f.algorithm for f in fs] == ["X25519KYBER768-DRAFT"]
+    assert fs[0].quantum_risk == QuantumRisk.HYBRID
+
+
+def test_hpke_newsuite_with_hybrid_kem_constant_arg_emits_only_the_hybrid_finding() -> None:
+    # hpke.NewSuite(hpke.KEM_XWING, ...) is a real hybrid HPKE suite -- the
+    # generic HPKE/VULNERABLE finding must not also fire for the same call,
+    # or the CBOM would carry two contradictory verdicts for one construct.
+    fs = _findings(
+        'package m\nimport "github.com/cloudflare/circl/hpke"\n'
+        "func f() {\n"
+        "    _ = hpke.NewSuite(hpke.KEM_XWING, hpke.KDF_HKDF_SHA256, hpke.AEAD_AES256GCM)\n"
+        "}\n"
+    )
+    assert [f.algorithm for f in fs] == ["X-WING"]
+
+
+def test_hpke_newsuite_with_classical_kem_constant_still_emits_generic_hpke() -> None:
+    # Regression guard: a classical-only KEM constant (not in the hybrid
+    # allowlist) must not trip the suppression -- the existing conservative
+    # HPKE/VULNERABLE finding still fires.
+    fs = _findings(
+        'package m\nimport "github.com/cloudflare/circl/hpke"\n'
+        "func f() {\n"
+        "    _ = hpke.NewSuite(\n"
+        "        hpke.KEM_X25519_HKDF_SHA256, hpke.KDF_HKDF_SHA256, hpke.AEAD_AES256GCM,\n"
+        "    )\n"
+        "}\n"
+    )
+    assert [f.algorithm for f in fs] == ["HPKE"]
+
+
 def test_ecdh_method_on_locally_constructed_receiver_does_not_emit() -> None:
     # Regression: a package that both imports crypto/ecdh/ecdsa AND declares
     # its own `type ECDH struct{...}` with its own `ECDH()` method (real

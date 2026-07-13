@@ -127,6 +127,17 @@ _QUANTUM_MAP: dict[str, QuantumRisk] = {
     # not SAFE — the classical component is still there as defense in depth,
     # not because the PQC component is in doubt.
     "X25519MLKEM768": QuantumRisk.HYBRID,
+    # circl hpke's pre-standardization hybrid KEM (draft-ietf-tls-hybrid-design
+    # combiner over X25519 + Kyber768Draft00, not bit-compatible with the
+    # standardized ML-KEM-768). Same HYBRID verdict as X25519MLKEM768 above —
+    # classical-plus-PQC construction, kept as a distinct canonical because the
+    # underlying KEM differs.
+    "X25519KYBER768-DRAFT": QuantumRisk.HYBRID,
+    # circl hpke's KEM_XWING: the X-Wing combiner (draft-connolly-cfrg-xwing-kem)
+    # over X25519 + ML-KEM-768. A different combiner construction from
+    # X25519MLKEM768 (draft-kwiatkowski-tls-ecdhe-mlkem's concatenation KDF),
+    # so kept distinct rather than merged; same HYBRID verdict either way.
+    "X-WING": QuantumRisk.HYBRID,
     "MD5": QuantumRisk.BROKEN,
     "SHA-1": QuantumRisk.BROKEN,
     "DES": QuantumRisk.BROKEN,

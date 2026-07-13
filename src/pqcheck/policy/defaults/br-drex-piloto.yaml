@@ -16,6 +16,14 @@ spec:
   default-action: fail
   approved:
     - { family: kem, algorithm: ML-KEM, parameter-sets: ["768", "1024"], action: allow }
+    # Hybrid classical+PQC KEMs (crypto/tls Go 1.24+, circl hpke): a
+    # classical component alongside a PQC one, HYBRID not SAFE on the
+    # quantum-risk axis (models._QUANTUM_MAP) -- but the best available
+    # TLS key-agreement posture today, so approved here rather than
+    # falling to the default warn action.
+    - { family: kem, algorithm: X25519MLKEM768, action: allow }
+    - { family: kem, algorithm: X-WING, action: allow }
+    - { family: kem, algorithm: X25519KYBER768-DRAFT, action: allow }
     - { family: signature, algorithm: ML-DSA, parameter-sets: ["65", "87"], action: allow }
     - { family: signature, algorithm: SLH-DSA, parameter-sets: ["SHA2-128s"], action: allow }
     - { family: symmetric-cipher, algorithm: AES, parameter-sets: ["256"], modes: ["GCM"], action: allow }
