@@ -1,18 +1,18 @@
 {
-  "sites": 276,
-  "detected": 273,
-  "recall": 0.9891,
+  "sites": 301,
+  "detected": 292,
+  "recall": 0.9701,
   "per_repo": {
     "authlib": {
-      "sites": 20,
-      "detected": 20
+      "sites": 37,
+      "detected": 35
     },
     "borgbackup": {
-      "sites": 52,
-      "detected": 49
+      "sites": 57,
+      "detected": 51
     },
     "certbot": {
-      "sites": 10,
+      "sites": 11,
       "detected": 10
     },
     "cosign": {
@@ -20,8 +20,8 @@
       "detected": 128
     },
     "wireguard-go": {
-      "sites": 52,
-      "detected": 52
+      "sites": 54,
+      "detected": 54
     },
     "certmagic": {
       "sites": 14,
@@ -29,8 +29,14 @@
     }
   },
   "misses": [
+    "authlib:authlib/oauth1/rfc5849/signature.py:295",
+    "authlib:authlib/oidc/core/util.py:16",
+    "borgbackup:src/borg/archiver/benchmark_cmd.py:229",
+    "borgbackup:src/borg/archiver/benchmark_cmd.py:230",
+    "borgbackup:src/borg/crypto/key.py:1016",
     "borgbackup:src/borg/legacy/crypto/key.py:41",
     "borgbackup:src/borg/legacy/crypto/key.py:51",
-    "borgbackup:src/borg/testsuite/crypto/crypto_test.py:233"
+    "borgbackup:src/borg/testsuite/crypto/crypto_test.py:233",
+    "certbot:src/acme/challenges.py:266"
   ]
 }

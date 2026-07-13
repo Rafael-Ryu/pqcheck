@@ -148,3 +148,27 @@ the bundled binary is built (`cd tools/crypto-analyzer && go build -o
 and pointed at via `PQCHECK_CRYPTO_ANALYZER` — without it these scripts
 silently fall back to tree-sitter only, undercounting recall by the
 `*rand.Rand` method sites.
+
+**Remeasurement (2026-07-13):** the Python/Go/hybrid catalog expansions
+(stdlib KDFs, pyca AEAD/KDF/Fernet, argon2-cffi, bcrypt, x/crypto KDFs,
+CIRCL PQC, tink-go templates, hybrid key-agreement detection) surfaced 37
+new oracle candidates on the same six repos, adjudicated as 25 `site` / 12
+`not_site` in `holdout_ground_truth.yaml` (the `not_site` majority: `.choice`
+calls that are dataflow-dependent or use the uncatalogued plain `random`
+module, `os.Expand`/`digest` name collisions in Go string literals and
+comments). Recall over the enlarged ground truth (301 sites, up from 276):
+**0.9701** (292/301) — down from 0.989 because the new sites include real
+detector gaps this measurement exists to surface, reported here and left
+unfixed per protocol. The 9 misses: `authlib` `signature.py:295`
+(`signature.digest()` on an hmac object assigned on a prior line — no
+dataflow) and `util.py:16` (`hash_alg(...).digest()` where `hash_alg` is a
+dynamic parameter — no dataflow); `borgbackup` `benchmark_cmd.py:229/230`
+and `crypto/key.py:1016` (keyed BLAKE3 hashing — `blake3` has no catalog
+entry for the Python detector, a catalog-scope gap); `borgbackup`
+`legacy/crypto/key.py:41/51` and `testsuite/crypto/crypto_test.py:233` (the
+same in-repo Cython/OpenSSL `AES` binding from the first pass, still outside
+the import-resolution model by construction); `certbot`
+`acme/challenges.py:266` (`hashlib.sha256(...).digest()` split across two
+lines — the finding lands on the `sha256(` line, the oracle marks the
+`.digest()` line, the same multi-line call-site-vs-oracle-line mismatch
+documented for paramiko in the corpus v2 section above).
