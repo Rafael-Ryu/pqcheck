@@ -53,7 +53,47 @@ call sites adjudicados nos mesmos repos (conjunto de tuning) e de 0.989
 em 6 repos held-out nunca vistos (protocolo e caveats em
 `tests/corpus/`).
 
-Limitações conhecidas, processo de segurança e detalhes completos no
+## Limitações conhecidas
+
+O `pqcheck` é um scanner estático de repositório único, e essas lacunas
+vêm dessa escolha de design:
+
+- Sem análise de dataflow: um algoritmo alcançado via variável,
+  parâmetro ou lookup table passa despercebido ou vira um finding
+  genérico de baixa confiança — ex.: `.digest()` chamado sobre um
+  objeto de hash recebido como parâmetro, ou uma cifra escolhida de um
+  dict em tempo de execução. authlib é o exemplo mais claro no corpus
+  held-out.
+- Sem visibilidade de extensão C/FFI: cripto implementada atrás de um
+  binding Cython ou C no próprio repo — o binding OpenSSL do
+  borgbackup, por exemplo — é invisível para detecção em nível de
+  código-fonte; só a superfície de chamada Python ou Go é escaneada.
+- Detecção limitada ao catálogo: o `pqcheck` sinaliza o que está nos
+  catálogos curados de Python e Go. Uma biblioteca ou símbolo fora do
+  catálogo não gera finding nenhum, e ausência de finding não é
+  evidência de ausência de cripto.
+- Só análise estática: não há resolução de dispatch em runtime.
+  `hashlib.new(name_var)` com nome calculado em runtime, ou dispatch
+  via `getattr`, não resolvem a nada.
+- Cegueira de contexto de uso: um match de símbolo não carrega
+  intenção. "RSA validando um webhook de terceiro" lê igual a "RSA
+  criptografando dados em repouso", e uma chamada `ECDH()` usada só
+  para conversão de formato de chave é sinalizada igual a um key
+  agreement real (um falso positivo conhecido no conjunto held-out).
+  Regras de política com escopo de contexto já são parseadas, mas não
+  entram nas políticas inclusas até os detectores emitirem contexto.
+- Detecção de esquema híbrido cobre só `filippo.io/hpke`
+  (X25519MLKEM768); outras construções híbridas são lidas pelo
+  componente clássico.
+- Só o `.gitignore`/`.pqcheckignore` da raiz do repo é respeitado.
+- Findings de dependência são inventário (metadado `introduces` no
+  CBOM); eles não derrubam o gate de política na v0.1 — call sites
+  derrubam.
+
+Veja `tests/corpus/` para o protocolo de adjudicação por trás desses
+números.
+
+Processo de segurança e demais detalhes completos no
 [README em inglês](README.md) e em [SECURITY.md](SECURITY.md).
 
 Licença Apache-2.0.
