@@ -120,7 +120,10 @@ include = [
 # more interpreters would only re-emit byte-identical wheels that collide on
 # upload.
 build = "cp312-*"
-skip = "*-musllinux_*"
+# musllinux wheels are in scope: the bundled Go binary is static
+# (CGO_ENABLED=0), so it runs unmodified on musl. Without a musllinux wheel,
+# Alpine hosts fell back to the sdist and silently lost the bundled analyzer,
+# downgrading to the tree-sitter floor.
 # Runs per wheel under the CIBW_ENVIRONMENT the release matrix sets (GOOS/GOARCH).
 # go:generate syncs the single-source catalog for //go:embed, then the binary is
 # compiled into the platform dir the wheel artifact picks up. Only crypto-analyzer
