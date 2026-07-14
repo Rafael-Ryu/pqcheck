@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from pqcheck.deps.base import MAX_FILE_BYTES, ManifestError
-from pqcheck.deps.go_mod import parse
+from pqcheck.deps.go_mod import lex_go_mod_line, parse
 
 _FIXTURES = Path(__file__).parent.parent.parent / "fixtures" / "deps"
 
@@ -493,3 +493,95 @@ def test_go_sum_skip_without_error_sink_still_parses(tmp_path: Path) -> None:
     (tmp_path / "go.sum").write_bytes(b"#" * (MAX_FILE_BYTES + 1))
     deps = parse(tmp_path / "go.mod")
     assert deps[0].integrity_verified is None
+
+
+# --- Round 5: version grammar per x/mod, full interpreted-string escapes ---
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "require example.com/a vbanana",  # not a semver (round-5 reproducer)
+        "require example.com/a v01.2.3",  # leading zero in a numeric part
+        "require example.com/a v1.2.3-01",  # leading zero in numeric prerelease
+        "exclude example.com/a vbanana",
+        "replace example.com/a vbanana => example.com/b v1.0.0",
+        "replace example.com/a => example.com/b vbanana",
+        "retract vbanana",
+        "retract [vbanana, v1.0.0]",
+        "go 01.24",  # leading zero (round-5 reproducer)
+        "go 1",  # modfile's GoVersionRE requires a minor
+        "go 1.024",
+        "toolchain gopher",  # round-5 reproducer
+        "toolchain go",  # bare prefix is not a toolchain name
+        "toolchain go2.0",  # modfile's ToolchainRE only admits go1 releases
+    ],
+)
+def test_invalid_version_tokens_raise(tmp_path: Path, line: str) -> None:
+    f = tmp_path / "go.mod"
+    f.write_text(f"module example.com/m\n{line}\n", encoding="utf-8")
+    with pytest.raises(ManifestError, match=r"malformed go\.mod"):
+        parse(f)
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "require example.com/a v1.2",  # x/mod semver is lax: minor/patch optional
+        "require example.com/a v1",
+        "require example.com/a v1.2.3-pre.1",
+        "require example.com/a v2.0.0+incompatible",
+        "require example.com/a v0.0.0-20240424034433-3c2c7870ae76",  # pseudo-version
+        "require example.com/a v1.2.3-0.20240101000000-abcdef123456",
+        "go 1.10",
+        "go 1.21rc1",
+        "toolchain go1",
+        "toolchain go1.22.3-custom",
+        "retract [v1.0.0, v1.1.0-pre]",
+    ],
+)
+def test_valid_version_tokens_accepted(tmp_path: Path, line: str) -> None:
+    f = tmp_path / "go.mod"
+    f.write_text(f"module example.com/m\n{line}\n", encoding="utf-8")
+    parse(f)
+
+
+@pytest.mark.parametrize(
+    ("snippet", "decoded"),
+    [
+        ('replace example.com/a => "./vendor\\x20dir"', "./vendor dir"),  # round-5 reproducer
+        ('replace example.com/a => "./v\\tdir"', "./v\tdir"),
+        ('replace example.com/a => "./caf\\u00e9"', "./café"),
+        ('replace example.com/a => "./\\U0001F512lock"', "./\U0001f512lock"),
+        ('replace example.com/a => "./\\101bc"', "./Abc"),  # 3-digit octal
+        ('replace example.com/a => "./a\\\\b\\"c"', './a\\b"c'),
+    ],
+)
+def test_go_escapes_in_interpreted_strings_accepted(
+    tmp_path: Path, snippet: str, decoded: str
+) -> None:
+    # Go's own lexer applies strconv.Unquote to interpreted strings; a lexer
+    # modelling only \\ and \" rejected go.mod files Go accepts (round 5).
+    tokens = lex_go_mod_line(snippet.split(" ", 1)[1])
+    assert tokens is not None and tokens[-1] == decoded
+    f = tmp_path / "go.mod"
+    f.write_text(f"module example.com/m\n{snippet}\n", encoding="utf-8")
+    parse(f)  # must not raise
+
+
+@pytest.mark.parametrize(
+    "string",
+    [
+        '"\\q"',  # unknown escape
+        '"\\x2"',  # truncated hex
+        '"\\12"',  # octal needs exactly three digits
+        '"\\ud800xyz"',  # surrogate code point
+        '"\\U00110000aa"',  # beyond U+10FFFF
+        '"\\',  # backslash at end of line
+    ],
+)
+def test_invalid_escapes_fail_closed(tmp_path: Path, string: str) -> None:
+    f = tmp_path / "go.mod"
+    f.write_text(f"module {string}\n", encoding="utf-8")
+    with pytest.raises(ManifestError, match="cannot be lexed"):
+        parse(f)
