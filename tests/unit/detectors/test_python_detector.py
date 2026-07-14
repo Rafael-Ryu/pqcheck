@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from pqcheck.detectors._source_read import ResourceLimitError
 from pqcheck.detectors.python_detector import ImportResolver, PythonDetector, detect_python_file
 from pqcheck.models import AlgorithmFamily, CryptoFinding, QuantumRisk
 
@@ -900,13 +901,15 @@ def test_detect_python_file_syntax_error_returns_empty(tmp_path: Path) -> None:
     assert detect_python_file(f) == []
 
 
-def test_detect_python_file_deep_expression_returns_empty(tmp_path: Path) -> None:
+def test_detect_python_file_deep_expression_raises_resource_limit(tmp_path: Path) -> None:
     # A long operator chain (~117 KiB, well under the 2 MiB cap) recurses the
-    # parser past sys.getrecursionlimit() and raises RecursionError — not a
-    # SyntaxError. The detector must swallow it like any other unparseable file.
+    # parser past sys.getrecursionlimit() and raises RecursionError — valid
+    # Python the parser could not afford, so the detector must surface an
+    # incomplete-scan diagnostic instead of a clean empty result.
     f = tmp_path / "deep.py"
     f.write_text("x = a" + "+a" * 60_000 + "\n", encoding="utf-8")
-    assert detect_python_file(f) == []
+    with pytest.raises(ResourceLimitError):
+        detect_python_file(f)
 
 
 def test_detect_python_file_visit_recursion_error_returns_empty(
@@ -922,13 +925,15 @@ def test_detect_python_file_visit_recursion_error_returns_empty(
         raise RecursionError
 
     monkeypatch.setattr(PythonDetector, "visit", _raise)
-    assert detect_python_file(f) == []
+    with pytest.raises(ResourceLimitError):
+        detect_python_file(f)
 
 
-def test_detect_python_file_too_large_returns_empty(tmp_path: Path) -> None:
+def test_detect_python_file_too_large_raises_resource_limit(tmp_path: Path) -> None:
     f = tmp_path / "huge.py"
     f.write_bytes(b"# pad\n" * (400 * 1024))  # ~2.4 MiB
-    assert detect_python_file(f) == []
+    with pytest.raises(ResourceLimitError):
+        detect_python_file(f)
 
 
 def test_detect_python_file_latin1_fallback(tmp_path: Path) -> None:
@@ -997,7 +1002,8 @@ def test_detect_python_file_caps_growth_during_read(
         "pqcheck.detectors._source_read.os.read",
         fake_read,
     )
-    assert detect_python_file(f) == []
+    with pytest.raises(ResourceLimitError):
+        detect_python_file(f)
 
 
 def test_star_import_emits_finding_with_demoted_confidence() -> None:
@@ -1766,9 +1772,10 @@ def test_function_local_import_resolves_inside_its_function(tmp_path: Path) -> N
     assert [f.algorithm for f in findings] == ["MD5"]
 
 
-def test_star_import_shadowing_is_deterministic_last_import_wins(tmp_path: Path) -> None:
-    # Both star modules export `new`; at runtime the later import shadows the
-    # earlier one, so the finding must always be SHA-1 regardless of hash seed.
+def test_star_import_collision_is_suppressed(tmp_path: Path) -> None:
+    # Both star modules export `new` naming different algorithms; static
+    # analysis cannot know which import wins at runtime, so guessing either
+    # would be a coin-flip finding — the collision must be suppressed.
     target = tmp_path / "star.py"
     target.write_text(
         "from Crypto.Hash.MD5 import *\n"
@@ -1776,19 +1783,131 @@ def test_star_import_shadowing_is_deterministic_last_import_wins(tmp_path: Path)
         'new(b"x")\n',
         encoding="utf-8",
     )
+    assert detect_python_file(target) == []
+
+
+def test_star_import_same_canonical_still_emits(tmp_path: Path) -> None:
+    # Two star imports that agree on the algorithm are not ambiguous.
+    target = tmp_path / "star.py"
+    target.write_text(
+        "from Crypto.Hash.MD5 import *\n"
+        "from Crypto.Hash.MD5 import *\n"
+        'new(b"x")\n',
+        encoding="utf-8",
+    )
     findings = detect_python_file(target)
-    assert [(f.algorithm, f.confidence) for f in findings] == [("SHA-1", 0.7)]
+    assert [(f.algorithm, f.confidence) for f in findings] == [("MD5", 0.7)]
 
 
-def test_file_above_line_cap_is_skipped(tmp_path: Path) -> None:
+def test_file_above_line_cap_raises_resource_limit(tmp_path: Path) -> None:
     # Statement-dense file under the 2 MiB byte cap: parsing it would allocate
-    # hundreds of MiB of AST nodes, so the line cap must reject it outright.
+    # hundreds of MiB of AST nodes, so the line cap must reject it outright —
+    # and surface the skip as an incomplete-scan diagnostic, never a clean [].
     target = tmp_path / "bomb.py"
     target.write_bytes(b"x=1\n" * 131072)
-    assert detect_python_file(target) == []
+    with pytest.raises(ResourceLimitError):
+        detect_python_file(target)
 
 
 def test_file_just_under_line_cap_is_still_scanned(tmp_path: Path) -> None:
     target = tmp_path / "big.py"
     target.write_text("x = 1\n" * 19_990 + "import hashlib\nhashlib.md5(b'x')\n", encoding="utf-8")
     assert [f.algorithm for f in detect_python_file(target)] == ["MD5"]
+
+
+# --- lexical shadowing: a non-import binding stops outer-import resolution ---
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        # parameter shadowing (Codex 2.3 reproducer)
+        "import hashlib\ndef f(hashlib):\n    hashlib.md5(b'p')\n",
+        # parameter of an enclosing function shadows for the nested one
+        "import hashlib\ndef o(hashlib):\n    def i():\n        hashlib.md5(b'')\n",
+        # lambda parameter
+        "import hashlib\nf = lambda hashlib: hashlib.md5(b'')\n",
+        # for-loop target
+        "import hashlib\ndef f(items):\n    for hashlib in items:\n        hashlib.md5(b'')\n",
+        # except-as binding
+        "import hashlib\ndef f():\n    try:\n        pass\n"
+        "    except Exception as hashlib:\n        hashlib.md5(b'')\n",
+        # local assignment in an inner scope
+        "import hashlib\ndef f(x):\n    hashlib = x\n    hashlib.md5(b'')\n",
+        # def binding in an inner scope
+        "import hashlib\ndef f():\n    def hashlib():\n        pass\n    hashlib.md5(b'')\n",
+        # nonlocal rebinding
+        "import hashlib\ndef o():\n    hashlib = 1\n    def i():\n"
+        "        nonlocal hashlib\n        hashlib.md5(b'')\n",
+    ],
+)
+def test_shadowing_binding_suppresses_outer_import(tmp_path: Path, source: str) -> None:
+    target = tmp_path / "shadow.py"
+    target.write_text(source, encoding="utf-8")
+    assert detect_python_file(target) == []
+
+
+def test_class_scope_import_invisible_to_method(tmp_path: Path) -> None:
+    # `class C: import hashlib` then `hashlib.md5()` inside a method is a
+    # NameError at runtime — class scope is invisible to method bodies
+    # (Codex 2.3 reproducer).
+    target = tmp_path / "cls.py"
+    target.write_text(
+        "class C:\n    import hashlib\n    def f(self):\n        hashlib.md5(b'x')\n",
+        encoding="utf-8",
+    )
+    assert detect_python_file(target) == []
+
+
+def test_class_body_sees_its_own_import(tmp_path: Path) -> None:
+    target = tmp_path / "clsbody.py"
+    target.write_text(
+        "class C:\n    import hashlib\n    x = hashlib.md5(b'')\n", encoding="utf-8"
+    )
+    [finding] = detect_python_file(target)
+    assert finding.algorithm == "MD5"
+
+
+def test_method_resolves_module_import_past_class_frame(tmp_path: Path) -> None:
+    target = tmp_path / "method.py"
+    target.write_text(
+        "import hashlib\nclass C:\n    def f(self):\n        hashlib.md5(b'')\n",
+        encoding="utf-8",
+    )
+    [finding] = detect_python_file(target)
+    assert finding.algorithm == "MD5"
+
+
+def test_global_declaration_resolves_module_import(tmp_path: Path) -> None:
+    target = tmp_path / "glob.py"
+    target.write_text(
+        "import hashlib\ndef f():\n    global hashlib\n    hashlib.md5(b'')\n",
+        encoding="utf-8",
+    )
+    [finding] = detect_python_file(target)
+    assert finding.algorithm == "MD5"
+
+
+def test_same_frame_import_wins_over_conditional_assignment(tmp_path: Path) -> None:
+    # The dominant real-world shape: `try: import x / except ImportError:
+    # x = None`. The import is the crypto evidence; suppressing it here cost
+    # two adjudicated true positives on the pinned corpus (python-jose).
+    target = tmp_path / "fallback.py"
+    target.write_text(
+        "try:\n    import hashlib\nexcept ImportError:\n    hashlib = None\n"
+        "hashlib.md5(b'')\n",
+        encoding="utf-8",
+    )
+    [finding] = detect_python_file(target)
+    assert finding.algorithm == "MD5"
+
+
+def test_star_import_blocked_by_local_binding(tmp_path: Path) -> None:
+    # A concrete local def intercepts the name before any star import could;
+    # guessing the star match would flag the wrong function.
+    target = tmp_path / "starblock.py"
+    target.write_text(
+        "from Crypto.Hash.MD5 import *\ndef new(x):\n    return x\nnew(b'x')\n",
+        encoding="utf-8",
+    )
+    assert detect_python_file(target) == []

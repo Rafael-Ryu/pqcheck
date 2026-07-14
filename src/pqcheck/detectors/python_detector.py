@@ -16,7 +16,7 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import ClassVar
 
-from pqcheck.detectors._source_read import read_source_bytes
+from pqcheck.detectors._source_read import ResourceLimitError, read_source_bytes
 from pqcheck.detectors.algorithms import (
     AlgorithmHit,
     hashlib_new_table,
@@ -27,54 +27,153 @@ from pqcheck.detectors.algorithms import (
 from pqcheck.models import AlgorithmFamily, CryptoFinding, SourceLocation
 
 
+class _Frame:
+    """One lexical scope: its imports, plus every other name it binds."""
+
+    __slots__ = ("bound", "globals_", "kind", "names", "nonlocals", "stars")
+
+    def __init__(self, kind: str) -> None:
+        self.kind = kind  # "module" | "class" | "function"
+        self.names: dict[str, str] = {}  # import bindings: local -> qualified
+        self.stars: list[str] = []
+        self.bound: set[str] = set()  # non-import bindings (opaque to resolution)
+        self.globals_: set[str] = set()
+        self.nonlocals: set[str] = set()
+
+
+def _frame_kind(node: ast.AST) -> str:
+    if isinstance(node, ast.Module):
+        return "module"
+    if isinstance(node, ast.ClassDef):
+        return "class"
+    return "function"
+
+
+def _record_import_from(frame: _Frame, child: ast.ImportFrom) -> None:
+    module = child.module or ""
+    for alias in child.names:
+        if alias.name == "*":
+            frame.stars.append(module)
+            continue
+        qualified = f"{module}.{alias.name}" if module else alias.name
+        frame.names[alias.asname or alias.name] = qualified
+
+
+def _bound_name(child: ast.AST) -> str | None:
+    """Name bound by a statement-level binder other than assignment/import:
+    function and class definitions, except-as, and match capture patterns.
+    """
+    if isinstance(child, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
+        return child.name
+    if isinstance(child, ast.ExceptHandler | ast.MatchAs | ast.MatchStar):
+        return child.name
+    if isinstance(child, ast.MatchMapping):
+        return child.rest
+    return None
+
+
 class ImportResolver:
     """First pass: local-name → qualified-name maps, one frame per lexical scope.
 
-    A frame collects only a scope's own import statements (module, function, or
-    class body — nested scopes own their bindings), and resolution walks the
-    frame stack innermost-first, so a function-local `import hashlib` neither
-    leaks into module-level calls nor hides behind a module-level alias of the
-    same name. Star imports are recorded in source order but not expanded —
-    there is no way to know which names a `from X import *` binds without
-    importing X.
+    A frame collects a scope's own import statements AND a sentinel set of
+    every other name the scope binds — parameters, assignments, function/class
+    definitions, loop/with/except/match targets. Resolution walks the frames a
+    real Python lookup would see (class frames are invisible to the methods
+    they enclose) and an outer import never shines through an inner non-import
+    binding: `def f(hashlib): hashlib.md5()` is a parameter, not the module.
+    Within a single frame the import wins over a sibling non-import binding —
+    the common `try: import x / except ImportError: x = None` shape keeps its
+    import evidence. `global`/`nonlocal` declarations redirect the walk.
+
+    Star imports are recorded in source order but not expanded — there is no
+    way to know which names a `from X import *` binds without importing X.
     """
 
     def __init__(self) -> None:
-        self._frames: list[tuple[dict[str, str], list[str]]] = []
+        self._frames: list[_Frame] = []
 
     def push_scope(self, node: ast.AST) -> None:
-        names: dict[str, str] = {}
-        stars: list[str] = []
+        frame = _Frame(_frame_kind(node))
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda):
+            frame.bound.update(_param_names(node))
         for child in _own_scope_nodes(node):
             if isinstance(child, ast.Import):
                 for alias in child.names:
                     root = alias.name.split(".", 1)[0]
-                    names[alias.asname or root] = alias.name if alias.asname else root
+                    frame.names[alias.asname or root] = alias.name if alias.asname else root
             elif isinstance(child, ast.ImportFrom) and not child.level:
                 # Relative imports are skipped — they cannot resolve to a
                 # project-independent qualified name, and crypto libs are
                 # never relative.
-                module = child.module or ""
-                for alias in child.names:
-                    if alias.name == "*":
-                        stars.append(module)
-                        continue
-                    qualified = f"{module}.{alias.name}" if module else alias.name
-                    names[alias.asname or alias.name] = qualified
-        self._frames.append((names, stars))
+                _record_import_from(frame, child)
+            elif isinstance(child, ast.Name) and isinstance(child.ctx, ast.Store | ast.Del):
+                frame.bound.add(child.id)
+            elif isinstance(child, ast.Global):
+                frame.globals_.update(child.names)
+            elif isinstance(child, ast.Nonlocal):
+                frame.nonlocals.update(child.names)
+            else:
+                bound = _bound_name(child)
+                if bound is not None:
+                    frame.bound.add(bound)
+        self._frames.append(frame)
 
     def pop_scope(self) -> None:
         self._frames.pop()
 
-    def iter_star_imports(self) -> tuple[str, ...]:
-        """Star-imported modules in the order a runtime name lookup would win:
-        innermost scope first, later imports first within a scope — so the
-        caller's first catalog match mirrors real shadowing instead of
-        depending on hash order.
+    def _visible_frames(self) -> list[_Frame]:
+        """Frames a lookup in the innermost scope actually consults,
+        innermost-first. Python skips every enclosing *class* frame (class
+        scope is invisible to the methods and nested functions it wraps);
+        only the innermost frame itself may be a class body.
         """
+        visible = [self._frames[-1]]
+        visible.extend(f for f in reversed(self._frames[:-1]) if f.kind != "class")
+        return visible
+
+    def lookup(self, local: str) -> tuple[str | None, bool]:
+        """Resolve `local` to (qualified_import, blocked).
+
+        blocked=True means a non-import binding intercepts the lookup before
+        any import could — the name provably refers to something we cannot
+        identify, so callers must not guess (not even via star imports).
+        """
+        if not self._frames:
+            return None, False
+        visible = self._visible_frames()
+        innermost = visible[0]
+        if local in innermost.globals_:
+            visible = [self._frames[0]]
+        elif local in innermost.nonlocals:
+            visible = [f for f in visible[1:] if f.kind == "function"]
+            if not visible:
+                return None, True  # nonlocal with no enclosing function: undecidable
+        for frame in visible:
+            qualified = frame.names.get(local)
+            if qualified is not None:
+                # Import wins over a sibling non-import binding in the SAME
+                # frame: the dominant real-world shape is `try: import x /
+                # except ImportError: x = None`, where the import is the
+                # crypto evidence (recall-gated on the pinned corpus —
+                # python-jose binds exactly this way). An inner-frame binding
+                # still blocks outer imports below.
+                return qualified, False
+            if local in frame.bound:
+                return None, True
+        return None, False
+
+    def iter_star_imports(self) -> tuple[str, ...]:
+        """Star-imported modules a lookup could reach, in the order a runtime
+        name lookup would win: innermost visible scope first, later imports
+        first within a scope. Callers only consult this after `lookup`
+        returned unblocked-and-unresolved, so no concrete binding shadows
+        these candidates.
+        """
+        if not self._frames:
+            return ()
         ordered: list[str] = []
-        for _, stars in reversed(self._frames):
-            ordered.extend(reversed(stars))
+        for frame in self._visible_frames():
+            ordered.extend(reversed(frame.stars))
         return tuple(ordered)
 
     def resolve_attribute(self, node: ast.expr) -> str | None:
@@ -101,11 +200,7 @@ class ImportResolver:
         return ".".join([base, *parts]) if parts else base
 
     def resolve_name(self, local: str) -> str | None:
-        for names, _ in reversed(self._frames):
-            qualified = names.get(local)
-            if qualified is not None:
-                return qualified
-        return None
+        return self.lookup(local)[0]
 
 
 _DETECTOR_ID = "python-ast"
@@ -173,7 +268,7 @@ def _own_scope_nodes(node: ast.AST) -> Iterator[ast.AST]:
             yield from _own_scope_nodes(child)
 
 
-def _param_names(node: ast.FunctionDef | ast.AsyncFunctionDef) -> list[str]:
+def _param_names(node: ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda) -> list[str]:
     args = node.args
     names = [a.arg for a in (*args.posonlyargs, *args.args, *args.kwonlyargs)]
     if args.vararg is not None:
@@ -212,11 +307,20 @@ class PythonDetector(ast.NodeVisitor):
         self._visit_function(node)
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
-        # A class body owns its imports like a function does. Methods resolving
-        # through the class frame is a benign superset of Python's real lookup
-        # (class scope is invisible to method bodies), accepted for simplicity:
-        # a class-body crypto import attributed inside a method is still the
-        # same import in the same file.
+        # A class body owns its imports like a function does. The resolver's
+        # frame visibility keeps this frame out of method-body lookups (class
+        # scope is invisible to the methods it wraps — `class C: import
+        # hashlib` followed by `hashlib.md5()` inside a method is a NameError
+        # at runtime, not stdlib MD5).
+        self._imports.push_scope(node)
+        try:
+            self.generic_visit(node)
+        finally:
+            self._imports.pop_scope()
+
+    def visit_Lambda(self, node: ast.Lambda) -> None:
+        # Lambdas cannot import, but their parameters shadow outer names for
+        # the body (`lambda hashlib: hashlib.md5(x)` is not the module).
         self._imports.push_scope(node)
         try:
             self.generic_visit(node)
@@ -325,8 +429,15 @@ class PythonDetector(ast.NodeVisitor):
         # Star-import fallback: `from <module> import *; md5()` leaves
         # the callee unresolved, but a catalog match under the star-imported
         # module is plausible. Confidence is demoted because static analysis
-        # cannot prove the runtime binding without importing the module.
-        if not emitted and qualified is None and isinstance(node.func, ast.Name):
+        # cannot prove the runtime binding without importing the module. A
+        # name intercepted by a concrete non-import binding (parameter,
+        # assignment, def) is provably NOT the star import — never guess it.
+        if (
+            not emitted
+            and qualified is None
+            and isinstance(node.func, ast.Name)
+            and not self._imports.lookup(node.func.id)[1]
+        ):
             self._emit_via_star_import(node, node.func.id)
         if not emitted:
             emitted = self._emit_method_on_single_assigned(node)
@@ -382,12 +493,20 @@ class PythonDetector(ast.NodeVisitor):
         )
 
     def _emit_via_star_import(self, node: ast.Call, short_name: str) -> None:
-        for module in self._imports.iter_star_imports():
-            hit = lookup_python_symbol(f"{module}.{short_name}")
-            if hit is None or hit.canonical == "CIPHER-WRAPPER":
-                continue
-            self._emit(node, hit.canonical, hit.family, confidence=0.7)
+        # Emit only when every star-imported module that knows this name
+        # agrees on the algorithm. When candidates collide (`from MD5 import
+        # *` next to `from SHA1 import *`, both exporting `new`), static
+        # analysis cannot pick the runtime winner — guessing one would be a
+        # coin-flip finding, so the collision is suppressed (precision-first).
+        hits = [
+            hit
+            for module in self._imports.iter_star_imports()
+            if (hit := lookup_python_symbol(f"{module}.{short_name}")) is not None
+            and hit.canonical != "CIPHER-WRAPPER"
+        ]
+        if not hits or any(hit.canonical != hits[0].canonical for hit in hits[1:]):
             return
+        self._emit(node, hits[0].canonical, hits[0].family, confidence=0.7)
 
     def _emit_hashlib_new(self, node: ast.Call) -> None:
         if not node.args:
@@ -732,16 +851,25 @@ def _bytes_literal_bits(expr: ast.expr) -> int | None:
 def detect_python_file(path: Path) -> list[CryptoFinding]:
     """Detect Python crypto primitive usage in `path`.
 
-    Returns an empty list (never raises) for: any condition that makes
-    read_source_bytes return None (missing/symlink/non-regular/oversized
-    file — see that function for the file-IO hardening), a file above
-    _MAX_SOURCE_LINES, encoding failure on both UTF-8 and Latin-1, a parse
-    that fails with SyntaxError, ValueError, RecursionError, or MemoryError,
-    or a visit pass that raises RecursionError/MemoryError.
+    Raises ResourceLimitError (only) when a resource guard drops analyzable
+    input: an oversized file (read_source_bytes' byte cap), a file above
+    _MAX_SOURCE_LINES, or a parse/visit that exhausts recursion or memory.
+    Those files may hold real crypto the scan did not see, so they surface as
+    incomplete-scan diagnostics rather than an empty (clean-looking) result.
+
+    Returns an empty list for everything else: silent read skips
+    (missing/symlink/non-regular — see read_source_bytes), encoding failure
+    on both UTF-8 and Latin-1, and SyntaxError/ValueError parses. Source that
+    CPython itself refuses to compile (bad syntax, NUL bytes) can never
+    execute, so no live crypto is being suppressed there.
     """
     raw = read_source_bytes(path)
-    if raw is None or raw.count(b"\n") >= _MAX_SOURCE_LINES:
+    if raw is None:
         return []
+    if raw.count(b"\n") >= _MAX_SOURCE_LINES:
+        raise ResourceLimitError(
+            f"file exceeds {_MAX_SOURCE_LINES} lines; skipped (scan incomplete)"
+        )
     source: str | None = None
     for encoding in ("utf-8-sig", "latin-1"):
         try:
@@ -753,20 +881,24 @@ def detect_python_file(path: Path) -> list[CryptoFinding]:
         return []
     try:
         tree = ast.parse(source, filename=str(path))
-    except (SyntaxError, ValueError, RecursionError, MemoryError):
-        # SyntaxError: unparseable source. ValueError: source with null bytes.
-        # RecursionError: a deeply nested expression that recurses the parser
-        # past the limit. MemoryError: a pathological tree that allocates
-        # instead of recursing. All are untrusted-input cases that must not
-        # abort the scan.
+    except (SyntaxError, ValueError):
+        # Unparseable source / NUL bytes: CPython cannot run this file either,
+        # so it holds no executable crypto — a silent skip is honest.
         return []
+    except (RecursionError, MemoryError) as exc:
+        # Valid-but-pathological source the parser could not afford: real code
+        # may hide behind the guard, so report the scan as incomplete.
+        raise ResourceLimitError(
+            f"parse exhausted resources ({exc.__class__.__name__}); skipped (scan incomplete)"
+        ) from exc
     detector = PythonDetector(source_path=path, source=source)
     try:
         detector.visit(tree)
-    except (RecursionError, MemoryError):
-        # Same latent-risk rationale as the ast.parse guard above: a
-        # deep-but-parseable tree should degrade to empty findings, not
-        # abort the scan. Not reachable on current CPython (parsing
-        # recurses first) but cheap insurance against future parser changes.
-        return []
+    except (RecursionError, MemoryError) as exc:
+        # Not reachable on current CPython (parsing recurses first) but cheap
+        # insurance against future parser changes — and the same incomplete-scan
+        # contract as the ast.parse guard above.
+        raise ResourceLimitError(
+            f"visit exhausted resources ({exc.__class__.__name__}); skipped (scan incomplete)"
+        ) from exc
     return detector.findings
