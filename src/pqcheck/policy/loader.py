@@ -70,7 +70,19 @@ def _construct_mapping(self: Any, node: Any, deep: bool = False) -> Any:
     seen: set[Any] = set()
     for key_node, _ in node.value:
         key = self.construct_object(key_node, deep=deep)
-        if key in seen:
+        try:
+            duplicate = key in seen
+        except TypeError as exc:
+            # A complex key (`? [a, b]`) constructs to an unhashable object;
+            # the set probe would crash with a raw TypeError that escapes the
+            # PolicyError contract. Policies never need complex keys — reject.
+            raise yaml.constructor.ConstructorError(
+                "while constructing a mapping",
+                node.start_mark,
+                f"unhashable key of type {type(key).__name__!r}",
+                key_node.start_mark,
+            ) from exc
+        if duplicate:
             raise yaml.constructor.ConstructorError(
                 "while constructing a mapping",
                 node.start_mark,
