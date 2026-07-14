@@ -1130,3 +1130,21 @@ def test_fallback_records_resource_guard_skip_per_file(tmp_path: Path) -> None:
     assert [f.algorithm for f in findings] == ["MD5"]
     [diag] = errors
     assert "big.go" in diag and "ResourceLimitError" in diag
+
+
+def test_replace_with_escaped_path_inside_boundary_allowed(tmp_path: Path) -> None:
+    # `"./vendor\x20dir"` is a valid go.mod interpreted string (round 5);
+    # the boundary check must decode it and resolve the real path instead of
+    # refusing to lex the line and suppressing semantic analysis.
+    module = tmp_path / "m"
+    _write_go_mod(module, 'replace example.com/x => "./vendor\\x20dir"\n')
+    (module / "vendor dir").mkdir(parents=True)
+    assert gmd._boundary_violation(module, module) is None
+
+
+def test_replace_with_escaped_traversal_still_detected(tmp_path: Path) -> None:
+    # The decoded value is what gets boundary-checked: an escape spelling of
+    # `../outside` must not smuggle the path past the check.
+    module = tmp_path / "root"
+    _write_go_mod(module, 'replace example.com/x => "\\x2e./outside"\n')
+    assert gmd._boundary_violation(module, module) is not None

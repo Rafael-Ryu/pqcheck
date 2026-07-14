@@ -33,18 +33,28 @@ from pqcheck.deps.base import ManifestError, golang_purl, safe_read_bytes
 from pqcheck.deps.packages import lookup_introduces
 from pqcheck.models import CryptoDependency
 
-# A require entry's version token: go requires `v...` (v1.2.3, v0.0.0-pre,
-# v2.0.0+incompatible). Kept as loose as the historical regex (`v\S+`).
-_VERSION_RE = re.compile(r"^v\S+$")
+# Module versions per x/mod/semver's lax grammar (what modfile's
+# CanonicalVersion accepts): `v` MAJOR[.MINOR[.PATCH]][-pre][+build], numeric
+# parts without leading zeros, numeric prerelease identifiers likewise. The
+# historical `v\S+` accepted `vbanana` and even forged it into the inventory.
+_SEMVER_NUM = r"(?:0|[1-9]\d*)"
+_SEMVER_IDENT = r"(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)"
+_SEMVER = (
+    rf"v{_SEMVER_NUM}(?:\.{_SEMVER_NUM}(?:\.{_SEMVER_NUM})?)?"
+    rf"(?:-{_SEMVER_IDENT}(?:\.{_SEMVER_IDENT})*)?"
+    rf"(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?"
+)
+_VERSION_RE = re.compile(rf"^{_SEMVER}$")
 
-# GoVersion: `1.21`, `1.21.0`, `1.21rc1`, `1.21beta1`.
-_GO_VERSION_RE = re.compile(r"^\d+\.\d+(\.\d+)?([a-z]+\d+)?$")
+# GoVersionRE from x/mod/modfile: `1.21`, `1.21.0`, `1.21rc1` — no leading
+# zeros, minor required.
+_GO_VERSION_RE = re.compile(r"^([1-9][0-9]*)\.(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))?([a-z]+[0-9]+)?$")
 
-# RetractSpec versions cannot carry the interval punctuation; the loose
-# `v\S+` would swallow a stray `,` or `]` and accept junk like `[v1.0.0,]`.
-_RETRACT_VERSION = r"v[^\s,\[\]]+"
-_RETRACT_SINGLE_RE = re.compile(rf"^{_RETRACT_VERSION}$")
-_RETRACT_INTERVAL_RE = re.compile(rf"^\[{_RETRACT_VERSION},{_RETRACT_VERSION}\]$")
+# ToolchainRE from x/mod/modfile: `default`, or a go1 release name.
+_TOOLCHAIN_RE = re.compile(r"^default$|^go1($|\.)")
+
+# RetractSpec = Version | "[" Version "," Version "]" — same semver grammar.
+_RETRACT_INTERVAL_RE = re.compile(rf"^\[{_SEMVER},{_SEMVER}\]$")
 
 _REQUIRE_ENTRY_TOKENS = 2  # module path + version, nothing else
 _MODULE_VERSION_TOKENS = 2  # `module/path v1.2.3` — one side of a replace
@@ -107,22 +117,88 @@ def lex_go_mod_line(line: str) -> list[str] | None:
 
 def _lex_interpreted_string(line: str, start: int) -> tuple[str, int] | None:
     """Decode the `"..."` string opening at line[start]; (value, next_index),
-    or None (fail closed) on an unterminated string or unmodelled escape."""
+    or None (fail closed) on an unterminated string or invalid escape.
+
+    Handles the full Go interpreted-string escape set (strconv.Unquote, which
+    is what go.mod's own lexer applies): the single-char escapes, `\\xHH`,
+    exactly-3-digit octal (byte-valued), and `\\uHHHH`/`\\UHHHHHHHH` rejecting
+    surrogates and out-of-range code points. Modelling only `\\\\` and `\\"`
+    made the lexer refuse go.mod files Go itself accepts (e.g. a replace
+    target of "./vendor\\x20dir").
+    """
     i = start + 1
     size = len(line)
     buf: list[str] = []
     while i < size and line[i] != '"':
         if line[i] == "\\":
-            if i + 1 >= size or line[i + 1] not in '\\"':
+            if i + 1 >= size:
                 return None
-            buf.append(line[i + 1])
-            i += 2
+            decoded = _decode_escape(line, i + 1)
+            if decoded is None:
+                return None
+            text, i = decoded
+            buf.append(text)
         else:
             buf.append(line[i])
             i += 1
     if i >= size:
         return None
     return "".join(buf), i + 1
+
+
+_SIMPLE_ESCAPES = {
+    "a": "\a", "b": "\b", "f": "\f", "n": "\n", "r": "\r", "t": "\t",
+    "v": "\v", "\\": "\\", '"': '"',
+}
+_OCTAL_ESCAPE_DIGITS = 3
+_HEX_ESCAPE_DIGITS = 2
+_UNICODE4_DIGITS = 4
+_UNICODE8_DIGITS = 8
+_MAX_BYTE = 0xFF
+_MAX_CODE_POINT = 0x10FFFF
+_SURROGATE_LO, _SURROGATE_HI = 0xD800, 0xDFFF
+
+
+def _decode_escape(line: str, i: int) -> tuple[str, int] | None:
+    """Decode one escape whose introducing backslash sits at line[i - 1];
+    (decoded_text, next_index), or None on any form Go's lexer rejects."""
+    ch = line[i]
+    simple = _SIMPLE_ESCAPES.get(ch)
+    if simple is not None:
+        return simple, i + 1
+    if ch == "x":
+        return _hex_escape(line, i + 1, _HEX_ESCAPE_DIGITS)
+    if ch == "u":
+        return _unicode_escape(line, i + 1, _UNICODE4_DIGITS)
+    if ch == "U":
+        return _unicode_escape(line, i + 1, _UNICODE8_DIGITS)
+    digits = line[i : i + _OCTAL_ESCAPE_DIGITS]
+    if len(digits) == _OCTAL_ESCAPE_DIGITS and all(c in "01234567" for c in digits):
+        value = int(digits, 8)
+        if value <= _MAX_BYTE:
+            return chr(value), i + _OCTAL_ESCAPE_DIGITS
+    return None
+
+
+def _hex_digits_value(line: str, i: int, count: int) -> int | None:
+    digits = line[i : i + count]
+    if len(digits) == count and all(c in "0123456789abcdefABCDEF" for c in digits):
+        return int(digits, 16)
+    return None
+
+
+def _hex_escape(line: str, i: int, count: int) -> tuple[str, int] | None:
+    value = _hex_digits_value(line, i, count)
+    if value is None:
+        return None
+    return chr(value), i + count
+
+
+def _unicode_escape(line: str, i: int, count: int) -> tuple[str, int] | None:
+    value = _hex_digits_value(line, i, count)
+    if value is None or value > _MAX_CODE_POINT or _SURROGATE_LO <= value <= _SURROGATE_HI:
+        return None  # invalid code point: Go's lexer rejects it too
+    return chr(value), i + count
 
 
 def dir_shaped(token: str) -> bool:
@@ -145,8 +221,7 @@ def _go_entry_ok(tokens: list[str]) -> bool:
 
 
 def _toolchain_entry_ok(tokens: list[str]) -> bool:
-    # ToolchainName = "default" | "go" GoVersion [suffix]
-    return len(tokens) == 1 and (tokens[0] == "default" or tokens[0].startswith("go"))
+    return len(tokens) == 1 and _TOOLCHAIN_RE.match(tokens[0]) is not None
 
 
 def _exclude_entry_ok(tokens: list[str]) -> bool:
@@ -174,7 +249,7 @@ def _retract_entry_ok(tokens: list[str]) -> bool:
     # split on `[`/`,`/`]`, so an interval arrives as 1..N tokens depending on
     # spacing — joining normalizes that before matching.
     joined = "".join(tokens)
-    if len(tokens) == 1 and _RETRACT_SINGLE_RE.match(joined):
+    if len(tokens) == 1 and _VERSION_RE.match(joined):
         return True
     return _RETRACT_INTERVAL_RE.match(joined) is not None
 
