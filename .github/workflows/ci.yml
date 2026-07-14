@@ -148,4 +148,12 @@ jobs:
             "pqcheck/detectors/_constants.py"; do
             unzip -l dist/*.whl | grep -qE "$pat" || { echo "missing $pat in wheel"; exit 1; }
           done
-      - run: uv run --no-project --with dist/*.whl pqcheck --help
+      # Smoke in a fresh venv, not `uv run --with`: the latter can layer the
+      # wheel over an existing environment, so a dependency missing from the
+      # wheel metadata is silently satisfied by the project venv (this masked
+      # a wheel that could not import on a clean install).
+      - name: Wheel smoke in a clean venv
+        run: |
+          uv venv /tmp/wheel-smoke
+          VIRTUAL_ENV=/tmp/wheel-smoke uv pip install dist/*.whl
+          /tmp/wheel-smoke/bin/pqcheck --help

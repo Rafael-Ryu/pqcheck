@@ -751,6 +751,7 @@ name = "pqcheck"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "cryptography" },
     { name = "cyclonedx-python-lib" },
     { name = "jsonschema" },
     { name = "lxml" },
@@ -785,6 +786,7 @@ sigstore = [
 
 [package.metadata]
 requires-dist = [
+    { name = "cryptography", specifier = ">=43,<47" },
     { name = "cyclonedx-python-lib", specifier = ">=8.5,<11" },
     { name = "hypothesis", marker = "extra == 'dev'", specifier = ">=6.115,<7" },
     { name = "jsonschema", specifier = ">=4.23,<5" },

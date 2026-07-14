@@ -28,7 +28,7 @@ release.
 | T1 | Sigstore Fulcio signing certs (release signatures) | ECDSA P-256 | Upstream limitation; signatures are short-lived and transparency-logged (Rekor). Native ML-DSA verification is planned post-v0.1 when Sigstore ships PQC. |
 | T2 | Distribution channel (PyPI, GitHub) | Classical TLS | Inherited. Compensating control: Sigstore-signed wheels — verify the artifact, not the channel. |
 | T3 | GitHub Actions OIDC (build identity) | RS256 | Upstream limitation; workflows and third-party actions are SHA-pinned, wheels reproducible (`-trimpath`, zeroed buildid). |
-| T4 | `cryptography` library in the dependency tree (via the `sigstore` extra) | Classical primitives present | Verification-only usage; visible in our own self-CBOM as dependency metadata. |
+| T4 | `cryptography` library (direct dependency) | Classical primitives present | Used only to parse and classify key material found in scanned repos and to verify release signatures (`sigstore` extra) — pqcheck performs no cryptographic operations with it on any trust path. Visible in our own self-CBOM as dependency metadata. |
 | T5 | Go module authentication at build time (sumdb) | Ed25519 | Build-time only; scans run with `GOPROXY=off` and never touch the network. `go.sum` content hashes are SHA-256. |
 
 ## Scanning hostile repositories
