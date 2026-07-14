@@ -13,7 +13,14 @@ from pqcheck.models import (
     Severity,
     SourceLocation,
 )
-from pqcheck.policy.engine import confidence_to_band, demote, evaluate, gate, rule_matches
+from pqcheck.policy.engine import (
+    confidence_to_band,
+    demote,
+    evaluate,
+    gate,
+    rule_matches,
+    unevaluated_constructs,
+)
 from pqcheck.policy.loader import load_default_policy
 from pqcheck.policy.schema import (
     AlgorithmRule,
@@ -426,3 +433,30 @@ def test_strict_gate_does_not_trip_on_hybrid_kem_finding(policy_name):
     policy = load_default_policy(policy_name)
     decisions = evaluate([_f("X25519MLKEM768", AlgorithmFamily.KEM, 1.0)], policy)
     assert gate(decisions, strict=True) is None
+
+
+def test_unevaluated_constructs_on_bundled_default_policy():
+    # cryptoct-default declares hash/params/context-scoped rules the v0.1
+    # engine cannot evaluate; the CLI surfaces them so the gate is never
+    # silently wider-open than the policy reads.
+    policy = load_default_policy("cryptoct-default")
+    assert unevaluated_constructs(policy) == ["hash", "params"]
+
+
+def test_unevaluated_constructs_empty_for_fully_evaluated_policy():
+    policy = CryptoPolicy(
+        apiVersion="pqcheck.cryptoct.com/v1",
+        kind="CryptoPolicy",
+        metadata=PolicyMetadata(
+            name="t", version="1.0.0", publisher="t", applies_to="t",
+            effective_from=date(2026, 1, 1), review_date=date(2026, 6, 1),
+        ),
+        spec=PolicySpec(
+            default_action=RuleAction.WARN,
+            approved=[AlgorithmRule(
+                family=PolicyFamily.SYMMETRIC_CIPHER, algorithm="AES",
+                parameter_sets=["256"], action=RuleAction.ALLOW,
+            )],
+        ),
+    )
+    assert unevaluated_constructs(policy) == []

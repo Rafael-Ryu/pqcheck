@@ -23,6 +23,12 @@ class PolicyError(Exception):
     """Raised when a policy cannot be read, parsed, or validated."""
 
 
+# Policies are hand-written YAML a few KiB long; anything near this cap is not
+# a policy. Keeps SECURITY.md's "file reads are size-capped" claim true for
+# this read path too.
+_MAX_POLICY_BYTES = 1 * 1024 * 1024
+
+
 class _NoAliasSafeLoader(yaml.SafeLoader):
     """SafeLoader that blocks YAML aliases (alias-bomb defense) and custom tags."""
 
@@ -72,6 +78,8 @@ def _parse_and_validate(text: str, origin: str) -> CryptoPolicy:
 def load_policy(path: Path) -> CryptoPolicy:
     """Read, parse, and validate a policy file. Raises PolicyError on any failure."""
     try:
+        if path.stat().st_size > _MAX_POLICY_BYTES:
+            raise PolicyError(f"policy {path} exceeds {_MAX_POLICY_BYTES} bytes")
         text = path.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as exc:
         # UnicodeDecodeError is a ValueError, not an OSError, so it needs its own
