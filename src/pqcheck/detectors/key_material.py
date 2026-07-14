@@ -153,8 +153,52 @@ def _classify_key(key: object) -> _Classification | None:
     return None  # pragma: no cover - defensive; every pyca key type is covered above
 
 
-def _line_at(data: bytes, offset: int) -> int:
-    return data.count(b"\n", 0, offset) + 1
+def _ec_cert_usage(cert: x509.Certificate, ecdsa: _Classification) -> _Classification:
+    """Refine an EC certificate's default ECDSA classification via KeyUsage.
+
+    key_agreement set with every signing bit clear means the key never signs
+    — reporting ECDSA would name the wrong algorithm and family, so it
+    becomes ECDH/key-agreement. Absent or unreadable KeyUsage keeps the ECDSA
+    default: raw EC keys stay ECDSA deliberately, since renaming them (e.g.
+    to a generic ECC) would silently stop matching `algorithm: ECDSA` policy
+    rules while the material is quantum-vulnerable either way.
+    """
+    try:
+        usage = cert.extensions.get_extension_for_class(x509.KeyUsage).value
+    except (x509.ExtensionNotFound, *_PARSE_EXCEPTIONS):
+        return ecdsa
+    if usage.key_agreement and not (
+        usage.digital_signature
+        or usage.content_commitment
+        or usage.key_cert_sign
+        or usage.crl_sign
+    ):
+        return _Classification(
+            "ECDH", AlgorithmFamily.KEY_AGREEMENT, ecdsa.key_size, ecdsa.curve
+        )
+    return ecdsa
+
+
+class _LineCounter:
+    """Line number of an offset, for offsets queried in ascending order.
+
+    Counting newlines from 0 on every query rescans the whole prefix, which is
+    quadratic across the thousands of blocks a bundle can hold. Each query here
+    counts only the bytes since the previous one; an out-of-order offset (never
+    produced by the ascending finditer passes) falls back to a full count.
+    """
+
+    def __init__(self, data: bytes) -> None:
+        self._data = data
+        self._offset = 0
+        self._newlines = 0
+
+    def line_at(self, offset: int) -> int:
+        if offset < self._offset:  # pragma: no cover - callers query in order
+            return self._data.count(b"\n", 0, offset) + 1
+        self._newlines += self._data.count(b"\n", self._offset, offset)
+        self._offset = offset
+        return self._newlines + 1
 
 
 def _cert_finding(
@@ -168,6 +212,8 @@ def _cert_finding(
     classification = _classify_key(cert.public_key()) or _Classification(
         "UNKNOWN", AlgorithmFamily.SIGNATURE
     )
+    if classification.algorithm == "ECDSA":
+        classification = _ec_cert_usage(cert, classification)
     # pyca emits UserWarning for X.509 attributes with nonstandard lengths;
     # hostile certificates would otherwise spray those onto stderr once per
     # rfc4514 conversion. The values still convert — only the noise is muted.
@@ -304,20 +350,29 @@ def _detect_pem_block(block: bytes, label: bytes, *, path: Path, line: int) -> C
 def _detect_pem_blocks(data: bytes, path: Path) -> list[CryptoFinding]:
     findings: list[CryptoFinding] = []
     consumed: list[tuple[int, int]] = []
+    block_lines = _LineCounter(data)
     for match in _PEM_BLOCK_RE.finditer(data):
         label = match.group(1)
-        line = _line_at(data, match.start())
+        line = block_lines.line_at(match.start())
         consumed.append((match.start(), match.end()))
         finding = _detect_pem_block(match.group(0), label, path=path, line=line)
         if finding is not None:
             findings.append(finding)
+    # Both finditer passes yield ascending, non-overlapping starts, so one
+    # advancing index over `consumed` decides containment in linear total time.
+    # A per-BEGIN scan of every interval is quadratic: a 1 MB bundle of ~19k
+    # empty blocks took 14 s of pure interval comparisons.
+    next_block = 0
+    begin_lines = _LineCounter(data)
     for match in _PEM_BEGIN_RE.finditer(data):
+        while next_block < len(consumed) and consumed[next_block][1] <= match.start():
+            next_block += 1
         # Skip a BEGIN that's already part of a complete block matched above
         # -- only a BEGIN with no matching END reaches the fallback below.
-        if any(start <= match.start() < end for start, end in consumed):
+        if next_block < len(consumed) and consumed[next_block][0] <= match.start():
             continue
         label = match.group(1)
-        line = _line_at(data, match.start())
+        line = begin_lines.line_at(match.start())
         evidence = f"PEM block {label.decode('ascii', errors='replace')} (truncated, no END marker)"
         finding = _header_only_finding(label, path=path, line=line, evidence=evidence)
         if finding is not None:
