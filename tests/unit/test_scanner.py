@@ -1,12 +1,14 @@
 from pathlib import Path
 
 import pytest
+from cryptography.hazmat.primitives import serialization
 
 import pqcheck.scanner as scanner_mod
 from pqcheck import __version__
 from pqcheck.models import AlgorithmFamily, CryptoFinding, SourceLocation
 from pqcheck.policy.loader import load_default_policy
 from pqcheck.scanner import scan
+from tests.fixtures import keymaterial
 
 
 def _tree(tmp_path: Path, files: dict[str, str]) -> Path:
@@ -105,3 +107,31 @@ def test_scan_propagates_walker_errors(tmp_path: Path) -> None:
     result = scan(tmp_path / "missing")
     assert result.findings == ()
     assert result.errors
+
+
+def test_scan_detects_key_material_end_to_end(tmp_path: Path) -> None:
+    key = keymaterial.rsa_key(2048)
+    pem = key.private_bytes(
+        serialization.Encoding.PEM,
+        serialization.PrivateFormat.PKCS8,
+        serialization.NoEncryption(),
+    )
+    root = _tree(tmp_path, {})
+    (root / "server.key").write_bytes(pem)
+    result = scan(root)
+    assert [f.algorithm for f in result.findings] == ["RSA"]
+    assert result.findings[0].material_kind == "private-key"
+
+
+def test_scan_swallows_per_file_key_material_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _tree(tmp_path, {"a.key": ""})
+
+    def explode(path: Path) -> list[CryptoFinding]:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(scanner_mod, "detect_key_material_file", explode)
+    result = scan(root)
+    assert result.findings == ()
+    assert any("a.key" in e and "boom" in e for e in result.errors)

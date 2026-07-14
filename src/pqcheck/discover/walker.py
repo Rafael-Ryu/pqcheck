@@ -45,6 +45,8 @@ MANIFEST_NAMES = frozenset({
     "package-lock.json",
 })
 
+_KEY_MATERIAL_EXTENSIONS = frozenset({".pem", ".key", ".crt", ".der"})
+
 _IGNORE_FILES = (".gitignore", ".pqcheckignore")
 
 
@@ -53,6 +55,7 @@ class Discovery:
     python_files: tuple[Path, ...] = ()
     go_files: tuple[Path, ...] = ()
     manifests: tuple[Path, ...] = ()
+    key_material_files: tuple[Path, ...] = ()
     errors: tuple[str, ...] = ()
 
 
@@ -76,6 +79,7 @@ def discover(root: Path) -> Discovery:
     python_files: list[Path] = []
     go_files: list[Path] = []
     manifests: list[Path] = []
+    key_material_files: list[Path] = []
 
     if not root.is_dir():
         errors.append(f"{root}: not a directory")
@@ -107,10 +111,13 @@ def discover(root: Path) -> Discovery:
                 go_files.append(file_path)
             elif filename in MANIFEST_NAMES:
                 manifests.append(file_path)
+            elif file_path.suffix in _KEY_MATERIAL_EXTENSIONS:
+                key_material_files.append(file_path)
 
     return Discovery(
         python_files=tuple(sorted(python_files)),
         go_files=tuple(sorted(go_files)),
         manifests=tuple(sorted(manifests)),
+        key_material_files=tuple(sorted(key_material_files)),
         errors=tuple(errors),
     )
