@@ -21,6 +21,7 @@ irrelevant file, matching the scanner's never-raise contract.
 from __future__ import annotations
 
 import re
+import warnings
 from collections.abc import Callable
 from pathlib import Path
 from typing import Literal, cast
@@ -167,18 +168,25 @@ def _cert_finding(
     classification = _classify_key(cert.public_key()) or _Classification(
         "UNKNOWN", AlgorithmFamily.SIGNATURE
     )
+    # pyca emits UserWarning for X.509 attributes with nonstandard lengths;
+    # hostile certificates would otherwise spray those onto stderr once per
+    # rfc4514 conversion. The values still convert — only the noise is muted.
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        subject = cert.subject.rfc4514_string()
+        issuer = cert.issuer.rfc4514_string()
     return CryptoFinding(
         algorithm=classification.algorithm,
         family=classification.family,
         key_size=classification.key_size,
         curve=classification.curve,
         location=SourceLocation(path=path, line=line, column=0),
-        evidence=f"certificate CN-ish subject={cert.subject.rfc4514_string()}",
+        evidence=f"certificate CN-ish subject={subject}",
         detector_id=_DETECTOR_ID,
         confidence=confidence,
         material_kind="certificate",
-        cert_subject=cert.subject.rfc4514_string(),
-        cert_issuer=cert.issuer.rfc4514_string(),
+        cert_subject=subject,
+        cert_issuer=issuer,
         cert_not_valid_before=cert.not_valid_before_utc.isoformat(),
         cert_not_valid_after=cert.not_valid_after_utc.isoformat(),
         cert_format=cert_format,

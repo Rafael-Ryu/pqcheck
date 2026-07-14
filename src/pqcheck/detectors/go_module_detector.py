@@ -229,7 +229,11 @@ def _nearest_go_mod_dir(go_file: Path, scan_root: Path) -> Path | None:
     scan_root = scan_root.resolve()
     current = go_file.resolve().parent
     while current == scan_root or scan_root in current.parents:
-        if (current / "go.mod").is_file():
+        go_mod = current / "go.mod"
+        # A symlinked go.mod could point the analyzer at a module definition
+        # outside the scan target; matching the walker's never-follow rule,
+        # it does not establish a module boundary (files fall back per-file).
+        if go_mod.is_file() and not go_mod.is_symlink():
             return current
         if current == scan_root:
             break
@@ -277,7 +281,10 @@ def _verify_sha256(binary: Path, *, trusted: bool) -> bool:
         return True  # operator vouches for it via PQCHECK_CRYPTO_ANALYZER
     if _CRYPTO_ANALYZER_SHA256 is None:
         return False  # bundled binary with no build-time pin: fail closed
-    digest = hashlib.sha256(binary.read_bytes()).hexdigest()
+    try:
+        digest = hashlib.sha256(binary.read_bytes()).hexdigest()
+    except OSError:
+        return False  # vanished/unreadable between locate and read: fail closed
     return digest == _CRYPTO_ANALYZER_SHA256
 
 
