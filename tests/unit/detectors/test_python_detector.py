@@ -11,7 +11,7 @@ from pqcheck.models import AlgorithmFamily, CryptoFinding, QuantumRisk
 def _resolver(source: str) -> ImportResolver:
     tree = ast.parse(source)
     r = ImportResolver()
-    r.visit(tree)
+    r.push_scope(tree)
     return r
 
 
@@ -51,45 +51,35 @@ def test_from_dotted_module_import() -> None:
 
 def test_star_import_recorded_as_sentinel() -> None:
     r = _resolver("from hashlib import *")
-    assert r.has_star_import("hashlib") is True
+    assert r.iter_star_imports() == ("hashlib",)
+
+
+def _resolve_call(r: ImportResolver, source: str) -> str | None:
+    call = ast.parse(source).body[0].value
+    assert isinstance(call, ast.Call)
+    return r.resolve_attribute(call.func)
 
 
 def test_resolve_attribute_chain_on_name() -> None:
-    tree = ast.parse("hashlib.md5()")
-    r = ImportResolver()
-    r.add_module("hashlib", "hashlib")
-    call = tree.body[0].value
-    assert isinstance(call, ast.Call)
-    assert r.resolve_attribute(call.func) == "hashlib.md5"
+    r = _resolver("import hashlib")
+    assert _resolve_call(r, "hashlib.md5()") == "hashlib.md5"
 
 
 def test_resolve_attribute_chain_with_alias() -> None:
-    tree = ast.parse("h.md5()")
-    r = ImportResolver()
-    r.add_module("h", "hashlib")
-    call = tree.body[0].value
-    assert isinstance(call, ast.Call)
-    assert r.resolve_attribute(call.func) == "hashlib.md5"
+    r = _resolver("import hashlib as h")
+    assert _resolve_call(r, "h.md5()") == "hashlib.md5"
 
 
 def test_resolve_attribute_chain_three_segments() -> None:
-    tree = ast.parse("hashes.MD5()")
-    r = ImportResolver()
-    r.add_module("hashes", "cryptography.hazmat.primitives.hashes")
-    call = tree.body[0].value
-    assert isinstance(call, ast.Call)
-    assert r.resolve_attribute(call.func) == (
+    r = _resolver("from cryptography.hazmat.primitives import hashes")
+    assert _resolve_call(r, "hashes.MD5()") == (
         "cryptography.hazmat.primitives.hashes.MD5"
     )
 
 
 def test_resolve_attribute_unrecorded_base_returns_none() -> None:
-    r = ImportResolver()
-    r.add_module("other", "other")
-    tree = ast.parse("unknown.attr()")
-    call = tree.body[0].value
-    assert isinstance(call, ast.Call)
-    assert r.resolve_attribute(call.func) is None
+    r = _resolver("import other")
+    assert _resolve_call(r, "unknown.attr()") is None
 
 
 def test_relative_import_is_skipped() -> None:
@@ -1731,3 +1721,74 @@ def test_dataflow_scope_does_not_cross_function_boundary() -> None:
     assert len(findings) == 1
     assert findings[0].algorithm == "SHA-256"
     assert findings[0].location.line == 3
+
+
+def test_function_local_import_does_not_leak_to_module_scope(tmp_path: Path) -> None:
+    # Module-level alias points at a non-crypto module; the real hashlib is
+    # only imported inside a function. The module-level call must not fire.
+    target = tmp_path / "fp.py"
+    target.write_text(
+        "import harmless_hashes as hashlib\n"
+        "\n"
+        "def helper():\n"
+        "    import hashlib\n"
+        "\n"
+        'hashlib.md5(b"not the stdlib")\n',
+        encoding="utf-8",
+    )
+    assert detect_python_file(target) == []
+
+
+def test_function_local_alias_does_not_hide_module_import(tmp_path: Path) -> None:
+    target = tmp_path / "fn.py"
+    target.write_text(
+        "import hashlib\n"
+        "\n"
+        "def helper():\n"
+        "    import harmless_hashes as hashlib\n"
+        "\n"
+        'hashlib.md5(b"banned and real")\n',
+        encoding="utf-8",
+    )
+    findings = detect_python_file(target)
+    assert [(f.algorithm, f.location.line) for f in findings] == [("MD5", 6)]
+
+
+def test_function_local_import_resolves_inside_its_function(tmp_path: Path) -> None:
+    target = tmp_path / "local.py"
+    target.write_text(
+        "def helper():\n"
+        "    import hashlib\n"
+        '    hashlib.md5(b"x")\n',
+        encoding="utf-8",
+    )
+    findings = detect_python_file(target)
+    assert [f.algorithm for f in findings] == ["MD5"]
+
+
+def test_star_import_shadowing_is_deterministic_last_import_wins(tmp_path: Path) -> None:
+    # Both star modules export `new`; at runtime the later import shadows the
+    # earlier one, so the finding must always be SHA-1 regardless of hash seed.
+    target = tmp_path / "star.py"
+    target.write_text(
+        "from Crypto.Hash.MD5 import *\n"
+        "from Crypto.Hash.SHA1 import *\n"
+        'new(b"x")\n',
+        encoding="utf-8",
+    )
+    findings = detect_python_file(target)
+    assert [(f.algorithm, f.confidence) for f in findings] == [("SHA-1", 0.7)]
+
+
+def test_file_above_line_cap_is_skipped(tmp_path: Path) -> None:
+    # Statement-dense file under the 2 MiB byte cap: parsing it would allocate
+    # hundreds of MiB of AST nodes, so the line cap must reject it outright.
+    target = tmp_path / "bomb.py"
+    target.write_bytes(b"x=1\n" * 131072)
+    assert detect_python_file(target) == []
+
+
+def test_file_just_under_line_cap_is_still_scanned(tmp_path: Path) -> None:
+    target = tmp_path / "big.py"
+    target.write_text("x = 1\n" * 19_990 + "import hashlib\nhashlib.md5(b'x')\n", encoding="utf-8")
+    assert [f.algorithm for f in detect_python_file(target)] == ["MD5"]

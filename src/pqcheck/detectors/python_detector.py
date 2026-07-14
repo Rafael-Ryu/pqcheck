@@ -27,31 +27,55 @@ from pqcheck.detectors.algorithms import (
 from pqcheck.models import AlgorithmFamily, CryptoFinding, SourceLocation
 
 
-class ImportResolver(ast.NodeVisitor):
-    """First pass: build local-name → qualified-name map.
+class ImportResolver:
+    """First pass: local-name → qualified-name maps, one frame per lexical scope.
 
-    Star imports are recorded but not expanded — there is no way to know
-    which names a `from X import *` binds without importing X. Files
-    using star imports for crypto modules are flagged via has_star_import.
+    A frame collects only a scope's own import statements (module, function, or
+    class body — nested scopes own their bindings), and resolution walks the
+    frame stack innermost-first, so a function-local `import hashlib` neither
+    leaks into module-level calls nor hides behind a module-level alias of the
+    same name. Star imports are recorded in source order but not expanded —
+    there is no way to know which names a `from X import *` binds without
+    importing X.
     """
 
     def __init__(self) -> None:
-        self._names: dict[str, str] = {}
-        self._star_imports: set[str] = set()
+        self._frames: list[tuple[dict[str, str], list[str]]] = []
 
-    # ---- public API used by PythonDetector and tests ----
+    def push_scope(self, node: ast.AST) -> None:
+        names: dict[str, str] = {}
+        stars: list[str] = []
+        for child in _own_scope_nodes(node):
+            if isinstance(child, ast.Import):
+                for alias in child.names:
+                    root = alias.name.split(".", 1)[0]
+                    names[alias.asname or root] = alias.name if alias.asname else root
+            elif isinstance(child, ast.ImportFrom) and not child.level:
+                # Relative imports are skipped — they cannot resolve to a
+                # project-independent qualified name, and crypto libs are
+                # never relative.
+                module = child.module or ""
+                for alias in child.names:
+                    if alias.name == "*":
+                        stars.append(module)
+                        continue
+                    qualified = f"{module}.{alias.name}" if module else alias.name
+                    names[alias.asname or alias.name] = qualified
+        self._frames.append((names, stars))
 
-    def add_module(self, local: str, qualified: str) -> None:
-        self._names[local] = qualified
-
-    def resolve_name(self, local: str) -> str | None:
-        return self._names.get(local)
-
-    def has_star_import(self, module: str) -> bool:
-        return module in self._star_imports
+    def pop_scope(self) -> None:
+        self._frames.pop()
 
     def iter_star_imports(self) -> tuple[str, ...]:
-        return tuple(self._star_imports)
+        """Star-imported modules in the order a runtime name lookup would win:
+        innermost scope first, later imports first within a scope — so the
+        caller's first catalog match mirrors real shadowing instead of
+        depending on hash order.
+        """
+        ordered: list[str] = []
+        for _, stars in reversed(self._frames):
+            ordered.extend(reversed(stars))
+        return tuple(ordered)
 
     def resolve_attribute(self, node: ast.expr) -> str | None:
         """Resolve a Name or Attribute chain to its fully-qualified name.
@@ -70,37 +94,30 @@ class ImportResolver(ast.NodeVisitor):
             current = current.value
         if not isinstance(current, ast.Name):
             return None
-        base = self._names.get(current.id)
+        base = self.resolve_name(current.id)
         if base is None:
             return None
         parts.reverse()
         return ".".join([base, *parts]) if parts else base
 
-    # ---- ast.NodeVisitor hooks ----
-
-    def visit_Import(self, node: ast.Import) -> None:
-        for alias in node.names:
-            root = alias.name.split(".", 1)[0]
-            local = alias.asname or root
-            qualified = alias.name if alias.asname else root
-            self._names[local] = qualified
-
-    def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
-        module = node.module or ""
-        # Skip relative imports — we cannot resolve them to a project-
-        # independent qualified name, and crypto libs are never relative.
-        if node.level:
-            return
-        for alias in node.names:
-            if alias.name == "*":
-                self._star_imports.add(module)
-                continue
-            local = alias.asname or alias.name
-            qualified = f"{module}.{alias.name}" if module else alias.name
-            self._names[local] = qualified
+    def resolve_name(self, local: str) -> str | None:
+        for names, _ in reversed(self._frames):
+            qualified = names.get(local)
+            if qualified is not None:
+                return qualified
+        return None
 
 
 _DETECTOR_ID = "python-ast"
+
+# The 2 MiB byte cap in _source_read bounds input size, not AST size: ast.parse
+# allocates ~2.5 KB per statement, so a 512 KiB file of one-token statements
+# expands to ~375 MiB of nodes — a memory DoS from a file well under the cap.
+# Line count is the cheap pre-parse proxy for statement count, and 20k lines
+# bounds the tree at roughly 50 MiB. Hand-written source never reaches it (the
+# largest file in the tuning corpus is 3.3k lines); generated blobs that do are
+# skipped, the same outcome the byte cap already gives them.
+_MAX_SOURCE_LINES = 20_000
 
 # hashlib.new("name") string argument -> AlgorithmHit. Derived from the
 # catalog's hashlib.* entries (single source of truth) rather than a parallel
@@ -182,9 +199,10 @@ class PythonDetector(ast.NodeVisitor):
         self._scope_stack: list[dict[str, AlgorithmHit]] = []
 
     def visit(self, node: ast.AST) -> None:
-        # Pass 1: collect imports before walking calls.
+        # Pass 1: collect module-scope imports before walking calls; function
+        # and class frames are pushed/popped as the walk enters their bodies.
         if isinstance(node, ast.Module):
-            self._imports.visit(node)
+            self._imports.push_scope(node)
         super().visit(node)
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
@@ -193,12 +211,28 @@ class PythonDetector(ast.NodeVisitor):
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
         self._visit_function(node)
 
+    def visit_ClassDef(self, node: ast.ClassDef) -> None:
+        # A class body owns its imports like a function does. Methods resolving
+        # through the class frame is a benign superset of Python's real lookup
+        # (class scope is invisible to method bodies), accepted for simplicity:
+        # a class-body crypto import attributed inside a method is still the
+        # same import in the same file.
+        self._imports.push_scope(node)
+        try:
+            self.generic_visit(node)
+        finally:
+            self._imports.pop_scope()
+
     def _visit_function(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
+        # Import frame first: _compute_single_assigned resolves constructor
+        # callees and must see this function's own imports.
+        self._imports.push_scope(node)
         self._scope_stack.append(self._compute_single_assigned(node))
         try:
             self.generic_visit(node)
         finally:
             self._scope_stack.pop()
+            self._imports.pop_scope()
 
     def _compute_single_assigned(
         self, node: ast.FunctionDef | ast.AsyncFunctionDef
@@ -700,13 +734,13 @@ def detect_python_file(path: Path) -> list[CryptoFinding]:
 
     Returns an empty list (never raises) for: any condition that makes
     read_source_bytes return None (missing/symlink/non-regular/oversized
-    file — see that function for the file-IO hardening), encoding failure on
-    both UTF-8 and Latin-1, a parse that fails with SyntaxError, ValueError,
-    RecursionError, or MemoryError, or a visit pass that raises
-    RecursionError/MemoryError.
+    file — see that function for the file-IO hardening), a file above
+    _MAX_SOURCE_LINES, encoding failure on both UTF-8 and Latin-1, a parse
+    that fails with SyntaxError, ValueError, RecursionError, or MemoryError,
+    or a visit pass that raises RecursionError/MemoryError.
     """
     raw = read_source_bytes(path)
-    if raw is None:
+    if raw is None or raw.count(b"\n") >= _MAX_SOURCE_LINES:
         return []
     source: str | None = None
     for encoding in ("utf-8-sig", "latin-1"):
