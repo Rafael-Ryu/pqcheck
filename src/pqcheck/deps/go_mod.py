@@ -25,19 +25,18 @@ from pqcheck.deps.base import ManifestError, golang_purl, safe_read_bytes
 from pqcheck.deps.packages import lookup_introduces
 from pqcheck.models import CryptoDependency
 
-# Matches a single-line require: require module/path v1.2.3 [// ...]
-_SINGLE_RE = re.compile(r"^\s*require\s+(\S+)\s+(v\S+)")
+# A require entry's version token: go requires `v...` (v1.2.3, v0.0.0-pre,
+# v2.0.0+incompatible). Kept as loose as the historical regex (`v\S+`).
+_VERSION_RE = re.compile(r"^v\S+$")
 
-# Opens a block require ( ... ). A trailing line comment (`require ( // pinned`)
-# is valid go.mod, so anything after the paren is tolerated.
-_BLOCK_OPEN_RE = re.compile(r"^\s*require\s*\(")
+_REQUIRE_ENTRY_TOKENS = 2  # module path + version, nothing else
 
-# Closes a block: a line that is just `)` (optionally indented / commented).
-_BLOCK_CLOSE_RE = re.compile(r"^\s*\)")
 
-# Matches a module line inside a block: module path, version. A trailing
-# `// indirect` or any comment is ignored by taking only groups 1+2.
-_BLOCK_LINE_RE = re.compile(r"^\s*(\S+)\s+(v\S+)")
+def _require_entry(tokens: list[str]) -> tuple[str, str] | None:
+    """(module, version) when tokens match the require-entry grammar exactly."""
+    if len(tokens) == _REQUIRE_ENTRY_TOKENS and _VERSION_RE.match(tokens[1]):
+        return tokens[0], tokens[1]
+    return None
 
 # A go.sum line is `module version hash` (3 whitespace-separated fields).
 _GO_SUM_MIN_FIELDS = 3
@@ -86,25 +85,42 @@ def parse(path: Path) -> list[CryptoDependency]:
     # form-feed, vertical-tab, NEL, and the Unicode line/paragraph separators,
     # none of which terminate a line in go.mod's lexer — splitting on them lets
     # a control char inside one physical line forge a second `require`.
+    #
+    # Tokens are matched exactly against the require grammar. A line that names
+    # the require directive but fails its shape (missing/invalid version, extra
+    # tokens) means `go` itself would refuse the file, so whatever we parsed is
+    # a partial inventory — raise instead of passing off the prefix as complete.
+    # Unknown or out-of-scope directives (module, go, replace, ...) stay ignored:
+    # they do not feed the require inventory this parser reports.
     in_block = False
-    for raw_line in text.split("\n"):
-        line = raw_line.rstrip("\r")
+    for lineno, raw_line in enumerate(text.split("\n"), start=1):
+        # `//` starts a comment in go.mod and cannot occur inside a module path
+        # (import paths use single slashes), so a plain prefix split is safe.
+        # Parens are their own tokens in go.mod's lexer (`require(` opens a
+        # block); module paths cannot contain them, so padding is lossless.
+        code = raw_line.rstrip("\r").split("//", 1)[0]
+        tokens = code.replace("(", " ( ").replace(")", " ) ").split()
         if in_block:
-            if _BLOCK_CLOSE_RE.match(line):
+            if not tokens:
+                continue
+            if tokens == [")"]:
                 in_block = False
                 continue
-            if line.lstrip().startswith("//"):
-                continue  # a full-line comment is not a module entry
-            line_m = _BLOCK_LINE_RE.match(line)
-            if line_m:
-                _add(line_m.group(1), line_m.group(2))
-            continue
-        if _BLOCK_OPEN_RE.match(line):
-            in_block = True
-            continue
-        single_m = _SINGLE_RE.match(line)
-        if single_m:
-            _add(single_m.group(1), single_m.group(2))
+            entry = _require_entry(tokens)
+            if entry is None:
+                raise ManifestError(f"malformed go.mod: invalid require entry at line {lineno}")
+            _add(*entry)
+        elif tokens[:1] == ["require"]:
+            rest = tokens[1:]
+            if rest == ["("]:
+                in_block = True
+                continue
+            entry = _require_entry(rest)
+            if entry is None:
+                raise ManifestError(
+                    f"malformed go.mod: invalid require directive at line {lineno}"
+                )
+            _add(*entry)
 
     if in_block:
         # `require (` with no closing paren: `go` itself refuses the file, so
@@ -118,12 +134,19 @@ def parse(path: Path) -> list[CryptoDependency]:
 def _load_go_sum(go_mod_path: Path) -> set[tuple[str, str]] | None:
     """Index the (module, version) pairs checksummed in the sibling go.sum.
 
-    Returns None when no go.sum sits next to go.mod (nothing to cross-reference,
-    so callers make no integrity claim). go.sum lines are `module version hash`
-    and `module version/go.mod hash`; the `/go.mod` suffix is stripped so both
-    forms collapse to the same (module, version) key the require block uses.
+    Returns None when no go.sum sits next to go.mod, or when it is oversized
+    (nothing trustworthy to cross-reference, so callers make no integrity
+    claim — integrity_verified=None, never a positive "verified"). go.sum
+    lines are `module version hash` and `module version/go.mod hash`; the
+    `/go.mod` suffix is stripped so both forms collapse to the same
+    (module, version) key the require block uses.
     """
-    raw = safe_read_bytes(go_mod_path.with_name("go.sum"))
+    try:
+        raw = safe_read_bytes(go_mod_path.with_name("go.sum"))
+    except ManifestError:
+        # An oversized go.sum must not discard the whole require inventory;
+        # degrading to "no integrity claim" is honest (no positive assertion).
+        return None
     if raw is None:
         return None
     try:
