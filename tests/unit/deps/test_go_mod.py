@@ -264,7 +264,68 @@ def test_parse_ignores_non_go_line_terminators(tmp_path: Path) -> None:
         b"module example.com/m\n\n"
         b"require golang.org/x/crypto v0.21.0\x0crequire evil.example/pkg v9.9.9\n"
     )
+    # The physical line now carries extra tokens the require grammar rejects,
+    # so the file is malformed (as it is to go itself) — never a parse that
+    # quietly includes or excludes the smuggled entry.
+    with pytest.raises(ManifestError):
+        parse(f)
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "require example.com/dep",  # missing version (Codex 2.4 reproducer)
+        "require",  # bare directive
+        "require example.com/dep 1.2.3",  # version without the v prefix
+        "require example.com/dep v1.2.3 extra",  # trailing junk
+        "require ( example.com/dep v1.0.0 )",  # one-line paren block
+    ],
+)
+def test_malformed_require_outside_block_raises(tmp_path: Path, line: str) -> None:
+    f = tmp_path / "go.mod"
+    f.write_text(f"module example.com/m\n{line}\n", encoding="utf-8")
+    with pytest.raises(ManifestError, match="invalid require"):
+        parse(f)
+
+
+@pytest.mark.parametrize(
+    "entry",
+    [
+        "example.com/dep",  # missing version inside the block
+        "example.com/dep 1.2.3",  # bad version shape
+        "example.com/dep v1.0.0 junk",  # trailing junk
+    ],
+)
+def test_malformed_require_block_entry_raises(tmp_path: Path, entry: str) -> None:
+    f = tmp_path / "go.mod"
+    f.write_text(
+        f"module example.com/m\nrequire (\n\t{entry}\n)\n", encoding="utf-8"
+    )
+    with pytest.raises(ManifestError, match="invalid require entry"):
+        parse(f)
+
+
+def test_require_block_without_space_before_paren_parses(tmp_path: Path) -> None:
+    # go.mod's lexer treats `(` as its own token, so `require(` opens a block.
+    # A whitespace-split parser silently ignored the whole block — the entire
+    # dependency inventory vanished from the scan.
+    f = tmp_path / "go.mod"
+    f.write_text(
+        "module example.com/m\nrequire(\n\tgolang.org/x/crypto v0.21.0\n)\n",
+        encoding="utf-8",
+    )
     deps = parse(f)
-    names = {d.name for d in deps}
-    assert "golang.org/x/crypto" in names  # the real require still parses
-    assert "evil.example/pkg" not in names  # the smuggled one does not
+    assert [d.name for d in deps] == ["golang.org/x/crypto"]
+
+
+def test_other_directives_stay_ignored(tmp_path: Path) -> None:
+    # Unknown or out-of-scope directives (even odd ones) do not feed the
+    # require inventory and must not fail the parse.
+    f = tmp_path / "go.mod"
+    f.write_text(
+        "module example.com/m\ngo 1.24\nweirddirective foo\n"
+        "replace a => ../b\nrequire golang.org/x/crypto v0.21.0\n",
+        encoding="utf-8",
+    )
+    deps = parse(f)
+    assert [d.name for d in deps] == ["golang.org/x/crypto"]

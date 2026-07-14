@@ -47,7 +47,7 @@ def test_detect_go_module_rejects_non_utf8_path(
     monkeypatch.setattr(gmd, "_locate_binary", lambda: (Path("/fake/analyzer"), True))
     monkeypatch.setattr(gmd, "_verify_sha256", lambda binary, trusted: True)
     monkeypatch.setattr(gmd, "_run_analyzer", _must_not_run)
-    monkeypatch.setattr(gmd, "_fallback", lambda root: marker)
+    monkeypatch.setattr(gmd, "_fallback", lambda root, errors: marker)
 
     assert detect_go_module(bad_root) is marker
 
@@ -103,7 +103,7 @@ def test_fallback_returns_empty_when_walk_raises_oserror(
 
     monkeypatch.setattr(Path, "rglob", boom)
 
-    assert gmd._fallback(tmp_path) == []
+    assert gmd._fallback(tmp_path, []) == []
 
 
 def test_locate_binary_env_override_missing_file_returns_none(
@@ -192,7 +192,7 @@ def test_detect_go_module_falls_back_when_bundled_pin_mismatches(
     monkeypatch.setattr(gmd, "_locate_binary", lambda: (binary, False))
     monkeypatch.setattr(gmd, "_CRYPTO_ANALYZER_SHA256", "0" * 64)
     monkeypatch.setattr(gmd, "_run_analyzer", _must_not_run)
-    monkeypatch.setattr(gmd, "_fallback", lambda root: marker)
+    monkeypatch.setattr(gmd, "_fallback", lambda root, errors: marker)
 
     assert detect_go_module(tmp_path) is marker
 
@@ -752,7 +752,7 @@ def test_detect_go_module_dedupes_same_call_site_preferring_semantic(
     )
     extra_loc = duplicate.location.model_copy(update={"line": duplicate.location.line + 90})
     extra = duplicate.model_copy(update={"algorithm": "MD5", "location": extra_loc})
-    monkeypatch.setattr(gmd, "_fallback", lambda root: [duplicate, extra])
+    monkeypatch.setattr(gmd, "_fallback", lambda root, errors: [duplicate, extra])
 
     findings = detect_go_module(tmp_path)
     # The shared call site keeps the semantic finding (richer key size); the
@@ -931,7 +931,7 @@ def test_detect_go_module_resolves_root_before_both_passes(
 
     received: list[Path] = []
 
-    def record_fallback(root: Path) -> list[CryptoFinding]:
+    def record_fallback(root: Path, errors: list[str]) -> list[CryptoFinding]:
         received.append(root)
         return []
 
@@ -969,15 +969,15 @@ def _write_go_mod(root: Path, body: str) -> None:
 def test_replace_escape_outside_boundary_detected(tmp_path: Path) -> None:
     module = tmp_path / "root"
     _write_go_mod(module, "replace example.com/x => ../outside\n")
-    assert gmd._replace_escapes(module, module) is True
+    assert gmd._boundary_violation(module, module) is not None
 
 
 def test_replace_within_boundary_allowed(tmp_path: Path) -> None:
     module = tmp_path / "svc"
     _write_go_mod(module, "replace example.com/lib => ../lib\n")
     (tmp_path / "lib").mkdir()
-    assert gmd._replace_escapes(module, tmp_path) is False
-    assert gmd._replace_escapes(module, module) is True
+    assert gmd._boundary_violation(module, tmp_path) is None
+    assert gmd._boundary_violation(module, module) is not None
 
 
 def test_replace_block_form_and_comments_parsed(tmp_path: Path) -> None:
@@ -989,29 +989,29 @@ def test_replace_block_form_and_comments_parsed(tmp_path: Path) -> None:
         "    example.com/c => ./vendorfork\n"
         ")\n",
     )
-    assert gmd._replace_escapes(module, module) is False
+    assert gmd._boundary_violation(module, module) is None
     _write_go_mod(
         module,
         "replace (\n    example.com/c => ../../etc\n)\n",
     )
-    assert gmd._replace_escapes(module, module) is True
+    assert gmd._boundary_violation(module, module) is not None
 
 
 def test_replace_absolute_path_outside_boundary_detected(tmp_path: Path) -> None:
     module = tmp_path / "m"
     _write_go_mod(module, "replace example.com/x => /etc\n")
-    assert gmd._replace_escapes(module, module) is True
+    assert gmd._boundary_violation(module, module) is not None
 
 
 def test_replace_symlink_escape_detected(tmp_path: Path) -> None:
     module = tmp_path / "m"
     _write_go_mod(module, "replace example.com/x => ./link\n")
     (module / "link").symlink_to(tmp_path.parent)
-    assert gmd._replace_escapes(module, module) is True
+    assert gmd._boundary_violation(module, module) is not None
 
 
 def test_replace_unreadable_go_mod_fails_closed(tmp_path: Path) -> None:
-    assert gmd._replace_escapes(tmp_path / "missing", tmp_path) is True
+    assert gmd._boundary_violation(tmp_path / "missing", tmp_path) is not None
 
 
 def test_detect_go_module_skips_analyzer_on_replace_escape(
@@ -1050,3 +1050,83 @@ def test_merge_keeps_distinct_calls_on_the_same_line() -> None:
 
     merged = gmd._merge_findings([finding(15), finding(47)], [])
     assert [f.location.column for f in merged] == [15, 47]
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        'replace example.com/spaced => "../outside dir"\n',  # quoted path w/ space (Codex 2.1)
+        "replace example.com/x => `../outside`\n",  # raw-string path
+        'replace example.com/x => ../x "unterminated\n',  # unterminated string: fail closed
+        "replace example.com/x => `unterminated\n",  # raw string spanning lines: fail closed
+        'replace (\n    example.com/x => "../outside dir"\n)\n',  # block form, quoted
+        "replace example.com/x => ../outside v1.2.3\n",  # dir-shaped with version: malformed
+        "replace example.com/x => a b c\n",  # too many RHS tokens: malformed
+        "replace example.com/x =>\n",  # empty RHS: malformed
+        "replace example.com/x => plainname\n",  # versionless non-dir RHS: malformed
+        "replace example.com/x => ../outside // comment\n",  # comment does not hide it
+        "replace (\n    example.com/x => ../outside\n",  # unclosed block: fail closed
+    ],
+)
+def test_boundary_violation_fails_closed_on_hostile_replace(
+    tmp_path: Path, body: str
+) -> None:
+    module = tmp_path / "m"
+    _write_go_mod(module, body)
+    (tmp_path / "outside dir").mkdir(exist_ok=True)
+    (tmp_path / "outside").mkdir(exist_ok=True)
+    assert gmd._boundary_violation(module, module) is not None
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        'replace example.com/x => "./inside"\n',  # quoted path, inside
+        "replace example.com/x => `./inside`\n",  # raw-string path, inside
+        "replace example.com/a => example.com/b v1.2.3\n",  # module+version: cache, not fs
+        "replace example.com/a v1.0.0 => ./inside\n",  # versioned LHS, dir inside
+    ],
+)
+def test_boundary_violation_allows_safe_replace(tmp_path: Path, body: str) -> None:
+    module = tmp_path / "m"
+    _write_go_mod(module, body)
+    (module / "inside").mkdir(exist_ok=True)
+    assert gmd._boundary_violation(module, module) is None
+
+
+def test_suppressed_analyzer_emits_scan_boundary_diagnostic(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Boundary suppression must never be silent: the scan is semantically
+    # incomplete for this module and has to say so.
+    module = tmp_path / "root"
+    _write_go_mod(module, 'replace example.com/x => "../outside dir"\n')
+    (tmp_path / "outside dir").mkdir()
+    (module / "main.go").write_text(
+        'package m\n\nimport "crypto/md5"\n\nfunc F() { md5.New() }\n', encoding="utf-8"
+    )
+    monkeypatch.setattr(gmd, "_locate_binary", lambda: (tmp_path / "bin", True))
+    monkeypatch.setattr(
+        gmd, "_run_analyzer", lambda root, binary: pytest.fail("analyzer must not run")
+    )
+    errors: list[str] = []
+    findings = detect_go_module(module, scan_root=module, errors=errors)
+    assert [f.detector_id for f in findings] == ["go-tree-sitter"]  # floor stands
+    [diag] = errors
+    assert "ScanBoundaryError" in diag and "suppressed" in diag
+
+
+def test_fallback_records_resource_guard_skip_per_file(tmp_path: Path) -> None:
+    # One capped file must not discard the module's other findings — nor pass
+    # as scanned.
+    module = tmp_path / "m"
+    _write_go_mod(module, "")
+    (module / "ok.go").write_text(
+        'package m\n\nimport "crypto/md5"\n\nfunc F() { md5.New() }\n', encoding="utf-8"
+    )
+    (module / "big.go").write_bytes(b"package m\n" + b"//x\n" * 700_000)  # > 2 MiB
+    errors: list[str] = []
+    findings = gmd._fallback(module, errors)
+    assert [f.algorithm for f in findings] == ["MD5"]
+    [diag] = errors
+    assert "big.go" in diag and "ResourceLimitError" in diag

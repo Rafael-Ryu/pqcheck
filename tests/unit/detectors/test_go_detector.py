@@ -4,6 +4,7 @@ import pytest
 from tree_sitter import Language, Node, Parser
 
 import pqcheck.detectors.go_detector as _go_det
+from pqcheck.detectors._source_read import ResourceLimitError
 from pqcheck.detectors.go_detector import (
     GoDetector,
     GoImportResolver,
@@ -376,8 +377,8 @@ def test_node_count_guard_skips_oversized_tree(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr("pqcheck.detectors.go_detector._MAX_PARSE_NODES", 5)
-    fs = _findings('package m\nimport "crypto/md5"\nfunc f() { md5.New() }\n')
-    assert fs == []
+    with pytest.raises(ResourceLimitError):
+        _findings('package m\nimport "crypto/md5"\nfunc f() { md5.New() }\n')
 
 
 def test_evidence_aligns_across_unicode_line_separator() -> None:

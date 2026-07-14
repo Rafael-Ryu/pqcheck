@@ -14,9 +14,11 @@ from __future__ import annotations
 import time
 from pathlib import Path
 
+import pytest
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import dsa, ec, x448, x25519
 
+from pqcheck.detectors._source_read import ResourceLimitError
 from pqcheck.detectors.key_material import detect_key_material_file
 from pqcheck.models import AlgorithmFamily, QuantumRisk
 from tests.fixtures import keymaterial
@@ -368,14 +370,15 @@ def test_missing_file_is_silent(tmp_path: Path) -> None:
     assert detect_key_material_file(tmp_path / "nope.pem") == []
 
 
-def test_oversized_file_is_skipped(tmp_path: Path) -> None:
+def test_oversized_file_raises_resource_limit(tmp_path: Path) -> None:
     key = keymaterial.rsa_key(2048)
     cert = keymaterial.self_signed_cert(key)
     pem = cert.public_bytes(serialization.Encoding.PEM)
     path = tmp_path / "huge.pem"
     # Pad well past the size cap with comment bytes outside any PEM block.
     path.write_bytes(pem + b"#" * (2 * 1024 * 1024))
-    assert detect_key_material_file(path) == []
+    with pytest.raises(ResourceLimitError):
+        detect_key_material_file(path)
 
 
 def test_symlink_is_skipped(tmp_path: Path) -> None:
@@ -424,3 +427,59 @@ def test_large_pem_bundle_scales_linearly(tmp_path: Path) -> None:
 
     assert len(findings) == 19_000
     assert elapsed < 3.0  # ~0.4 s in practice; the quadratic version took 14 s
+
+
+def test_unmatched_begin_headers_scale_linearly(tmp_path: Path) -> None:
+    # A file of bare BEGIN lines (no END anywhere): the old DOTALL regex
+    # rescanned to EOF from every orphan header — quadratic (4k headers took
+    # ~2 s). Every orphan must still emit its truncated fallback finding.
+    path = tmp_path / "orphans.pem"
+    path.write_bytes(b"-----BEGIN CERTIFICATE-----\n" * 8_000)
+
+    start = time.monotonic()
+    findings = detect_key_material_file(path)
+    elapsed = time.monotonic() - start
+
+    assert len(findings) == 8_000
+    assert all(f.confidence == 0.3 for f in findings)
+    assert elapsed < 3.0  # ~0.1 s in practice; the quadratic version took ~8 s
+
+
+def test_orphan_begin_does_not_swallow_later_complete_block(tmp_path: Path) -> None:
+    # BEGIN A with no END A, followed by a complete same-label block: the
+    # orphan gets its truncated fallback and the complete block still parses
+    # into its own (header-only here, empty body) finding — two findings.
+    path = tmp_path / "mixed.pem"
+    path.write_bytes(
+        b"-----BEGIN RSA PRIVATE KEY-----\n"
+        b"-----BEGIN CERTIFICATE-----\n"
+        b"-----END CERTIFICATE-----\n"
+    )
+    findings = detect_key_material_file(path)
+    assert [(f.algorithm, f.material_kind) for f in findings] == [
+        ("RSA", "private-key"),
+        ("UNKNOWN", "certificate"),
+    ]
+    assert "truncated" in findings[0].evidence
+
+
+def test_nested_same_label_begin_is_consumed_by_outer_block(tmp_path: Path) -> None:
+    # A BEGIN inside a completed block is body content, not a second orphan.
+    path = tmp_path / "nested.pem"
+    path.write_bytes(
+        b"-----BEGIN CERTIFICATE-----\n"
+        b"-----BEGIN CERTIFICATE-----\n"
+        b"-----END CERTIFICATE-----\n"
+    )
+    findings = detect_key_material_file(path)
+    assert len(findings) == 1
+
+
+def test_mismatched_end_label_leaves_begin_orphaned(tmp_path: Path) -> None:
+    path = tmp_path / "mismatch.pem"
+    path.write_bytes(
+        b"-----BEGIN EC PRIVATE KEY-----\n-----END CERTIFICATE-----\n"
+    )
+    [finding] = detect_key_material_file(path)
+    assert finding.algorithm == "ECDSA"
+    assert "truncated" in finding.evidence

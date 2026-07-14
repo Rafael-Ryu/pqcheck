@@ -79,3 +79,20 @@ def test_duplicate_mapping_key_rejected():
     # validate — a fail-open policy gate.
     with pytest.raises(PolicyError, match="duplicate key"):
         load_policy(FIXTURES / "duplicate_key.yaml")
+
+
+@pytest.mark.parametrize(
+    "snippet",
+    [
+        "? [a, b]\n: value\n",  # sequence key (Codex 2.6 reproducer)
+        "? {a: b}\n: value\n",  # mapping key
+        "metadata:\n  ? [x, y]\n  : nested\n",  # nested inside a section
+    ],
+)
+def test_unhashable_mapping_key_rejected(tmp_path: Path, snippet: str) -> None:
+    # A complex YAML key constructs to an unhashable object; the duplicate-key
+    # probe crashed with a raw TypeError that escaped the PolicyError contract.
+    f = tmp_path / "unhashable.yaml"
+    f.write_text(snippet, encoding="utf-8")
+    with pytest.raises(PolicyError, match="unhashable key"):
+        load_policy(f)

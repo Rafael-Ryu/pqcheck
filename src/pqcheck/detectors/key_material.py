@@ -50,13 +50,12 @@ _HEADER_ONLY_CONFIDENCE = 0.3
 
 _PARSE_EXCEPTIONS = (ValueError, TypeError, UnsupportedAlgorithm)
 
-_PEM_BLOCK_RE = re.compile(rb"-----BEGIN ([A-Z0-9 ]+)-----.*?-----END \1-----", re.DOTALL)
-
-# A BEGIN marker with no matching END at all -- e.g. a severely truncated
-# file cut off mid-body. Used only to find BEGIN headers _PEM_BLOCK_RE left
-# unmatched (see _detect_pem_blocks); a BEGIN that IS part of a complete
-# block is already reported through the ordinary parse path above.
+# BEGIN/END markers are indexed in two linear scans and paired by
+# _detect_pem_blocks' cursor walk. The earlier single DOTALL regex
+# (`BEGIN X.*?END X`) restarted a scan-to-EOF from every BEGIN whose END was
+# missing, going quadratic on a file of orphan headers.
 _PEM_BEGIN_RE = re.compile(rb"-----BEGIN ([A-Z0-9 ]+)-----")
+_PEM_END_RE = re.compile(rb"-----END ([A-Z0-9 ]+)-----")
 
 # Legacy/typed PEM headers that name their algorithm outright, used only by
 # the header-only fallback path (a successful parse asks the parsed key
@@ -348,33 +347,46 @@ def _detect_pem_block(block: bytes, label: bytes, *, path: Path, line: int) -> C
 
 
 def _detect_pem_blocks(data: bytes, path: Path) -> list[CryptoFinding]:
+    """Pair BEGIN/END markers in one linear cursor walk over their indexes.
+
+    Semantics mirror the historical non-greedy regex: each BEGIN (in order,
+    skipping those swallowed by an earlier completed block) pairs with the
+    nearest same-label END at or after its marker; a BEGIN with no such END
+    emits the header-only truncated fallback. Every structure here is
+    consumed monotonically — total work is linear in the number of markers,
+    where the regex rescanned to EOF from every orphan BEGIN (quadratic on a
+    file of bare BEGIN lines).
+    """
+    begins = [(m.start(), m.end(), m.group(1)) for m in _PEM_BEGIN_RE.finditer(data)]
+    if not begins:
+        return []
+    ends_by_label: dict[bytes, list[tuple[int, int]]] = {}
+    for match in _PEM_END_RE.finditer(data):
+        ends_by_label.setdefault(match.group(1), []).append((match.start(), match.end()))
+    end_cursor: dict[bytes, int] = {}
     findings: list[CryptoFinding] = []
-    consumed: list[tuple[int, int]] = []
-    block_lines = _LineCounter(data)
-    for match in _PEM_BLOCK_RE.finditer(data):
-        label = match.group(1)
-        line = block_lines.line_at(match.start())
-        consumed.append((match.start(), match.end()))
-        finding = _detect_pem_block(match.group(0), label, path=path, line=line)
-        if finding is not None:
-            findings.append(finding)
-    # Both finditer passes yield ascending, non-overlapping starts, so one
-    # advancing index over `consumed` decides containment in linear total time.
-    # A per-BEGIN scan of every interval is quadratic: a 1 MB bundle of ~19k
-    # empty blocks took 14 s of pure interval comparisons.
-    next_block = 0
-    begin_lines = _LineCounter(data)
-    for match in _PEM_BEGIN_RE.finditer(data):
-        while next_block < len(consumed) and consumed[next_block][1] <= match.start():
-            next_block += 1
-        # Skip a BEGIN that's already part of a complete block matched above
-        # -- only a BEGIN with no matching END reaches the fallback below.
-        if next_block < len(consumed) and consumed[next_block][0] <= match.start():
-            continue
-        label = match.group(1)
-        line = begin_lines.line_at(match.start())
-        evidence = f"PEM block {label.decode('ascii', errors='replace')} (truncated, no END marker)"
-        finding = _header_only_finding(label, path=path, line=line, evidence=evidence)
+    lines = _LineCounter(data)
+    consumed_until = 0  # end of the last completed block
+    for start, marker_end, label in begins:
+        if start < consumed_until:
+            continue  # inside an earlier completed block, not an anchor
+        line = lines.line_at(start)
+        candidates = ends_by_label.get(label, [])
+        cursor = end_cursor.get(label, 0)
+        # Skip ENDs behind this BEGIN. `begins` is ascending, so the cursor
+        # never moves backwards and each END is visited at most once overall.
+        while cursor < len(candidates) and candidates[cursor][0] < marker_end:
+            cursor += 1
+        end_cursor[label] = cursor
+        if cursor < len(candidates):
+            block_end = candidates[cursor][1]
+            finding = _detect_pem_block(data[start:block_end], label, path=path, line=line)
+            consumed_until = block_end
+        else:
+            evidence = (
+                f"PEM block {label.decode('ascii', errors='replace')} (truncated, no END marker)"
+            )
+            finding = _header_only_finding(label, path=path, line=line, evidence=evidence)
         if finding is not None:
             findings.append(finding)
     return findings
@@ -424,10 +436,11 @@ def _detect_der_blob(data: bytes, path: Path) -> list[CryptoFinding]:
 def detect_key_material_file(path: Path) -> list[CryptoFinding]:
     """Detect certificates/keys in a `*.pem`/`*.key`/`*.crt`/`*.der` file.
 
-    Never raises: unreadable/oversized/symlinked files (see
-    `read_source_bytes`) and any parse failure both degrade to an empty list
-    or, for a recognizable-but-unparseable PEM header, a lower-confidence
-    finding — never an exception.
+    Raises ResourceLimitError (only) for a file over the byte cap — real key
+    material could hide past the cap, so the scanner records an
+    incomplete-scan diagnostic. Unreadable/symlinked files and any parse
+    failure degrade to an empty list or, for a recognizable-but-unparseable
+    PEM header, a lower-confidence finding — never any other exception.
     """
     data = read_source_bytes(path, max_bytes=_MAX_KEY_MATERIAL_BYTES)
     if data is None:

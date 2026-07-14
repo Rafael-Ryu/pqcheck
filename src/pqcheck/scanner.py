@@ -63,7 +63,12 @@ def scan(root: Path, policy: CryptoPolicy | None = None) -> ScanResult:
     grouping = group_go_files_by_module(discovery.go_files, scan_root=root)
     claimed = claimed_go_files(grouping)
     for module_root in sorted(r for r in grouping if r is not None):
-        _swallow(lambda m: detect_go_module(m, scan_root=root), module_root, findings, errors)
+        _swallow(
+            lambda m: detect_go_module(m, scan_root=root, errors=errors),
+            module_root,
+            findings,
+            errors,
+        )
     for go_file in discovery.go_files:
         if go_file not in claimed:
             _swallow(detect_go_file, go_file, findings, errors)

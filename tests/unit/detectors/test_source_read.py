@@ -3,7 +3,11 @@ from pathlib import Path
 
 import pytest
 
-from pqcheck.detectors._source_read import MAX_SOURCE_BYTES, read_source_bytes
+from pqcheck.detectors._source_read import (
+    MAX_SOURCE_BYTES,
+    ResourceLimitError,
+    read_source_bytes,
+)
 
 
 def test_reads_regular_file(tmp_path: Path) -> None:
@@ -28,10 +32,13 @@ def test_rejects_directory(tmp_path: Path) -> None:
     assert read_source_bytes(tmp_path) is None
 
 
-def test_rejects_oversize_file(tmp_path: Path) -> None:
+def test_rejects_oversize_file_with_diagnostic(tmp_path: Path) -> None:
+    # Oversize is analyzable input the scan drops — it must raise, not blend
+    # in with the silent skips (missing/symlink/non-regular).
     f = tmp_path / "big.go"
     f.write_bytes(b"a" * (MAX_SOURCE_BYTES + 1))
-    assert read_source_bytes(f) is None
+    with pytest.raises(ResourceLimitError):
+        read_source_bytes(f)
 
 
 def test_accepts_file_at_exact_cap(tmp_path: Path) -> None:
