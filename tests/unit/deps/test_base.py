@@ -5,6 +5,7 @@ import pytest
 
 from pqcheck.deps.base import (
     MAX_FILE_BYTES,
+    ManifestError,
     extract_pep508_name,
     golang_purl,
     maven_purl,
@@ -95,10 +96,13 @@ def test_safe_read_bytes_returns_content_for_small_file(tmp_path: Path) -> None:
     assert safe_read_bytes(f) == b"hello"
 
 
-def test_safe_read_bytes_returns_none_for_oversized_file(tmp_path: Path) -> None:
+def test_safe_read_bytes_raises_for_oversized_file(tmp_path: Path) -> None:
+    # A manifest padded past the cap must surface as an incomplete inventory,
+    # not vanish into a clean scan.
     f = tmp_path / "huge.txt"
     f.write_bytes(b"\x00" * (MAX_FILE_BYTES + 1))
-    assert safe_read_bytes(f) is None
+    with pytest.raises(ManifestError):
+        safe_read_bytes(f)
 
 
 def test_safe_read_bytes_returns_none_for_missing_file(tmp_path: Path) -> None:
@@ -151,7 +155,8 @@ def test_safe_read_bytes_caps_growth_during_read(
         return big[:n]
 
     monkeypatch.setattr("pqcheck.deps.base.os.read", fake_read)
-    assert safe_read_bytes(f) is None
+    with pytest.raises(ManifestError):
+        safe_read_bytes(f)
 
 
 def test_safe_read_works_without_posix_open_flags(

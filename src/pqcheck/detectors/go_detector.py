@@ -22,7 +22,7 @@ from typing import cast
 
 from tree_sitter import Node, Parser
 
-from pqcheck.detectors._source_read import read_source_bytes
+from pqcheck.detectors._source_read import ResourceLimitError, read_source_bytes
 from pqcheck.detectors.algorithms import AlgorithmHit, lookup_go_symbol, normalize_curve
 from pqcheck.detectors.tree_sitter_loader import go_language
 from pqcheck.models import AlgorithmFamily, CryptoFinding, SourceLocation
@@ -422,7 +422,9 @@ class GoDetector:
 
     def run(self, root: Node) -> None:
         if root.descendant_count > _MAX_PARSE_NODES:
-            return
+            raise ResourceLimitError(
+                f"parse tree exceeds {_MAX_PARSE_NODES} nodes; skipped (scan incomplete)"
+            )
         self._imports.visit_root(root, self._source)
         self._locally_constructed = _collect_locally_constructed(root, self._source)
         for node in _walk(root):
@@ -687,11 +689,16 @@ class GoDetector:
 
 
 def detect_go_file(path: Path) -> list[CryptoFinding]:
-    """Detect Go crypto primitive usage in `path`. Never raises.
+    """Detect Go crypto primitive usage in `path`.
 
-    Returns [] for: missing file, symlink, non-regular file, file > 2 MiB,
-    unreadable bytes, or an unexpected internal failure. tree-sitter tolerates
-    invalid syntax by parsing a partial tree, so a crypto call surviving inside
+    Raises ResourceLimitError (only) when a resource guard drops analyzable
+    input — an oversized file (byte cap), an oversized parse tree
+    (_MAX_PARSE_NODES), or a walk that exhausts recursion/memory — so the
+    scanner records an incomplete-scan diagnostic instead of a clean result.
+
+    Returns [] for: missing file, symlink, non-regular file, unreadable
+    bytes, or an unexpected internal failure. tree-sitter tolerates invalid
+    syntax by parsing a partial tree, so a crypto call surviving inside
     malformed Go is still reported; only input with no resolvable call yields [].
     """
     raw = read_source_bytes(path)
@@ -702,7 +709,12 @@ def detect_go_file(path: Path) -> list[CryptoFinding]:
         detector = GoDetector(path, raw)
         detector.run(tree.root_node)
         return detector.findings
-    # OSError covers a missing/unreadable catalog (regression-tested); the
-    # others guard pathological parse trees. detect_go_file must never raise.
-    except (RecursionError, MemoryError, ValueError, OSError):
+    except (RecursionError, MemoryError) as exc:
+        raise ResourceLimitError(
+            f"parse exhausted resources ({exc.__class__.__name__}); skipped (scan incomplete)"
+        ) from exc
+    # OSError covers a missing/unreadable catalog (regression-tested);
+    # ValueError guards pathological parse trees. Both are internal failures,
+    # not attacker-paddable caps — stay silent per the never-raise floor.
+    except (ValueError, OSError):
         return []

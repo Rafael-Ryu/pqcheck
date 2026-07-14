@@ -467,12 +467,13 @@ def test_parse_unresolvable_builtin_property_emits_none(tmp_path: Path) -> None:
     assert deps[0].version is None
 
 
-def test_parse_oversized_file_returns_empty_list(tmp_path: Path) -> None:
+def test_parse_oversized_file_raises_manifest_error(tmp_path: Path) -> None:
     f = tmp_path / "huge.xml"
-    # Build a payload that is just over the cap. The body doesn't need to
-    # parse — safe_read_bytes rejects before lxml sees it.
+    # Build a payload that is just over the cap. safe_read_bytes rejects it
+    # before lxml sees it — and the skip must read as an incomplete inventory.
     f.write_bytes(b"<project/>" + b" " * MAX_FILE_BYTES)
-    assert parse(f) == []
+    with pytest.raises(ManifestError):
+        parse(f)
 
 
 def test_parse_property_expansion_bomb_fails_closed_fast(tmp_path: Path) -> None:

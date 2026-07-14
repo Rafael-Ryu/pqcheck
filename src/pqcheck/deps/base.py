@@ -30,13 +30,14 @@ class ManifestError(Exception):
 
 
 def safe_read_bytes(path: Path) -> bytes | None:
-    """Read a file as bytes, returning None on any error or oversize.
+    """Read a file as bytes; None on unreadable, ManifestError on oversize.
 
-    Failure modes (return None): missing path, symlink, non-regular file
-    (FIFO/device/socket/directory), file larger than MAX_FILE_BYTES, or
-    a file that grows between fstat and read past the cap. Callers treat
-    None as "skip this file" — never raise. Matches the scanner's
-    per-file exception-swallowing contract.
+    Silent failure modes (return None): missing path, symlink, non-regular
+    file (FIFO/device/socket/directory) — deliberate skips. A file larger
+    than MAX_FILE_BYTES (or one that grows past the cap between fstat and
+    read) raises ManifestError instead: a manifest the scanner saw but did
+    not read means the dependency inventory is incomplete, and padding a
+    manifest past the cap must not buy a clean scan.
 
     Open uses O_NOFOLLOW (reject symlinks) and O_NONBLOCK (FIFO opens
     return immediately) so a malicious repo cannot block the scanner
@@ -63,8 +64,12 @@ def safe_read_bytes(path: Path) -> bytes | None:
         return None
     try:
         info = os.fstat(fd)
-        if not stat.S_ISREG(info.st_mode) or info.st_size > MAX_FILE_BYTES:
+        if not stat.S_ISREG(info.st_mode):
             return None
+        if info.st_size > MAX_FILE_BYTES:
+            raise ManifestError(
+                f"file exceeds {MAX_FILE_BYTES} bytes; skipped (inventory incomplete)"
+            )
         chunks: list[bytes] = []
         budget = MAX_FILE_BYTES + 1
         while budget > 0:
@@ -74,7 +79,9 @@ def safe_read_bytes(path: Path) -> bytes | None:
             chunks.append(chunk)
             budget -= len(chunk)
         if budget == 0:
-            return None
+            raise ManifestError(
+                f"file exceeds {MAX_FILE_BYTES} bytes; skipped (inventory incomplete)"
+            )
     except OSError:  # pragma: no cover - fstat/read on an open fd is well-defined
         return None
     finally:

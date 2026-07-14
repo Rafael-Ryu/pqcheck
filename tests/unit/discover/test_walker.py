@@ -157,4 +157,4 @@ def test_oversized_ignore_file_is_skipped_with_error(tmp_path: Path) -> None:
         f.write(b"\n")
     d = discover(tmp_path)
     assert [p.name for p in d.python_files] == ["app.py"]
-    assert any("skipped (unreadable or oversized)" in e for e in d.errors)
+    assert any("skipped (oversized)" in e for e in d.errors)
