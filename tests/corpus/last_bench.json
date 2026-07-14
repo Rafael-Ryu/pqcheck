@@ -1,5 +1,5 @@
 {
-  "tp": 382,
+  "tp": 384,
   "fp": 0,
   "pending": 0,
   "precision": 1.0,
@@ -59,8 +59,8 @@
       "pending": 0
     },
     "smallstep-crypto": {
-      "gated": 233,
-      "tp": 233,
+      "gated": 235,
+      "tp": 235,
       "fp": 0,
       "pending": 0
     }

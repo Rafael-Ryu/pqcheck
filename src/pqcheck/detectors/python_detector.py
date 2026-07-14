@@ -12,6 +12,7 @@ pydantic, which the project already uses for CryptoFinding.
 from __future__ import annotations
 
 import ast
+from collections.abc import Iterator
 from pathlib import Path
 from typing import ClassVar
 
@@ -125,6 +126,45 @@ _SSL_CONSTANT_ALLOWLIST = frozenset(
     )
 )
 
+# Single-assignment dataflow (Task C2): `h = hashlib.sha256(); ... h.digest()`
+# and `signature = hmac.new(...); ... signature.digest()` -- the constructor
+# call site already fires via the ordinary catalog lookup; this attributes
+# the *method* call on the variable to the same algorithm. Scope is
+# deliberately rigid (see _compute_single_assigned): intra-function, the
+# variable must be assigned exactly once, and only these two hash/HMAC
+# accessor methods are attributed -- reassignment, conditional assignment,
+# cross-function flow, and any other method name are all out of scope.
+_DATAFLOW_METHOD_NAMES = frozenset(("digest", "hexdigest"))
+_DATAFLOW_METHOD_FAMILIES = frozenset((AlgorithmFamily.HASH, AlgorithmFamily.MAC))
+# High but not 1.0: the algorithm is proven by a rigid static single-
+# assignment argument rather than observed directly at the construction
+# site, so it stays a notch below the ordinary direct-call confidence.
+_DATAFLOW_METHOD_CONFIDENCE = 0.9
+# Node types that open a new, independent binding scope -- bindings and
+# catalog assignments inside them never count toward the enclosing
+# function's own single-assignment analysis.
+_NESTED_SCOPE_NODE_TYPES = (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)
+
+
+def _own_scope_nodes(node: ast.AST) -> Iterator[ast.AST]:
+    """Yield every descendant of `node`, without descending into a nested
+    function/lambda/class body -- those own their own bindings independently.
+    """
+    for child in ast.iter_child_nodes(node):
+        yield child
+        if not isinstance(child, _NESTED_SCOPE_NODE_TYPES):
+            yield from _own_scope_nodes(child)
+
+
+def _param_names(node: ast.FunctionDef | ast.AsyncFunctionDef) -> list[str]:
+    args = node.args
+    names = [a.arg for a in (*args.posonlyargs, *args.args, *args.kwonlyargs)]
+    if args.vararg is not None:
+        names.append(args.vararg.arg)
+    if args.kwarg is not None:
+        names.append(args.kwarg.arg)
+    return names
+
 
 class PythonDetector(ast.NodeVisitor):
     """Second pass: emit CryptoFinding per detected primitive use."""
@@ -135,12 +175,80 @@ class PythonDetector(ast.NodeVisitor):
         self._imports = ImportResolver()
         self.findings: list[CryptoFinding] = []
         self._suppressed_call_ids: set[int] = set()
+        # Stack of the innermost enclosing function's single-assigned
+        # catalog vars (Task C2). Only the top entry is ever consulted --
+        # dataflow does not cross function boundaries, so a nested
+        # function's own scope shadows (never merges with) its parent's.
+        self._scope_stack: list[dict[str, AlgorithmHit]] = []
 
     def visit(self, node: ast.AST) -> None:
         # Pass 1: collect imports before walking calls.
         if isinstance(node, ast.Module):
             self._imports.visit(node)
         super().visit(node)
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        self._visit_function(node)
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+        self._visit_function(node)
+
+    def _visit_function(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
+        self._scope_stack.append(self._compute_single_assigned(node))
+        try:
+            self.generic_visit(node)
+        finally:
+            self._scope_stack.pop()
+
+    def _compute_single_assigned(
+        self, node: ast.FunctionDef | ast.AsyncFunctionDef
+    ) -> dict[str, AlgorithmHit]:
+        """Vars assigned exactly once in `node`'s own scope, from a
+        catalogued HASH/MAC constructor -- the intra-function,
+        single-assignment-only proof Task C2 requires (see module docstring
+        near _DATAFLOW_METHOD_NAMES for the full scope statement).
+        """
+        counts: dict[str, int] = {}
+        for name in _param_names(node):
+            counts[name] = counts.get(name, 0) + 1
+        candidates: list[tuple[str, ast.Call]] = []
+        for child in _own_scope_nodes(node):
+            if isinstance(child, ast.Name) and isinstance(child.ctx, ast.Store):
+                counts[child.id] = counts.get(child.id, 0) + 1
+            elif (
+                isinstance(child, ast.Assign)
+                and len(child.targets) == 1
+                and isinstance(child.targets[0], ast.Name)
+                and isinstance(child.value, ast.Call)
+            ):
+                candidates.append((child.targets[0].id, child.value))
+        single_assigned: dict[str, AlgorithmHit] = {}
+        for name, call in candidates:
+            if counts.get(name, 0) != 1:
+                continue  # reassigned/conditionally assigned -- out of scope
+            qualified = self._imports.resolve_attribute(call.func)
+            if qualified is None:
+                continue
+            hit = lookup_python_symbol(qualified)
+            if hit is None or hit.family not in _DATAFLOW_METHOD_FAMILIES:
+                continue
+            single_assigned[name] = hit
+        return single_assigned
+
+    def _emit_method_on_single_assigned(self, node: ast.Call) -> bool:
+        if not self._scope_stack:
+            return False  # module/class level -- intra-function scope only
+        func = node.func
+        if not (isinstance(func, ast.Attribute) and func.attr in _DATAFLOW_METHOD_NAMES):
+            return False
+        receiver = func.value
+        if not isinstance(receiver, ast.Name):
+            return False
+        hit = self._scope_stack[-1].get(receiver.id)
+        if hit is None:
+            return False
+        self._emit(node, hit.canonical, hit.family, confidence=_DATAFLOW_METHOD_CONFIDENCE)
+        return True
 
     def visit_Call(self, node: ast.Call) -> None:
         if id(node) in self._suppressed_call_ids:
@@ -186,6 +294,8 @@ class PythonDetector(ast.NodeVisitor):
         # cannot prove the runtime binding without importing the module.
         if not emitted and qualified is None and isinstance(node.func, ast.Name):
             self._emit_via_star_import(node, node.func.id)
+        if not emitted:
+            emitted = self._emit_method_on_single_assigned(node)
         if not emitted:
             self._emit_chained_digest(node)
         self.generic_visit(node)

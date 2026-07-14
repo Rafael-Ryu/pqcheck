@@ -390,3 +390,7 @@ da10eaaf860051fd: {verdict: tp, note: "test fixture key/cert material"}
 2301db54420bc0c9: {verdict: tp, note: "test fixture key/cert material"}
 4cf3a729b17f9f31: {verdict: tp, note: "test fixture key/cert material"}
 ca348fee81182f87: {verdict: tp, note: "test fixture key/cert material"}
+# C2 (single-assignment dataflow): new method-call findings on a
+# single-assigned sha1.New() var, adjudicated 2026-07-13.
+8152ee3abff9d713: {verdict: tp, note: "mackms.go sha1Sum(): h := sha1.New(); h.Write(b); return h.Sum(nil) — real SHA-1 use"}
+f6f93cd69a513529: {verdict: tp, note: "nssdb.go intermediateKey(): h := sha1.New(); h.Write(...); return h.Sum(nil) — real SHA-1 use"}

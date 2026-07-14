@@ -1,11 +1,11 @@
 {
   "sites": 301,
-  "detected": 296,
-  "recall": 0.9834,
+  "detected": 297,
+  "recall": 0.9867,
   "per_repo": {
     "authlib": {
       "sites": 37,
-      "detected": 35
+      "detected": 36
     },
     "borgbackup": {
       "sites": 57,
@@ -29,7 +29,6 @@
     }
   },
   "misses": [
-    "authlib:authlib/oauth1/rfc5849/signature.py:295",
     "authlib:authlib/oidc/core/util.py:16",
     "borgbackup:src/borg/legacy/crypto/key.py:41",
     "borgbackup:src/borg/legacy/crypto/key.py:51",

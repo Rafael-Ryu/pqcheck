@@ -110,6 +110,22 @@ _GO_CONSTANT_CATALOG_KEYS = frozenset(
         *_TLS_RSA_KX_CIPHER_SUITE_CATALOG_KEYS,
     )
 )
+# Single-assignment dataflow (Task C2): `h := sha256.New(); ... h.Sum(x)` --
+# the constructor call site already fires via the ordinary package-qualified
+# lookup; this attributes the *method* call on the variable to the same
+# algorithm. Scope is deliberately rigid (see _collect_single_assigned):
+# intra-function (per function/method/func-literal, never crossing into a
+# nested or enclosing one), the variable must be `:=`-assigned exactly once,
+# and only hash.Hash's Sum accessor is attributed for HASH/MAC families --
+# reassignment, conditional assignment, and any other method are out of scope.
+_DATAFLOW_METHOD_NAME = "Sum"
+_DATAFLOW_METHOD_FAMILIES = frozenset((AlgorithmFamily.HASH, AlgorithmFamily.MAC))
+_DATAFLOW_METHOD_CONFIDENCE = 0.9
+# Node types that open their own independent binding scope for the
+# single-assignment analysis -- bindings/calls inside them never count
+# toward an enclosing function's own scope, and vice versa.
+_FUNC_LIKE_NODE_TYPES = ("function_declaration", "method_declaration", "func_literal")
+
 _METHOD_CONFIDENCE = 0.5
 _DOT_IMPORT_CONFIDENCE = 0.7
 # More than one dot-imported package resolves the same call name: which
@@ -262,6 +278,82 @@ def _collect_locally_constructed(root: Node, source: bytes) -> set[str]:
     return idents
 
 
+def _own_scope_nodes(func_node: Node) -> Iterator[Node]:
+    """Yield every descendant of `func_node`, without descending into a
+    nested function_declaration/method_declaration/func_literal -- those own
+    their own bindings independently (Task C2 single-assignment scoping).
+    """
+    stack: list[Node] = list(func_node.children)
+    while stack:
+        node = stack.pop()
+        yield node
+        if node.type not in _FUNC_LIKE_NODE_TYPES:
+            stack.extend(reversed(node.children))
+
+
+def _resolve_call_hit(
+    call: Node, imports: GoImportResolver, source: bytes
+) -> AlgorithmHit | None:
+    """Package-qualified `pkg.Func(...)` resolution only -- the same shape
+    `_visit_selector_call` resolves for the ordinary call-site path, reused
+    here to identify the constructor a single-assigned variable comes from.
+    """
+    func = call.child_by_field_name("function")
+    if func is None or func.type != "selector_expression":
+        return None
+    operand = func.child_by_field_name("operand")
+    field = func.child_by_field_name("field")
+    if operand is None or field is None or operand.type != "identifier":
+        return None
+    import_path = imports.resolve(_node_text(operand, source))
+    if import_path is None:
+        return None
+    return lookup_go_symbol(f"{import_path}.{_node_text(field, source)}")
+
+
+def _collect_single_assigned(
+    func_node: Node, imports: GoImportResolver, source: bytes
+) -> dict[str, AlgorithmHit]:
+    """Vars `:=`-assigned exactly once in `func_node`'s own scope, from a
+    catalogued HASH/MAC constructor. Mirrors python_detector's
+    _compute_single_assigned: every Store-like occurrence of a name
+    (short_var_declaration or assignment_statement target, or a parameter)
+    counts toward "assigned once"; two or more rules the name out, matching
+    the documented reassignment/conditional-assignment exclusions.
+    """
+    counts: dict[str, int] = {}
+    params = func_node.child_by_field_name("parameters")
+    if params is not None:
+        for node in _walk(params):
+            if node.type == "identifier":
+                name = _node_text(node, source)
+                counts[name] = counts.get(name, 0) + 1
+    candidates: list[tuple[str, Node]] = []
+    for node in _own_scope_nodes(func_node):
+        if node.type not in ("short_var_declaration", "assignment_statement"):
+            continue
+        left = node.child_by_field_name("left")
+        right = node.child_by_field_name("right")
+        if left is None or right is None:
+            continue
+        lhs_idents = [c for c in left.named_children if c.type == "identifier"]
+        rhs_exprs = right.named_children
+        for ident, expr in zip(lhs_idents, rhs_exprs, strict=False):
+            name = _node_text(ident, source)
+            counts[name] = counts.get(name, 0) + 1
+            if node.type == "short_var_declaration" and expr.type == "call_expression":
+                candidates.append((name, expr))
+    single_assigned: dict[str, AlgorithmHit] = {}
+    for name, call in candidates:
+        if counts.get(name, 0) != 1:
+            continue  # reassigned/conditionally assigned -- out of scope
+        hit = _resolve_call_hit(call, imports, source)
+        if hit is None or hit.family not in _DATAFLOW_METHOD_FAMILIES:
+            continue
+        single_assigned[name] = hit
+    return single_assigned
+
+
 class GoDetector:
     """Second pass: emit CryptoFinding per detected primitive use."""
 
@@ -287,6 +379,31 @@ class GoDetector:
                 self._visit_call(node)
             elif node.type == "selector_expression":
                 self._visit_selector_value(node)
+        self._emit_dataflow_methods(root)
+
+    def _emit_dataflow_methods(self, root: Node) -> None:
+        for func_node in _walk(root):
+            if func_node.type not in _FUNC_LIKE_NODE_TYPES:
+                continue
+            scope = _collect_single_assigned(func_node, self._imports, self._source)
+            if not scope:
+                continue
+            for node in _own_scope_nodes(func_node):
+                if node.type != "call_expression":
+                    continue
+                func = node.child_by_field_name("function")
+                if func is None or func.type != "selector_expression":
+                    continue
+                operand = func.child_by_field_name("operand")
+                field = func.child_by_field_name("field")
+                if operand is None or field is None or operand.type != "identifier":
+                    continue
+                if _node_text(field, self._source) != _DATAFLOW_METHOD_NAME:
+                    continue
+                hit = scope.get(_node_text(operand, self._source))
+                if hit is None:
+                    continue
+                self._emit(node, hit, confidence=_DATAFLOW_METHOD_CONFIDENCE)
 
     def _visit_call(self, node: Node) -> None:
         func = node.child_by_field_name("function")
