@@ -278,7 +278,10 @@ def _path_target_violation(
     try:
         if not candidate.resolve().is_relative_to(boundary):
             return f"go.mod line {lineno}: replace target resolves outside the scan root"
-    except OSError:
+    except (OSError, ValueError):
+        # ValueError: resolve() refuses a decoded path with an embedded NUL
+        # (a legal go.mod escape). Raising here would discard the syntactic
+        # findings the module walk already produced — fail closed instead.
         return f"go.mod line {lineno}: replace target cannot be resolved"
     return None
 

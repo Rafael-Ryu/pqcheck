@@ -33,18 +33,26 @@ from pqcheck.deps.base import ManifestError, golang_purl, safe_read_bytes
 from pqcheck.deps.packages import lookup_introduces
 from pqcheck.models import CryptoDependency
 
-# Module versions per x/mod/semver's lax grammar (what modfile's
-# CanonicalVersion accepts): `v` MAJOR[.MINOR[.PATCH]][-pre][+build], numeric
-# parts without leading zeros, numeric prerelease identifiers likewise. The
-# historical `v\S+` accepted `vbanana` and even forged it into the inventory.
+# Module versions per x/mod/semver's lax grammar: `v` MAJOR[.MINOR[.PATCH]],
+# numeric parts without leading zeros, numeric prerelease identifiers
+# likewise — and prerelease/build suffixes only after the FULL vX.Y.Z form
+# (x/mod rejects `v7-rc.1`). The historical `v\S+` accepted `vbanana` and
+# even forged it into the inventory.
 _SEMVER_NUM = r"(?:0|[1-9]\d*)"
 _SEMVER_IDENT = r"(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)"
 _SEMVER = (
-    rf"v{_SEMVER_NUM}(?:\.{_SEMVER_NUM}(?:\.{_SEMVER_NUM})?)?"
+    rf"v{_SEMVER_NUM}(?:\.{_SEMVER_NUM}(?:\.{_SEMVER_NUM}"
     rf"(?:-{_SEMVER_IDENT}(?:\.{_SEMVER_IDENT})*)?"
     rf"(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?"
+    rf")?)?"
 )
 _VERSION_RE = re.compile(rf"^{_SEMVER}$")
+
+# module.CheckPathMajor: a path's /vN suffix (or gopkg.in's .vN) must agree
+# with the version's major; without a suffix the major must be 0 or 1 unless
+# the version carries +incompatible (which a suffixed path in turn forbids).
+_PATH_MAJOR_RE = re.compile(r"/v([2-9]\d*)$")
+_GOPKG_MAJOR_RE = re.compile(r"\.v(\d+)$")
 
 # GoVersionRE from x/mod/modfile: `1.21`, `1.21.0`, `1.21rc1` — no leading
 # zeros, minor required.
@@ -61,27 +69,61 @@ _MODULE_VERSION_TOKENS = 2  # `module/path v1.2.3` — one side of a replace
 
 
 def _require_entry(tokens: list[str]) -> tuple[str, str] | None:
-    """(module, version) when tokens match the require-entry grammar exactly."""
-    if (
-        len(tokens) == _REQUIRE_ENTRY_TOKENS
-        and tokens[0]
-        and _VERSION_RE.match(tokens[1])
-    ):
-        return tokens[0], tokens[1]
-    return None
+    """(module, canonical_version) when tokens match the require-entry
+    grammar exactly and the version agrees with the path's major suffix.
+    The version is canonicalized the way modfile's CanonicalVersion does, so
+    downstream consumers (PURL, dedup, go.sum matching) see the same value
+    the go toolchain records (`v0` and `v0.0.0` are one version)."""
+    if len(tokens) != _REQUIRE_ENTRY_TOKENS or not tokens[0]:
+        return None
+    if not _VERSION_RE.match(tokens[1]):
+        return None
+    canonical = _canonical_version(tokens[1])
+    if not _path_major_ok(tokens[0], canonical):
+        return None
+    return tokens[0], canonical
+
+
+def _canonical_version(version: str) -> str:
+    """modfile's CanonicalVersion over an already-validated token: pad the
+    missing minor/patch with zeros and drop build metadata, keeping only the
+    special `+incompatible` marker."""
+    build = ""
+    if "+" in version:
+        version, metadata = version.split("+", 1)
+        if metadata == "incompatible":
+            build = "+incompatible"
+    base, dash, prerelease = version.partition("-")
+    parts = base[1:].split(".")
+    parts.extend("0" for _ in range(3 - len(parts)))
+    return "v" + ".".join(parts) + dash + prerelease + build
+
+
+def _path_major_ok(path: str, canonical: str) -> bool:
+    major = canonical[1:].split(".", 1)[0]
+    incompatible = canonical.endswith("+incompatible")
+    if path.startswith("gopkg.in/"):
+        # gopkg.in paths always carry a .vN suffix and never +incompatible.
+        gopkg = _GOPKG_MAJOR_RE.search(path)
+        return gopkg is not None and gopkg.group(1) == major and not incompatible
+    suffix = _PATH_MAJOR_RE.search(path)
+    if suffix is not None:
+        return suffix.group(1) == major and not incompatible
+    return major in ("0", "1") or incompatible
 
 
 def lex_go_mod_line(line: str) -> list[str] | None:
     """Tokens of one go.mod line, or None when it cannot be lexed safely.
 
     A minimal fail-closed lexer for the token shapes go.mod's own lexer
-    produces: bare tokens, interpreted strings (`"..."`, honoring only the
-    `\\\\` and `\\"` escapes), raw strings (backticks), `//` comments, and
-    `(`/`)` as standalone punctuation. Anything it cannot decide —
-    unterminated string, unsupported escape, a raw string that would span
-    lines — returns None so callers treat the file as hostile instead of
-    guessing. A naive whitespace split turned a quoted path containing a
-    space into two RHS tokens, which read as a module+version replacement.
+    accepts in directives: bare tokens, interpreted strings (`"..."` with the
+    strconv.Unquote escape set), `//` comments, and `(`/`)` as standalone
+    punctuation. Anything it cannot decide — unterminated string, unsupported
+    escape, a raw backtick string (which modfile lexes but refuses as a
+    directive argument) — returns None so callers treat the file as hostile
+    instead of guessing. A naive whitespace split turned a quoted path
+    containing a space into two RHS tokens, which read as a module+version
+    replacement.
     """
     tokens: list[str] = []
     i, size = 0, len(line)
@@ -101,11 +143,11 @@ def lex_go_mod_line(line: str) -> list[str] | None:
             token, i = lexed
             tokens.append(token)
         elif ch == "`":
-            end = line.find("`", i + 1)
-            if end == -1:
-                return None  # unterminated raw string (could span lines)
-            tokens.append(line[i + 1 : end])
-            i = end + 1
+            # Raw strings are lexed but rejected as directive arguments by
+            # modfile's parseString (`go` errors with "unquoted string cannot
+            # contain quote"), so accepting one here would pass a file the
+            # toolchain refuses. Fail closed.
+            return None
         else:
             j = i
             while j < size and line[j] not in ' \t"`()' and not line.startswith("//", j):
@@ -245,10 +287,10 @@ def _replace_entry_ok(tokens: list[str]) -> bool:
     lhs, rhs = tokens[:split], tokens[split + 1 :]
     if len(lhs) not in (1, _MODULE_VERSION_TOKENS) or dir_shaped(lhs[0]):
         return False
-    if len(lhs) == _MODULE_VERSION_TOKENS and not _VERSION_RE.match(lhs[1]):
+    if len(lhs) == _MODULE_VERSION_TOKENS and _require_entry(lhs) is None:
         return False
     if len(rhs) == _MODULE_VERSION_TOKENS:
-        return bool(_VERSION_RE.match(rhs[1])) and not dir_shaped(rhs[0])
+        return _require_entry(rhs) is not None and not dir_shaped(rhs[0])
     return len(rhs) == 1 and dir_shaped(rhs[0])
 
 
@@ -275,6 +317,8 @@ _ENTRY_VALIDATORS: dict[str, Callable[[list[str]], bool]] = {
 _KNOWN_DIRECTIVES = frozenset({"require", *_ENTRY_VALIDATORS})
 # Per go.mod's grammar, go and toolchain are single-line only.
 _BLOCK_FORM_DIRECTIVES = frozenset({"module", "require", "exclude", "replace", "retract"})
+# Directives go.mod admits at most once ("repeated module statement").
+_SINGLETON_DIRECTIVES = frozenset({"module", "go", "toolchain"})
 
 
 def _entry_ok(directive: str, tokens: list[str]) -> bool:
@@ -347,6 +391,7 @@ def _parse_directives(text: str, add: Callable[[str, str], None]) -> None:
     a control char inside one physical line forge a second `require`.
     """
     in_block: str | None = None
+    seen_singletons: set[str] = set()
     for lineno, raw_line in enumerate(text.split("\n"), start=1):
         tokens = lex_go_mod_line(raw_line.rstrip("\r"))
         if tokens is None:
@@ -354,22 +399,35 @@ def _parse_directives(text: str, add: Callable[[str, str], None]) -> None:
         if not tokens:
             continue
         if in_block is not None:
-            in_block = _block_line(in_block, tokens, lineno, add)
+            in_block = _block_line(in_block, tokens, lineno, add, seen_singletons)
         else:
-            in_block = _directive_line(tokens, lineno, add)
+            in_block = _directive_line(tokens, lineno, add, seen_singletons)
     if in_block is not None:
         # An unclosed block: `go` itself refuses the file, so whatever we
         # parsed is a partial inventory, not a complete one.
         raise ManifestError(f"malformed go.mod: unclosed {in_block} block")
 
 
+def _register_singleton(seen: set[str], directive: str, lineno: int) -> None:
+    if directive in seen:
+        # go refuses a second occurrence ("repeated module statement").
+        raise ManifestError(f"malformed go.mod: repeated {directive} directive at line {lineno}")
+    seen.add(directive)
+
+
 def _block_line(
-    directive: str, tokens: list[str], lineno: int, add: Callable[[str, str], None]
+    directive: str,
+    tokens: list[str],
+    lineno: int,
+    add: Callable[[str, str], None],
+    seen_singletons: set[str],
 ) -> str | None:
     """One line inside a `directive ( ... )` block; the still-open directive
     (or None once the block closes)."""
     if tokens == [")"]:
         return None
+    if directive in _SINGLETON_DIRECTIVES:
+        _register_singleton(seen_singletons, directive, lineno)
     if directive == "require":
         entry = _require_entry(tokens)
         if entry is None:
@@ -381,7 +439,10 @@ def _block_line(
 
 
 def _directive_line(
-    tokens: list[str], lineno: int, add: Callable[[str, str], None]
+    tokens: list[str],
+    lineno: int,
+    add: Callable[[str, str], None],
+    seen_singletons: set[str],
 ) -> str | None:
     """One top-level line; the directive whose block it opens, if any."""
     directive = tokens[0]
@@ -397,6 +458,8 @@ def _directive_line(
                 f"malformed go.mod: invalid {directive} directive at line {lineno}"
             )
         return directive
+    if directive in _SINGLETON_DIRECTIVES:
+        _register_singleton(seen_singletons, directive, lineno)
     if directive == "require":
         entry = _require_entry(rest)
         if entry is None:

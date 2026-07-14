@@ -397,8 +397,7 @@ def test_malformed_known_directive_block_form_raises(tmp_path: Path, block: str)
         "exclude example.com/x v1.0.0",
         "exclude (\nexample.com/x v1.0.0 // broken\n)",
         "replace example.com/x => ../local",
-        "replace example.com/x v1.0.0 => example.com/y v2.0.0",
-        "replace example.com/x => `../out side`",  # raw string with a space
+        "replace example.com/x v1.0.0 => example.com/y/v2 v2.0.0",
         'replace "example.com/x" => "./local dir"',  # quoted path with a space
         "replace (\nexample.com/x => ./l\n)",
         "retract v1.0.0",
@@ -587,4 +586,101 @@ def test_invalid_escapes_fail_closed(tmp_path: Path, string: str) -> None:
     f = tmp_path / "go.mod"
     f.write_text(f"module {string}\n", encoding="utf-8")
     with pytest.raises(ManifestError, match="cannot be lexed"):
+        parse(f)
+
+
+# --- Round 6: path-major, canonicalization, raw strings, singletons ---
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "require example.com/short v7-rc.1",  # suffix after short form (round-6 reproducer)
+        "require example.com/nosuffix v9.1.2",  # major 9 without /v9 (round-6 reproducer)
+        "require example.com/x/v2 v3.0.0",  # /v2 suffix disagreeing with major
+        "require example.com/x/v2 v2.0.0+incompatible",  # +incompatible with a suffix
+        "require gopkg.in/yaml.v2 v3.0.1",  # gopkg.in suffix disagreeing with major
+        "require gopkg.in/nodot v1.0.0",  # gopkg.in path without its .vN suffix
+        "exclude example.com/nosuffix v9.1.2",  # same check applies to exclude
+        "replace example.com/a => example.com/b v5.0.0",  # RHS major without suffix
+        "replace example.com/a v9.0.0 => ./local",  # LHS major without suffix
+        "require `example.com/raw` v1.2.3",  # raw string arg: go refuses (round-6)
+        "module `example.com/m`",
+    ],
+)
+def test_round6_invalid_forms_raise(tmp_path: Path, line: str) -> None:
+    f = tmp_path / "go.mod"
+    body = f"{line}\n" if line.startswith("module") else f"module example.com/m\n{line}\n"
+    f.write_text(body, encoding="utf-8")
+    with pytest.raises(ManifestError, match=r"malformed go\.mod"):
+        parse(f)
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "require example.com/x/v2 v2.1.0",  # suffix agreeing with major
+        "require gopkg.in/yaml.v2 v2.4.0",
+        "require gopkg.in/yaml.v0 v0.1.0",
+        "require example.com/x v2.0.0+incompatible",  # exempt without a suffix
+        "require example.com/x v1.4.5+incompatible",
+    ],
+)
+def test_round6_valid_forms_accepted(tmp_path: Path, line: str) -> None:
+    f = tmp_path / "go.mod"
+    f.write_text(f"module example.com/m\n{line}\n", encoding="utf-8")
+    parse(f)
+
+
+def test_versions_canonicalized_for_purl_and_go_sum(tmp_path: Path) -> None:
+    # modfile's CanonicalVersion: `v0` and `v0.0.0` are one version, and
+    # ordinary build metadata is dropped — the inventory, PURL, and go.sum
+    # matching must all see the canonical value (round-6 reproducer).
+    (tmp_path / "go.mod").write_text(
+        "module example.com/m\nrequire (\n"
+        "\texample.com/shortzero v0\n"
+        "\texample.com/meta v1.4.5+Build.007\n)\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "go.sum").write_text(
+        "example.com/shortzero v0.0.0 h1:fresh\nexample.com/meta v1.4.5 h1:fresh\n",
+        encoding="utf-8",
+    )
+    by_name = {d.name: d for d in parse(tmp_path / "go.mod")}
+    assert by_name["example.com/shortzero"].version == "v0.0.0"
+    assert by_name["example.com/shortzero"].purl == "pkg:golang/example.com/shortzero@v0.0.0"
+    assert by_name["example.com/shortzero"].integrity_verified is True
+    assert by_name["example.com/meta"].version == "v1.4.5"
+    assert by_name["example.com/meta"].integrity_verified is True
+
+
+def test_canonicalization_preserves_incompatible_and_dedups(tmp_path: Path) -> None:
+    (tmp_path / "go.mod").write_text(
+        "module example.com/m\n"
+        "require example.com/x v2.0.0+incompatible\n"
+        "require example.com/y v1.2\n"
+        "require example.com/y v1.2.0\n",  # same version once canonicalized
+        encoding="utf-8",
+    )
+    deps = parse(tmp_path / "go.mod")
+    by_name = {d.name: d for d in deps}
+    assert by_name["example.com/x"].version == "v2.0.0+incompatible"
+    assert sum(1 for d in deps if d.name == "example.com/y") == 1
+    assert by_name["example.com/y"].version == "v1.2.0"
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "module example.com/m\nmodule example.com/again\n",
+        "module example.com/m\ngo 1.24\ngo 1.25\n",
+        "module example.com/m\ntoolchain default\ntoolchain go1.25.4\n",  # round-6 reproducer
+        "module example.com/m\nmodule (\nexample.com/again\n)\n",  # block form counts too
+        "module (\nexample.com/m\nexample.com/again\n)\n",  # two entries in one block
+    ],
+)
+def test_repeated_singleton_directives_raise(tmp_path: Path, body: str) -> None:
+    f = tmp_path / "go.mod"
+    f.write_text(body, encoding="utf-8")
+    with pytest.raises(ManifestError, match="repeated"):
         parse(f)
