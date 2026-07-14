@@ -119,12 +119,14 @@ def _lex_interpreted_string(line: str, start: int) -> tuple[str, int] | None:
     """Decode the `"..."` string opening at line[start]; (value, next_index),
     or None (fail closed) on an unterminated string or invalid escape.
 
-    Handles the full Go interpreted-string escape set (strconv.Unquote, which
-    is what go.mod's own lexer applies): the single-char escapes, `\\xHH`,
-    exactly-3-digit octal (byte-valued), and `\\uHHHH`/`\\UHHHHHHHH` rejecting
-    surrogates and out-of-range code points. Modelling only `\\\\` and `\\"`
-    made the lexer refuse go.mod files Go itself accepts (e.g. a replace
-    target of "./vendor\\x20dir").
+    Handles the Go interpreted-string escape set (strconv.Unquote, which is
+    what go.mod's own lexer applies): the single-char escapes, `\\xHH` and
+    exactly-3-digit octal for ASCII bytes only (Go treats those as raw bytes;
+    above 0x7F no faithful str mapping exists — see _MAX_ASCII_BYTE — so they
+    fail closed), and `\\uHHHH`/`\\UHHHHHHHH` code points rejecting surrogates
+    and out-of-range values. Modelling only `\\\\` and `\\"` made the lexer
+    refuse go.mod files Go itself accepts (e.g. a replace target of
+    "./vendor\\x20dir").
     """
     i = start + 1
     size = len(line)
@@ -154,7 +156,13 @@ _OCTAL_ESCAPE_DIGITS = 3
 _HEX_ESCAPE_DIGITS = 2
 _UNICODE4_DIGITS = 4
 _UNICODE8_DIGITS = 8
-_MAX_BYTE = 0xFF
+# \xHH and octal escapes are RAW BYTES to strconv.Unquote, not code points.
+# Below 0x80 byte and code point coincide, so decoding to chr() is faithful;
+# at or above it they diverge (a Go path of bytes C3 A9 is not the Python
+# string chr(0xC3)+chr(0xA9) once fsencoded), and a boundary check would
+# resolve a different filesystem name than the Go toolchain follows. No safe
+# str mapping exists, so those escapes fail closed instead of guessing.
+_MAX_ASCII_BYTE = 0x7F
 _MAX_CODE_POINT = 0x10FFFF
 _SURROGATE_LO, _SURROGATE_HI = 0xD800, 0xDFFF
 
@@ -175,7 +183,7 @@ def _decode_escape(line: str, i: int) -> tuple[str, int] | None:
     digits = line[i : i + _OCTAL_ESCAPE_DIGITS]
     if len(digits) == _OCTAL_ESCAPE_DIGITS and all(c in "01234567" for c in digits):
         value = int(digits, 8)
-        if value <= _MAX_BYTE:
+        if value <= _MAX_ASCII_BYTE:
             return chr(value), i + _OCTAL_ESCAPE_DIGITS
     return None
 
@@ -189,8 +197,8 @@ def _hex_digits_value(line: str, i: int, count: int) -> int | None:
 
 def _hex_escape(line: str, i: int, count: int) -> tuple[str, int] | None:
     value = _hex_digits_value(line, i, count)
-    if value is None:
-        return None
+    if value is None or value > _MAX_ASCII_BYTE:
+        return None  # non-ASCII byte escape: see _MAX_ASCII_BYTE
     return chr(value), i + count
 
 

@@ -577,6 +577,9 @@ def test_go_escapes_in_interpreted_strings_accepted(
         '"\\12"',  # octal needs exactly three digits
         '"\\ud800xyz"',  # surrogate code point
         '"\\U00110000aa"',  # beyond U+10FFFF
+        '"\\xff"',  # non-ASCII byte: raw byte to Go, unmappable to str
+        '"\\x80"',
+        '"\\200"',  # octal spelling of the same non-ASCII byte
         '"\\',  # backslash at end of line
     ],
 )
