@@ -62,6 +62,28 @@ def _compose_node(self: Any, parent: Any, index: Any) -> Any:
 _NoAliasSafeLoader.compose_node = _compose_node  # type: ignore[method-assign]
 
 
+# YAML's last-key-wins rule silently drops the first of two identical keys, so a
+# second `banned:` erases every rule under the first one while the policy still
+# validates. Fail the load instead: a policy that does not say what its author
+# read is a fail-open gate.
+def _construct_mapping(self: Any, node: Any, deep: bool = False) -> Any:
+    seen: set[Any] = set()
+    for key_node, _ in node.value:
+        key = self.construct_object(key_node, deep=deep)
+        if key in seen:
+            raise yaml.constructor.ConstructorError(
+                "while constructing a mapping",
+                node.start_mark,
+                f"duplicate key {key!r}",
+                key_node.start_mark,
+            )
+        seen.add(key)
+    return yaml.constructor.SafeConstructor.construct_mapping(self, node, deep)
+
+
+_NoAliasSafeLoader.construct_mapping = _construct_mapping  # type: ignore[method-assign]
+
+
 def _parse_and_validate(text: str, origin: str) -> CryptoPolicy:
     try:
         data = yaml.load(text, Loader=_NoAliasSafeLoader)  # noqa: S506 - custom no-alias safe loader

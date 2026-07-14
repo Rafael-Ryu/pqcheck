@@ -78,18 +78,20 @@ def test_scan_dispatches_go_modules_once_and_loose_files_per_file(
         "svc/util.go": "package main\n",
         "loose.go": "package loose\n",
     })
-    module_calls: list[Path] = []
+    module_calls: list[tuple[Path, Path]] = []
     file_calls: list[Path] = []
     monkeypatch.setattr(
         scanner_mod, "detect_go_module",
-        lambda p: module_calls.append(p) or [],
+        lambda p, *, scan_root: module_calls.append((p, scan_root)) or [],
     )
     monkeypatch.setattr(
         scanner_mod, "detect_go_file",
         lambda p: file_calls.append(p) or [],
     )
     scan(root)
-    assert module_calls == [(root / "svc").resolve()]
+    # scan_root is passed through so the analyzer bridge can reject a go.mod
+    # `replace` pointing outside the scanned tree.
+    assert module_calls == [((root / "svc").resolve(), root.resolve())]
     assert [p.name for p in file_calls] == ["loose.go"]
 
 
@@ -135,3 +137,20 @@ def test_scan_swallows_per_file_key_material_errors(
     result = scan(root)
     assert result.findings == ()
     assert any("a.key" in e and "boom" in e for e in result.errors)
+
+
+def test_scan_reports_malformed_manifests_and_keeps_scanning(tmp_path: Path) -> None:
+    # A manifest the scanner saw but could not parse means an incomplete
+    # dependency inventory; it must show up in errors rather than vanish into
+    # a clean-looking scan. Valid inputs alongside it still get parsed.
+    (tmp_path / "pyproject.toml").write_text("[project\n", encoding="utf-8")
+    (tmp_path / "package-lock.json").write_text('{"packages": {', encoding="utf-8")
+    (tmp_path / "requirements.txt").write_text("cryptography==43.0.0\n", encoding="utf-8")
+    (tmp_path / "use.py").write_text("import hashlib\nhashlib.md5(b'x')\n", encoding="utf-8")
+
+    result = scan(tmp_path)
+
+    assert any("pyproject.toml" in e and "ManifestError" in e for e in result.errors)
+    assert any("package-lock.json" in e and "ManifestError" in e for e in result.errors)
+    assert [d.name for d in result.dependencies] == ["cryptography"]
+    assert [f.algorithm for f in result.findings] == ["MD5"]

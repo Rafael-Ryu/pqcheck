@@ -1,5 +1,8 @@
 from pathlib import Path
 
+import pytest
+
+from pqcheck.deps.base import ManifestError
 from pqcheck.deps.uv_lock import parse
 
 
@@ -130,9 +133,10 @@ version = "44.0.0"
     assert [d.version for d in deps] == ["43.0.0", "44.0.0"]
 
 
-def test_parse_invalid_toml_returns_empty_list(tmp_path: Path) -> None:
+def test_parse_invalid_toml_raises_manifest_error(tmp_path: Path) -> None:
     f = _write(tmp_path, "this is not [valid TOML\n")
-    assert parse(f) == []
+    with pytest.raises(ManifestError):
+        parse(f)
 
 
 def test_parse_missing_file_returns_empty_list(tmp_path: Path) -> None:
@@ -181,7 +185,9 @@ source = { registry = "https://pypi.org/simple" }
     assert {d.name for d in deps} == {"cryptography"}
 
 
-def test_parse_deeply_nested_toml_never_raises(tmp_path: Path) -> None:
-    # Nested arrays parse recursively; a hostile lock can blow the stack.
+def test_parse_deeply_nested_toml_raises_manifest_error(tmp_path: Path) -> None:
+    # Nested arrays parse recursively; a hostile lock can blow the stack. The
+    # RecursionError surfaces as a ManifestError the scan records.
     f = _write(tmp_path, "a = " + "[" * 3000 + "]" * 3000 + "\n")
-    assert parse(f) == []
+    with pytest.raises(ManifestError):
+        parse(f)

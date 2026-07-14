@@ -1,0 +1,17 @@
+apiVersion: pqcheck.cryptoct.com/v1
+kind: CryptoPolicy
+metadata:
+  name: fixture-duplicate-key
+  version: 1.0.0
+  publisher: CryptoCT
+  applies-to: "Test fixture"
+  effective-from: "2026-05-22"
+  review-date: "2026-11-22"
+spec:
+  default-action: warn
+  approved: []
+  banned:
+    - { family: hash, algorithm: MD5, action: fail, severity: critical }
+  banned: []
+  severity-rules:
+    - { confidence-band: high, action: as-declared }

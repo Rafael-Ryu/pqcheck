@@ -11,6 +11,7 @@ self-audit on its own test suite.
 
 from __future__ import annotations
 
+import time
 from pathlib import Path
 
 from cryptography.hazmat.primitives import serialization
@@ -383,3 +384,43 @@ def test_symlink_is_skipped(tmp_path: Path) -> None:
     link = tmp_path / "link.pem"
     link.symlink_to(real)
     assert detect_key_material_file(link) == []
+
+
+def test_key_agreement_only_ec_cert_is_classified_ecdh(tmp_path: Path) -> None:
+    key = keymaterial.ec_key(ec.SECP256R1())
+    cert = keymaterial.self_signed_cert(key, key_usage=keymaterial.key_agreement_only_usage())
+    path = tmp_path / "ecdh.crt"
+    path.write_bytes(cert.public_bytes(serialization.Encoding.PEM))
+
+    [finding] = detect_key_material_file(path)
+    assert finding.algorithm == "ECDH"
+    assert finding.family == AlgorithmFamily.KEY_AGREEMENT
+    assert finding.curve == "P-256"
+    assert finding.material_kind == "certificate"
+
+
+def test_ec_cert_with_signing_usage_stays_ecdsa(tmp_path: Path) -> None:
+    key = keymaterial.ec_key(ec.SECP256R1())
+    cert = keymaterial.self_signed_cert(key, key_usage=keymaterial.signing_usage())
+    path = tmp_path / "sign.crt"
+    path.write_bytes(cert.public_bytes(serialization.Encoding.PEM))
+
+    [finding] = detect_key_material_file(path)
+    assert finding.algorithm == "ECDSA"
+    assert finding.family == AlgorithmFamily.SIGNATURE
+
+
+def test_large_pem_bundle_scales_linearly(tmp_path: Path) -> None:
+    # ~19k empty CERTIFICATE blocks in a 1 MB file: the interval-containment
+    # and line-number passes were both quadratic here (14 s). Assert the
+    # findings are all produced and the work stays bounded.
+    block = b"-----BEGIN CERTIFICATE-----\n-----END CERTIFICATE-----\n"
+    path = tmp_path / "bundle.pem"
+    path.write_bytes(block * 19_000)
+
+    start = time.monotonic()
+    findings = detect_key_material_file(path)
+    elapsed = time.monotonic() - start
+
+    assert len(findings) == 19_000
+    assert elapsed < 3.0  # ~0.4 s in practice; the quadratic version took 14 s

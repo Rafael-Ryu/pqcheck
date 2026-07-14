@@ -1,5 +1,8 @@
 from pathlib import Path
 
+import pytest
+
+from pqcheck.deps.base import ManifestError
 from pqcheck.deps.requirements_txt import parse
 
 
@@ -84,10 +87,11 @@ def test_parse_dedupes_repeated_pins(tmp_path: Path) -> None:
     assert [(d.name, d.version) for d in parse(f)] == [("foo", "1.0"), ("foo", "2.0")]
 
 
-def test_parse_never_raises_on_garbage(tmp_path: Path) -> None:
+def test_parse_undecodable_bytes_raise_manifest_error(tmp_path: Path) -> None:
     f = tmp_path / "requirements.txt"
     f.write_bytes(b"\xff\xfe garbage \x00==1.0\n")
-    assert parse(f) == []
+    with pytest.raises(ManifestError):
+        parse(f)
 
 
 def test_parse_missing_file_returns_empty(tmp_path: Path) -> None:

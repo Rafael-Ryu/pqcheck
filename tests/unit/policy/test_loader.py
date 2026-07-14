@@ -72,3 +72,10 @@ def test_load_policy_non_utf8_file_raises_policy_error(tmp_path):
     f.write_bytes(b"metadata:\n  name: caf\xe9\n")
     with pytest.raises(PolicyError):
         load_policy(f)
+
+
+def test_duplicate_mapping_key_rejected():
+    # YAML's last-key-wins would silently erase the banned MD5 rule and still
+    # validate — a fail-open policy gate.
+    with pytest.raises(PolicyError, match="duplicate key"):
+        load_policy(FIXTURES / "duplicate_key.yaml")

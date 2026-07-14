@@ -705,6 +705,7 @@ def test_detect_go_module_uses_analyzer_output_when_available(
     # str() on Windows would make json.loads fail and _map_findings return [].
     golden_root = tmp_path.resolve().as_posix()
     golden = _GOLDEN.replace("/m/", golden_root + "/")
+    _write_module(tmp_path)  # the analyzer only runs on a module whose go.mod parses
     monkeypatch.setattr(gmd, "_locate_binary", lambda: (binary, True))
     monkeypatch.setattr(gmd, "_run_analyzer", lambda root, b: golden)
 
@@ -741,6 +742,7 @@ def test_detect_go_module_dedupes_same_call_site_preferring_semantic(
     # str() on Windows would make json.loads fail and _map_findings return [].
     golden_root = tmp_path.resolve().as_posix()
     golden = _GOLDEN.replace("/m/", golden_root + "/")
+    _write_module(tmp_path)
     monkeypatch.setattr(gmd, "_locate_binary", lambda: (binary, True))
     monkeypatch.setattr(gmd, "_run_analyzer", lambda root, b: golden)
 
@@ -957,3 +959,94 @@ def test_verify_sha256_fails_closed_when_binary_vanishes(
 ) -> None:
     monkeypatch.setattr(gmd, "_CRYPTO_ANALYZER_SHA256", "0" * 64)
     assert gmd._verify_sha256(tmp_path / "gone", trusted=False) is False
+
+
+def _write_go_mod(root: Path, body: str) -> None:
+    root.mkdir(parents=True, exist_ok=True)
+    (root / "go.mod").write_text(f"module example.com/m\n\ngo 1.24\n{body}", encoding="utf-8")
+
+
+def test_replace_escape_outside_boundary_detected(tmp_path: Path) -> None:
+    module = tmp_path / "root"
+    _write_go_mod(module, "replace example.com/x => ../outside\n")
+    assert gmd._replace_escapes(module, module) is True
+
+
+def test_replace_within_boundary_allowed(tmp_path: Path) -> None:
+    module = tmp_path / "svc"
+    _write_go_mod(module, "replace example.com/lib => ../lib\n")
+    (tmp_path / "lib").mkdir()
+    assert gmd._replace_escapes(module, tmp_path) is False
+    assert gmd._replace_escapes(module, module) is True
+
+
+def test_replace_block_form_and_comments_parsed(tmp_path: Path) -> None:
+    module = tmp_path / "m"
+    _write_go_mod(
+        module,
+        "replace (\n"
+        "    example.com/a v1.0.0 => example.com/b v1.0.0 // module replacement\n"
+        "    example.com/c => ./vendorfork\n"
+        ")\n",
+    )
+    assert gmd._replace_escapes(module, module) is False
+    _write_go_mod(
+        module,
+        "replace (\n    example.com/c => ../../etc\n)\n",
+    )
+    assert gmd._replace_escapes(module, module) is True
+
+
+def test_replace_absolute_path_outside_boundary_detected(tmp_path: Path) -> None:
+    module = tmp_path / "m"
+    _write_go_mod(module, "replace example.com/x => /etc\n")
+    assert gmd._replace_escapes(module, module) is True
+
+
+def test_replace_symlink_escape_detected(tmp_path: Path) -> None:
+    module = tmp_path / "m"
+    _write_go_mod(module, "replace example.com/x => ./link\n")
+    (module / "link").symlink_to(tmp_path.parent)
+    assert gmd._replace_escapes(module, module) is True
+
+
+def test_replace_unreadable_go_mod_fails_closed(tmp_path: Path) -> None:
+    assert gmd._replace_escapes(tmp_path / "missing", tmp_path) is True
+
+
+def test_detect_go_module_skips_analyzer_on_replace_escape(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = tmp_path / "root"
+    _write_go_mod(module, "replace example.com/x => ../outside\n")
+    (module / "main.go").write_text(
+        'package m\n\nimport "crypto/md5"\n\nfunc F() { md5.New() }\n', encoding="utf-8"
+    )
+    calls: list[Path] = []
+
+    def spy(module_root: Path, binary: Path) -> str | None:
+        calls.append(module_root)
+        return "[]"
+
+    monkeypatch.setattr(gmd, "_locate_binary", lambda: (tmp_path / "bin", True))
+    monkeypatch.setattr(gmd, "_run_analyzer", spy)
+    findings = detect_go_module(module, scan_root=module)
+    assert calls == []
+    assert [f.detector_id for f in findings] == ["go-tree-sitter"]
+
+
+def test_merge_keeps_distinct_calls_on_the_same_line() -> None:
+    # `f(); g()` on one line: a line-only dedup key collapsed both into one
+    # finding, dropping a real primitive use from the CBOM.
+    def finding(column: int) -> CryptoFinding:
+        return CryptoFinding(
+            algorithm="SHA-256",
+            family=AlgorithmFamily.HASH,
+            location=SourceLocation(path=Path("main.go"), line=3, column=column),
+            evidence="",
+            detector_id="go-types",
+            confidence=1.0,
+        )
+
+    merged = gmd._merge_findings([finding(15), finding(47)], [])
+    assert [f.location.column for f in merged] == [15, 47]

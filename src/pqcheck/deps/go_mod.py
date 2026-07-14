@@ -21,7 +21,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from pqcheck.deps.base import golang_purl, safe_read_bytes
+from pqcheck.deps.base import ManifestError, golang_purl, safe_read_bytes
 from pqcheck.deps.packages import lookup_introduces
 from pqcheck.models import CryptoDependency
 
@@ -49,8 +49,8 @@ def parse(path: Path) -> list[CryptoDependency]:
         return []
     try:
         text = raw.decode("utf-8")
-    except UnicodeDecodeError:
-        return []
+    except UnicodeDecodeError as exc:
+        raise ManifestError(f"malformed go.mod: {exc}") from exc
 
     seen: set[tuple[str, str]] = set()
     deps: list[CryptoDependency] = []
@@ -105,6 +105,12 @@ def parse(path: Path) -> list[CryptoDependency]:
         single_m = _SINGLE_RE.match(line)
         if single_m:
             _add(single_m.group(1), single_m.group(2))
+
+    if in_block:
+        # `require (` with no closing paren: `go` itself refuses the file, so
+        # whatever we parsed out of it is a partial inventory, not a complete
+        # one. Report it rather than passing off the prefix as the whole thing.
+        raise ManifestError("malformed go.mod: unclosed require block")
 
     return deps
 

@@ -25,6 +25,20 @@ jobs:
     permissions:
       actions: read
     steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      # The trigger glob accepts any suffix, so `pqcheck-v9.9.9-oops` would build
+      # and publish whatever version pyproject.toml actually carries. The tag must
+      # name exactly the version being shipped, or the release misstates what it is.
+      - name: Verify the tag matches the packaged version
+        run: |
+          version=$(python -c 'import tomllib,pathlib; print(tomllib.loads(pathlib.Path("pyproject.toml").read_text())["project"]["version"])')
+          case "$GITHUB_REF_NAME" in
+            "pqcheck-v$version"|"pqcheck-test-v$version") ;;
+            *)
+              echo "tag '$GITHUB_REF_NAME' does not match packaged version '$version'"
+              exit 1
+              ;;
+          esac
       - env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -158,8 +172,22 @@ jobs:
           uv venv /tmp/wheel-smoke
           VIRTUAL_ENV=/tmp/wheel-smoke uv pip install "$linux_whl"
           /tmp/wheel-smoke/bin/pqcheck --help
-      # Publish first, while dist/ holds only wheels; signing adds .sigstore
-      # bundles that PyPI must not receive.
+      # Sign BEFORE publishing: a PyPI upload cannot be taken back, so a Sigstore
+      # failure after it would leave a published version whose documented
+      # `.sigstore.json` bundle (the path `pqcheck verify-release` follows) never
+      # existed. The bundles are moved out of dist/ immediately afterwards —
+      # PyPI rejects an upload directory holding anything but distributions.
+      - name: Sign wheels with Sigstore (keyless)
+        uses: sigstore/gh-action-sigstore-python@04cffa1d795717b140764e8b640de88853c92acc # v3.3.0
+        with:
+          inputs: ./dist/*.whl
+      - name: Move signature bundles out of the upload directory
+        run: |
+          mkdir -p bundles
+          mv dist/*.sigstore.json bundles/
+          if ls dist/ | grep -qv '\.whl$'; then
+            echo "non-wheel artifact left in the upload directory"; exit 1
+          fi
       - name: Publish to TestPyPI (dry-run channel)
         if: startsWith(github.ref_name, 'pqcheck-test-v')
         uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # v1.14.0
@@ -173,11 +201,9 @@ jobs:
         with:
           packages-dir: dist/
           attestations: true
-      - name: Sign wheels with Sigstore (keyless)
-        uses: sigstore/gh-action-sigstore-python@04cffa1d795717b140764e8b640de88853c92acc # v3.3.0
-        with:
-          inputs: ./dist/*.whl
       - uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
         if: ${{ !startsWith(github.ref_name, 'pqcheck-test-v') }}
         with:
-          files: dist/*
+          files: |
+            dist/*.whl
+            bundles/*.sigstore.json

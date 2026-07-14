@@ -1,396 +1,402 @@
 # Human-adjudicated verdicts for corpus findings (protocol: README.md).
 # Adjudicated 2026-06-11 via per-line source review of the cached clones;
 # re-keyed same day after detector_id was dropped from the fingerprint.
-668eba7d0081bd4c: {verdict: tp, note: "test file"}
-7910c52f451fea7d: {verdict: tp, note: "test file"}
-008d8480c20fbea3: {verdict: tp, note: "test file"}
-c5a7140eeba1f169: {verdict: tp, note: "test file"}
-f87732b699f81630: {verdict: tp, note: "real SHA1 in OAEP padding"}
-9848be99d7cdfb8e: {verdict: tp, note: "test file"}
-5b8a93a11dec4e2b: {verdict: tp, note: "test file"}
-9295026b1673930c: {verdict: tp, note: "sha1 hexdigest for %C token"}
-2771fbd5771e66f6: {verdict: tp, note: "ec key generation"}
-316cfe4f8ca514d7: {verdict: tp, note: "sha1 digest_size for salt"}
-bbb101e84e96056d: {verdict: tp, note: "sha1 digest_size assertion"}
-341673eafa409b58: {verdict: tp, note: "ec key generation in kex"}
-8ba5114f1bf49d8f: {verdict: tp, note: "ECDH exchange invoked"}
-a9d917b876f4fb01: {verdict: tp, note: "ECDH exchange invoked"}
-9a9318d8fa457f56: {verdict: tp, note: "md5 fingerprint digest"}
-e249267bfde1d7a1: {verdict: tp, note: "rsa key generation"}
-90f8c68064f31bab: {verdict: tp, note: "ec key generation"}
-fe9e59692e7b9e49: {verdict: tp, note: "ec key generation"}
-749fd491e819c724: {verdict: tp, note: "test file"}
-7ca45b7ffad30ea0: {verdict: tp, note: "test file"}
-6cb2c35752b13d1b: {verdict: tp, note: "test file"}
-c2f6e1fd00365f34: {verdict: tp, note: "test file"}
-e4665beb54194b0c: {verdict: tp, note: "test file"}
-262781f69456b1ce: {verdict: tp, note: "test file"}
-cd5f87aba884730c: {verdict: tp, note: "test file, Ed25519 generate"}
-4c5cc7d787604e4a: {verdict: tp, note: "test file, dummy curve"}
-9acd81ebef4e25b4: {verdict: tp, note: "test file"}
-13d57ac9f4e766be: {verdict: tp, note: "test file"}
-ec334d45a92c8326: {verdict: tp, note: "test file"}
-51a4218ad2f6521d: {verdict: tp, note: "test file"}
-916e45298e20783b: {verdict: tp, note: "test file"}
-cd4919ff5fade7b2: {verdict: tp, note: "real hashlib.sha1 call"}
-dca5a92b1e2ea421: {verdict: tp, note: "test file"}
-88055e30bb26b3d5: {verdict: tp, note: "test file"}
-25cf1adfb6d247bd: {verdict: tp, note: "test file"}
-ae13694f7d99d1e4: {verdict: tp, note: "test helper, real ECDH"}
-b4a04a87be1764aa: {verdict: tp, note: "real ecdh.P256 use"}
-2eac65189d5145ee: {verdict: tp, note: "sha1.New in OAEP"}
-17ab711801422a9c: {verdict: tp, note: "sha1.New in OAEP"}
-2e52563773798b59: {verdict: tp, note: "ephemeral ECDSA keygen"}
-7857ddff25b9e0c9: {verdict: tp, note: "test"}
-47260ac1e1904ddf: {verdict: tp, note: "test"}
-33b317afef249333: {verdict: tp, note: "test"}
-b2b6f14216cf9e88: {verdict: tp, note: "test"}
-bcb781e9ff9e6c4e: {verdict: tp, note: "test"}
-35fabad59d26033d: {verdict: tp, note: "test"}
-1035863c67888a64: {verdict: tp, note: "test"}
-ff33c08a7c2e1e06: {verdict: tp, note: "test"}
-1d22ae9130fb30fa: {verdict: tp, note: "test"}
-be40aadd0287977c: {verdict: tp, note: "test"}
-d29d1231212037f9: {verdict: tp, note: "test"}
-35ed6fb5cfdfc70b: {verdict: tp, note: "test"}
-e16f662062f77d15: {verdict: tp, note: "test"}
-516c1c9158f61e26: {verdict: tp, note: "test"}
-40f468abef3a9be3: {verdict: tp, note: "test"}
-3aaf2a643607e7ec: {verdict: tp, note: "test"}
-c2da74d737ae449b: {verdict: tp, note: "test"}
-acb1f9dcfb6f998c: {verdict: tp, note: "test"}
-c26496d980400767: {verdict: tp, note: "test"}
-e8e65dac62af70bd: {verdict: tp, note: "test"}
-6775a94250754798: {verdict: tp, note: "doc example test"}
-1d5a7e9ce3bccf2f: {verdict: tp, note: "doc example test"}
-fef26436b750af11: {verdict: tp, note: "keygen utility"}
-815f287b514a4a73: {verdict: tp, note: "keygen utility"}
-a47efd09cc4a8dd3: {verdict: tp, note: "keygen utility"}
-280daab2995db988: {verdict: tp, note: "keygen utility"}
-582af7786263b28d: {verdict: tp, note: "keygen utility"}
-11c4133b82e2d848: {verdict: tp, note: "keygen utility"}
-e22e12861ecd86e2: {verdict: tp, note: "keygen utility"}
-99d1dce5fdfca285: {verdict: tp, note: "sha1.Sum x5t thumbprint"}
-e25b9323e69b5932: {verdict: tp, note: "sha1.Sum x5t thumbprint"}
-171a1f973bd8a204: {verdict: tp, note: "test"}
-7d6090444d0f7136: {verdict: tp, note: "test"}
-da85decc12e9ca8f: {verdict: tp, note: "test"}
-536ce4f2d2fbc963: {verdict: tp, note: "test"}
-e271a6ddc23a964b: {verdict: tp, note: "test"}
-5854e01040404a22: {verdict: tp, note: "test"}
-8671a7262038c8e2: {verdict: tp, note: "test"}
-8b540754a0f0f62e: {verdict: tp, note: "test"}
-937045ad72792a09: {verdict: tp, note: "test"}
-edba37042441f136: {verdict: tp, note: "test"}
-35f1d0a40d7a4e54: {verdict: tp, note: "test"}
-8e1c7e07c42dc7d9: {verdict: tp, note: "test"}
-5fb434a08205abab: {verdict: tp, note: "blowfish.NewSaltedCipher call"}
-cfc12429313bb15b: {verdict: tp, note: "test file"}
-0aaee978ab20228e: {verdict: tp, note: "test file"}
-f8b38055d0a19f5c: {verdict: tp, note: "test file"}
-3dcbb72b630c4e63: {verdict: tp, note: "test file"}
-a62b90b7063afd37: {verdict: tp, note: "test file"}
-877aff7fbf04e9f7: {verdict: tp, note: "test file"}
-a49ee78143a2a627: {verdict: tp, note: "test file"}
-77dba84862baf439: {verdict: tp, note: "test file"}
-498b7975a4b98730: {verdict: tp, note: "test file"}
-6ed16481fbfacfee: {verdict: tp, note: "test file"}
-7ed34ef505866fb3: {verdict: tp, note: "test file"}
-fca0edf4d7151dca: {verdict: tp, note: "test file"}
-7ffdfe5d167759f5: {verdict: tp, note: "test file"}
-975b1ff1416ee0c6: {verdict: tp, note: "test file"}
-e7c774601bdc11b5: {verdict: tp, note: "test file"}
-7e2588026a1cbba8: {verdict: tp, note: "test file"}
-585c7adf21fdb8ab: {verdict: tp, note: "test file"}
-b4087ed9f3ad3bbb: {verdict: tp, note: "test file"}
-3a3a4689ad36bb03: {verdict: tp, note: "sha1.Sum cert thumbprint"}
-7df1e4e05b8b4425: {verdict: tp, note: "test file"}
-a92b5c048ce71c26: {verdict: tp, note: "test file"}
-9e75959b01037bf7: {verdict: tp, note: "test file"}
-236ed234b5bb4c3a: {verdict: tp, note: "test file"}
-c9f79841caf791ee: {verdict: tp, note: "ecdsa.GenerateKey call"}
-cba8977c923b6f5d: {verdict: tp, note: "rsa.GenerateKey call"}
-75bf748e3b5fc9ce: {verdict: tp, note: "ed25519.GenerateKey call"}
-5dac4295516dda36: {verdict: tp, note: "test file, sha1.New OAEP"}
-4bec188fc6fb507a: {verdict: tp, note: "test file"}
-0f4e72658badb6d1: {verdict: tp, note: "test file, sha1.New"}
-fe177bc1bc7c136e: {verdict: tp, note: "ecdh.P256 call"}
-84a0fc333f304eba: {verdict: tp, note: "ecdh.P384 call"}
-e4f7fa957c114656: {verdict: tp, note: "ecdh.P521 call"}
-43a3115ca7c4df5a: {verdict: tp, note: "test file"}
-3fb10b78499e6d3b: {verdict: tp, note: "test file"}
-4b44f702707ca0ec: {verdict: tp, note: "test file"}
-93dbe47ca1351186: {verdict: tp, note: "test file"}
-a7989c890df6f6b0: {verdict: tp, note: "sha1.Sum digest"}
-6e42a56cac610d19: {verdict: tp, note: "test file"}
-42d67301c902e3b8: {verdict: tp, note: "test file"}
-f5aefb3382f55e47: {verdict: tp, note: "test file"}
-dd6b9c2229145076: {verdict: tp, note: "ecdh.P256 NewPublicKey"}
-6a4944027959bc89: {verdict: tp, note: "ecdh.P384 NewPublicKey"}
-b5f8261ddebb7f07: {verdict: tp, note: "ecdh.P521 NewPublicKey"}
-b39e4f8a7a31cd8a: {verdict: tp, note: "ecdh.P256 NewPrivateKey"}
-af9323080783a92a: {verdict: tp, note: "ecdh.P384 NewPrivateKey"}
-c84848845880d429: {verdict: tp, note: "ecdh.P521 NewPrivateKey"}
-86fecb8ec641d9fa: {verdict: tp, note: "ecdh curve case expression"}
-d62918fbc0ccb20d: {verdict: tp, note: "ecdh curve case expression"}
-7a2ec42d96008495: {verdict: tp, note: "ecdh curve case expression"}
-364c991b4c327a2d: {verdict: tp, note: "sha1.New call"}
-ebea8ee1bfc7818e: {verdict: tp, note: "test file"}
-1186dc012794a3fc: {verdict: tp, note: "test file"}
-a6888b3c03e1c991: {verdict: tp, note: "test file"}
-e4dd8059bef2da21: {verdict: tp, note: "test file"}
-77a1828846c0eb0c: {verdict: tp, note: "test file"}
-2367ee085ac5056e: {verdict: tp, note: "test file"}
-3ac70dec8e296736: {verdict: tp, note: "test file"}
-c58a644a7d6855b8: {verdict: tp, note: "test file"}
-6db224f3e0c307ab: {verdict: tp, note: "test file"}
-9caa163ba099f379: {verdict: tp, note: "test file"}
-32e3795571f23a92: {verdict: tp, note: "test file"}
-c31da16ea02366f8: {verdict: tp, note: "test file"}
-0e2ec10d82799747: {verdict: tp, note: "test file"}
-d8857c7625cf2348: {verdict: tp, note: "test file"}
-46846061b3af8703: {verdict: tp, note: "test file"}
-7fc5cb5e5893789d: {verdict: tp, note: "test file"}
-efcf8eef605c1048: {verdict: tp, note: "test file"}
-e3e1c4b07f385d28: {verdict: tp, note: "test file"}
-46f3a9b3b8739890: {verdict: tp, note: "test file"}
-9b0e87f46dd44f2b: {verdict: tp, note: "test file"}
-b8f79e22299b1ff0: {verdict: tp, note: "test file"}
-7fc75310ee640660: {verdict: tp, note: "test file"}
-e641aa2ed28176ac: {verdict: tp, note: "returns ecdh.P256 curve"}
-19ed70585d98ccc5: {verdict: tp, note: "returns ecdh.P384 curve"}
-d4b1aaaea60367db: {verdict: tp, note: "returns ecdh.P521 curve"}
-23345b7232f398c0: {verdict: tp, note: "test file"}
-e2f6ab095118c14e: {verdict: tp, note: "test file"}
-088e7398744a4ad6: {verdict: tp, note: "test file"}
-cbcefaa113f036f8: {verdict: tp, note: "test file"}
-40b54df69145f0d6: {verdict: tp, note: "test file"}
-394f2f9ccb61badc: {verdict: tp, note: "test file"}
-79b35fa9a5a26b66: {verdict: tp, note: "test file"}
-f2b9efec69f08975: {verdict: tp, note: "test file"}
-a0f7fc6017fa4f69: {verdict: tp, note: "test file"}
-1c3e2b51529312cc: {verdict: tp, note: "test file"}
-2f5b35987821ddfd: {verdict: tp, note: "test file"}
-9a4de7841848c314: {verdict: tp, note: "test file"}
-599eb44b56c08215: {verdict: tp, note: "test file"}
-5e15e167d61a9eef: {verdict: tp, note: "test file"}
-40facea4f5d56baa: {verdict: tp, note: "test file"}
-5c80c447e911411f: {verdict: tp, note: "test file"}
-aa4f39b58ac255c1: {verdict: tp, note: "test file"}
-d495bc498431bad3: {verdict: tp, note: "test file"}
-6233c3e1c565664f: {verdict: tp, note: "test file"}
-aa5a8e69ab4a1165: {verdict: tp, note: "test file"}
-f5e89d37edde09ae: {verdict: tp, note: "test file"}
-cdf5b36479d14c64: {verdict: tp, note: "test file"}
-a0e7ffc5e04b1ef5: {verdict: tp, note: "sha1.Sum key ID"}
-5a52369618921712: {verdict: tp, note: "test file"}
-256a0e4fc19ba7bb: {verdict: tp, note: "test file"}
-f234cf4c72994818: {verdict: tp, note: "test file"}
-201454927622e1af: {verdict: tp, note: "test file"}
-4082fb103c8661c6: {verdict: tp, note: "test file"}
-454918e9620a1172: {verdict: tp, note: "test file"}
-6d5a448c0a024b39: {verdict: tp, note: "test file"}
-d362a958c0fcfd95: {verdict: tp, note: "test file"}
-90d613e7e905bfb9: {verdict: tp, note: "test file"}
-da57513bee49402d: {verdict: tp, note: "test file"}
-664096d371f17a57: {verdict: tp, note: "test file"}
-e0344b64d5886c81: {verdict: tp, note: "test file"}
-18133b1b14f49edc: {verdict: tp, note: "test file"}
-fdb3f1039f3baec3: {verdict: tp, note: "test file"}
-1fe4093971ba12e3: {verdict: tp, note: "test file"}
-59e7c7f47f996c27: {verdict: tp, note: "test file"}
-8483c933b2223698: {verdict: tp, note: "test file"}
-97041feae33d6d94: {verdict: tp, note: "ecdh.P256 NewPublicKey"}
-a6d54c5e303fc9b1: {verdict: tp, note: "sha1.New KDF"}
-6531dad88f4d6d01: {verdict: tp, note: "ecdh.P256 assignment"}
-bee0a08ccc74905a: {verdict: tp, note: "ecdh.P384 assignment"}
-18ce3df97115fa57: {verdict: tp, note: "ecdh.P521 assignment"}
-57c8b6bfb21fa5e5: {verdict: tp, note: "ecdh curve case expression"}
-947733e14e73a3f9: {verdict: tp, note: "ecdh curve case expression"}
-7a83774a39bb55e0: {verdict: tp, note: "ecdh curve case expression"}
-8b8b30dbd42ed9fb: {verdict: tp, note: "des.NewCipher legacy keys"}
-6ce15bad2849deed: {verdict: tp, note: "des.NewTripleDESCipher legacy keys"}
-9f973af2a25dc285: {verdict: tp, note: "test file"}
-c101f42fb51cfe01: {verdict: tp, note: "test file"}
-21460b64d6deec59: {verdict: tp, note: "test file"}
-88497ff65b08cd23: {verdict: tp, note: "ecdh.P256 NewPublicKey"}
-1e1077236357b117: {verdict: tp, note: "test file"}
-c2734f9d0105c2f0: {verdict: tp, note: "test file"}
-4e35d2dc50fb1825: {verdict: tp, note: "test file"}
-9c7b25173cdbd38d: {verdict: tp, note: "test file"}
-fe991f87dec002d8: {verdict: tp, note: "test file"}
-8cfa2616e9246624: {verdict: tp, note: "test file"}
-8fec786bc7da120e: {verdict: tp, note: "test file"}
-143fe1c617a396dc: {verdict: tp, note: "test file"}
-fcb3983b336b7e97: {verdict: tp, note: "test file"}
-f325c80312ab63a6: {verdict: tp, note: "test file"}
-576671aa77a06926: {verdict: tp, note: "test file"}
-88d67276dff5bec8: {verdict: tp, note: "test file"}
-7151c6bb1cbc22c0: {verdict: tp, note: "test file"}
-25c429ab8199e2f8: {verdict: tp, note: "test file"}
-0c497f63e9766a0b: {verdict: tp, note: "test file"}
-92ea868167425735: {verdict: tp, note: "sha1.Sum subject key ID"}
-3433abbe1ebc5ef8: {verdict: tp, note: "pyjwt RSAAlgorithm.sign — RSA-PKCS1v15 padding"}
-5615b8930770f8f6: {verdict: tp, note: "pyjwt RSAAlgorithm.verify — RSA-PKCS1v15 padding"}
-5bac0125ad3969fc: {verdict: tp, note: "python-jose RSA1_5 alias construction — RSA-PKCS1v15 padding"}
-4db16f915fbc4906: {verdict: tp, note: "python-jose RSA_OAEP alias — RSA-OAEP-SHA1 padding"}
-e4b94c05d29e0470: {verdict: tp, note: "python-jose RSA_OAEP_256 alias — RSA-OAEP-SHA256 padding, not SHA1-scoped rule"}
-d37eb58c5c9d01fd: {verdict: tp, note: "python-jose RSA sign — RSA-PKCS1v15 padding"}
-451c258bfa0504ef: {verdict: tp, note: "python-jose RSA verify — RSA-PKCS1v15 padding"}
-42e701f84d67109f: {verdict: tp, note: "paramiko RSAKey sign/verify — RSA-PKCS1v15 padding"}
-0b7b3457299236d5: {verdict: tp, note: "paramiko RSAKey sign — RSA-PKCS1v15 padding"}
-415f022f02c22234: {verdict: tp, note: "sigstore-python trust verification — RSA-PKCS1v15 padding"}
-4cd96e5377bd144f: {verdict: tp, note: "test file"}
-55929f0de6eb2f74: {verdict: tp, note: "test file"}
-cdbc390dc0ca0bdc: {verdict: tp, note: "test file"}
-9a88317bc03199ff: {verdict: tp, note: "test file"}
-50d039bae0963513: {verdict: tp, note: "mackms.go k.ECDH() — crypto/ecdsa PublicKey method, darwin/cgo-gated"}
-8ad2c519bf77c6cf: {verdict: tp, note: "signer.go pub.ECDH() — crypto/ecdsa PublicKey method, darwin/cgo-gated"}
-c182b12210397721: {verdict: tp, note: "signer_test.go pub.ECDH() — crypto/ecdsa PublicKey method, test file"}
-665c76131221f18a: {verdict: tp, note: "signer_test.go goP256.ECDH(...) — crypto/ecdh PrivateKey method, test file"}
-1939d6487a1f1587: {verdict: tp, note: "signer_test.go pub.ECDH() — crypto/ecdsa PublicKey method, test file"}
-079158a5bc24ebb7: {verdict: tp, note: "signer_test.go goP384.ECDH(...) — crypto/ecdh PrivateKey method, test file"}
-f971dcee15732930: {verdict: tp, note: "signer_test.go pub.ECDH() — crypto/ecdsa PublicKey method, test file"}
-3136879daf5e1f04: {verdict: tp, note: "signer_test.go goP521.ECDH(...) — crypto/ecdh PrivateKey method, test file"}
-03242cafa2024fb4: {verdict: tp, note: "signer_test.go pub.ECDH() — crypto/ecdsa PublicKey method, test file"}
-3973b4ada3f48033: {verdict: tp, note: "ssh.go k.PublicKey.ECDH() — crypto/ecdsa PublicKey method via embedded field"}
-1a5957c1b6e80b7a: {verdict: tp, note: "sshutil_test.go k.ECDH() — crypto/ecdsa PublicKey method, test file"}
 # W2 (Python catalog depth): new RSA-PSS padding findings, adjudicated 2026-07-13.
-49edf1bb7be02b9b: {verdict: tp, note: "RSA-PSS signature construction, real RSA use"}
-2fbc334467afc1d4: {verdict: tp, note: "RSA-PSS verify construction, real RSA use"}
-365bb9be8452ec88: {verdict: tp, note: "RSA-PSS construction, test file, real RSA use"}
-781b5796a0ba1127: {verdict: tp, note: "RSA-PSS construction, test file, real RSA use"}
-52ebfae438522fe3: {verdict: tp, note: "RSA-PSS construction, test file, real RSA use"}
 # B2 (weak-KDF-parameter thresholds): new banned-rule finding from
 # parameter-sets-below gating, adjudicated 2026-07-13.
-5075d1cfb69cec13: {verdict: tp, note: "sio ncrypt CLI: real scrypt.Key(N=32768) call, below OWASP N>=131072"}
-
 # C1 (key-material detector): certificates and keys on disk (*.pem/*.key/*.crt/*.der),
 # adjudicated 2026-07-13. All are test fixtures / testdata or a real committed CI
 # code-signing key -- genuine crypto material the new detector correctly identifies,
 # not a detector false positive.
-26360cd6d86c2122: {verdict: tp, note: "test fixture key/cert material"}
-53620fea8e7ba054: {verdict: tp, note: "test fixture key/cert material"}
-2060ebec8db35886: {verdict: tp, note: "test fixture key/cert material"}
-0d9b1b4016077305: {verdict: tp, note: "test fixture key/cert material"}
-50fa44a599179e8b: {verdict: tp, note: "test fixture key/cert material"}
-4e36fef41a531d3d: {verdict: tp, note: "test fixture key/cert material"}
-6646a57eae269038: {verdict: tp, note: "test fixture key/cert material"}
-a9101c0f5540ac15: {verdict: tp, note: "test fixture key/cert material"}
-cf3ac3cc2a1ce5b7: {verdict: tp, note: "test fixture key/cert material"}
-b534d8eade8a077b: {verdict: tp, note: "test fixture key/cert material"}
-543c6a3a1cc34e63: {verdict: tp, note: "test fixture key/cert material"}
-6e5078c432148b77: {verdict: tp, note: "test fixture key/cert material"}
-37711ade5b2a6d87: {verdict: tp, note: "test fixture key/cert material"}
-a47b29d63e98b06b: {verdict: tp, note: "test fixture key/cert material"}
-0ff6cfa227cd2084: {verdict: tp, note: "test fixture key/cert material"}
-9bc36c4e1cc0c747: {verdict: tp, note: "test fixture key/cert material"}
-c76273c28099360d: {verdict: tp, note: "test fixture key/cert material"}
-53e8acbcb1d3d246: {verdict: tp, note: "test fixture key/cert material"}
-adc37709d7e6f9e7: {verdict: tp, note: "test fixture key/cert material"}
-17e757adcb4e0681: {verdict: tp, note: "test fixture key/cert material"}
-e89fa9d5a506aa98: {verdict: tp, note: "test fixture key/cert material"}
-2f646e1d614996d6: {verdict: tp, note: "test fixture key/cert material"}
-02a3baab478764f7: {verdict: tp, note: "test fixture key/cert material"}
-ed6c3b6f4ca07619: {verdict: tp, note: "test fixture key/cert material"}
-7603e9514e207bd5: {verdict: tp, note: "test fixture key/cert material"}
-f37a641fad518b77: {verdict: tp, note: "test fixture key/cert material"}
-e31a0eb3402b0500: {verdict: tp, note: "test fixture key/cert material"}
-13d00547335670d8: {verdict: tp, note: "test fixture key/cert material"}
-d63fb5a13179ef34: {verdict: tp, note: "test fixture key/cert material"}
-8c8e46f8e69ce154: {verdict: tp, note: "test fixture key/cert material"}
-f9c7ebc8e945da57: {verdict: tp, note: "test fixture key/cert material"}
-6e71668036299b28: {verdict: tp, note: "test fixture key/cert material"}
-b693c007b9f450a7: {verdict: tp, note: "test fixture key/cert material"}
-2cd9b74f03568616: {verdict: tp, note: "test fixture key/cert material"}
-86508c3f74c32f00: {verdict: tp, note: "test fixture key/cert material"}
-4cd9e71c039af877: {verdict: tp, note: "test fixture key/cert material"}
-abb0834bde71e9c1: {verdict: tp, note: "test fixture key/cert material"}
-2e342cbc296b3180: {verdict: tp, note: "test fixture key/cert material"}
-c284fe28a58c4e8f: {verdict: tp, note: "test fixture key/cert material"}
-f9ceb588654e9e3a: {verdict: tp, note: "test fixture key/cert material"}
-e8aae9fb54f2d7dc: {verdict: tp, note: "test fixture key/cert material"}
-54677e395f925417: {verdict: tp, note: "test fixture key/cert material"}
-9be7eca927bc08f3: {verdict: tp, note: "test fixture key/cert material"}
-39688d111db52db9: {verdict: tp, note: "test fixture key/cert material"}
-1e8e955d9d9d4054: {verdict: tp, note: "encrypted RSA code-signing key committed for CI Windows binary signing (real asset, correctly flagged)"}
-91007ae85b00053f: {verdict: tp, note: "test fixture key/cert material"}
-927c19c789a20c21: {verdict: tp, note: "test fixture key/cert material"}
-1dafb3e9257b67b1: {verdict: tp, note: "test fixture key/cert material"}
-65e7ec6f9b4fcbb3: {verdict: tp, note: "test fixture key/cert material"}
-239041dc7d49fb68: {verdict: tp, note: "test fixture key/cert material"}
-16aad62f255692fd: {verdict: tp, note: "test fixture key/cert material"}
-d8ad2e86116f318d: {verdict: tp, note: "test fixture key/cert material"}
-0f65ffbc1f37682e: {verdict: tp, note: "test fixture key/cert material"}
-45ec2f21ad0caa85: {verdict: tp, note: "test fixture key/cert material"}
-3ae334d7802a8aa7: {verdict: tp, note: "test fixture key/cert material"}
-6b58c68c681d5919: {verdict: tp, note: "test fixture key/cert material"}
-3df54e9768c9f0d5: {verdict: tp, note: "test fixture key/cert material"}
-39cd2d7d677bcfe0: {verdict: tp, note: "test fixture key/cert material"}
-7139a8d9b15cd052: {verdict: tp, note: "test fixture key/cert material"}
-5934ac54aa06f35a: {verdict: tp, note: "test fixture key/cert material"}
-062843b8c4a7c310: {verdict: tp, note: "test fixture key/cert material"}
-cc9468241ec5049d: {verdict: tp, note: "test fixture key/cert material"}
-845deed8246c57b8: {verdict: tp, note: "test fixture key/cert material"}
-b099f916ef3783ff: {verdict: tp, note: "test fixture key/cert material"}
-0048927b203ea321: {verdict: tp, note: "test fixture key/cert material"}
-dae50591ee49df22: {verdict: tp, note: "test fixture key/cert material"}
-021de3fbdd76b23c: {verdict: tp, note: "test fixture key/cert material"}
-073236f198b7b647: {verdict: tp, note: "test fixture key/cert material"}
-6eef98f29929e72a: {verdict: tp, note: "test fixture key/cert material"}
-d55b08b4f9595d7b: {verdict: tp, note: "test fixture key/cert material"}
-c465d04863c3b647: {verdict: tp, note: "test fixture key/cert material"}
-78502559bbe66c32: {verdict: tp, note: "test fixture key/cert material"}
-326fcf657b811539: {verdict: tp, note: "test fixture key/cert material"}
-fc1b6008a46c91a2: {verdict: tp, note: "test fixture key/cert material"}
-4f34c24e3b93d858: {verdict: tp, note: "test fixture key/cert material"}
-b6117a075890e374: {verdict: tp, note: "test fixture key/cert material"}
-6e9a7ff67040accd: {verdict: tp, note: "test fixture key/cert material"}
-355f89e9e9077272: {verdict: tp, note: "test fixture key/cert material"}
-a58a86333c6736ab: {verdict: tp, note: "test fixture key/cert material"}
-5b4341c487bd7ed9: {verdict: tp, note: "test fixture key/cert material"}
-a6e23540f5c785fa: {verdict: tp, note: "test fixture key/cert material"}
-fde5f65380f2d468: {verdict: tp, note: "test fixture key/cert material"}
-762dba67b4867cd4: {verdict: tp, note: "test fixture key/cert material"}
-fcfee72f417bee74: {verdict: tp, note: "test fixture key/cert material"}
-c25069378684866c: {verdict: tp, note: "test fixture key/cert material"}
-18b346b8056856aa: {verdict: tp, note: "test fixture key/cert material"}
-99a9c8b8a9d9d53f: {verdict: tp, note: "test fixture key/cert material"}
-639b189e75eb1c5d: {verdict: tp, note: "test fixture key/cert material"}
-31cd4abf4b1c8dc6: {verdict: tp, note: "test fixture key/cert material"}
-e3bd5cc9cd896cd1: {verdict: tp, note: "test fixture key/cert material"}
-b23d999d5dbc3d93: {verdict: tp, note: "test fixture key/cert material"}
-fee74d70f2dbedb6: {verdict: tp, note: "test fixture key/cert material"}
-2f483a8ce70dfa2f: {verdict: tp, note: "test fixture key/cert material"}
-a61ba000052dd737: {verdict: tp, note: "test fixture key/cert material"}
-d500476b8fd944f8: {verdict: tp, note: "test fixture key/cert material"}
-c781a6f7b2fdf385: {verdict: tp, note: "test fixture key/cert material"}
-cb79d453f7eb70a0: {verdict: tp, note: "test fixture key/cert material"}
-b45ebf32851a3152: {verdict: tp, note: "test fixture key/cert material"}
-38b52aafafdd7072: {verdict: tp, note: "test fixture key/cert material"}
-b6f641ef7fbfb866: {verdict: tp, note: "test fixture key/cert material"}
-4684586cb851e224: {verdict: tp, note: "test fixture key/cert material"}
-8ee245c79186d3de: {verdict: tp, note: "test fixture key/cert material"}
-71a32f1c26e6f5cd: {verdict: tp, note: "test fixture key/cert material"}
-601a7e5f61f28cd6: {verdict: tp, note: "test fixture key/cert material"}
-dcb9b3b59b7ef663: {verdict: tp, note: "test fixture key/cert material"}
-dda7143d7d582a83: {verdict: tp, note: "test fixture key/cert material"}
-7fa30639d87cbdb3: {verdict: tp, note: "test fixture key/cert material"}
-e86acab41ce0627e: {verdict: tp, note: "test fixture key/cert material"}
-36f52d16ce88bc2c: {verdict: tp, note: "test fixture key/cert material"}
-0e5abc41a3b72dde: {verdict: tp, note: "test fixture key/cert material"}
-7482181c84b33828: {verdict: tp, note: "test fixture key/cert material"}
-9707e7cbf01687dc: {verdict: tp, note: "test fixture key/cert material"}
-115edfb14d9b43be: {verdict: tp, note: "test fixture key/cert material"}
-daa79aad100c639d: {verdict: tp, note: "test fixture key/cert material"}
-da10eaaf860051fd: {verdict: tp, note: "test fixture key/cert material"}
-8d0b1312a531fcfb: {verdict: tp, note: "real-world CA/leaf cert bundled as test fixture"}
-5ac8115a3ff72136: {verdict: tp, note: "test fixture key/cert material"}
-503bc6d755ef0235: {verdict: tp, note: "test fixture key/cert material"}
-2301db54420bc0c9: {verdict: tp, note: "test fixture key/cert material"}
-4cf3a729b17f9f31: {verdict: tp, note: "test fixture key/cert material"}
-ca348fee81182f87: {verdict: tp, note: "test fixture key/cert material"}
 # C2 (single-assignment dataflow): new method-call findings on a
 # single-assigned sha1.New() var, adjudicated 2026-07-13.
-8152ee3abff9d713: {verdict: tp, note: "mackms.go sha1Sum(): h := sha1.New(); h.Write(b); return h.Sum(nil) — real SHA-1 use"}
-f6f93cd69a513529: {verdict: tp, note: "nssdb.go intermediateKey(): h := sha1.New(); h.Write(...); return h.Sum(nil) — real SHA-1 use"}
+# Re-keyed 2026-07-14: the fingerprint now carries the column, so two calls
+# on one line get their own adjudication key. Verdicts were carried over
+# per call site; none were re-decided.
+2f058fafe0fb466e: {verdict: tp, note: "pyjwt RSAAlgorithm.sign \u2014 RSA-PKCS1v15 padding"}
+ffad86d694390319: {verdict: tp, note: "pyjwt RSAAlgorithm.verify \u2014 RSA-PKCS1v15 padding"}
+54bf29925afe7ebb: {verdict: tp, note: RSA-PSS signature construction, real RSA use}
+abd00315e00b8053: {verdict: tp, note: RSA-PSS verify construction, real RSA use}
+54cbf3d638fa8034: {verdict: tp, note: test fixture key/cert material}
+88162d0492edea12: {verdict: tp, note: test fixture key/cert material}
+65936f194a620f73: {verdict: tp, note: test fixture key/cert material}
+857eb099d3d77ce7: {verdict: tp, note: test fixture key/cert material}
+7baa620679f35aa5: {verdict: tp, note: test file}
+3bb7711e34755155: {verdict: tp, note: test file}
+1cd721114a5a9f32: {verdict: tp, note: test file}
+0f68ef26338b349b: {verdict: tp, note: test file}
+a08aaf738124acd8: {verdict: tp, note: "python-jose RSA1_5 alias construction \u2014 RSA-PKCS1v15 padding"}
+a408506c7c8326f6: {verdict: tp, note: "python-jose RSA_OAEP alias \u2014 RSA-OAEP-SHA1 padding"}
+850b122c4df63577: {verdict: tp, note: real SHA1 in OAEP padding}
+34fcf2b39ace81dd: {verdict: tp, note: real SHA1 in OAEP padding}
+1e566c7416a41a39: {verdict: tp, note: "python-jose RSA_OAEP_256 alias \u2014 RSA-OAEP-SHA256 padding, not SHA1-scoped rule"}
+abfce8dbb02c840f: {verdict: tp, note: "python-jose RSA sign \u2014 RSA-PKCS1v15 padding"}
+45bdc4c48051557d: {verdict: tp, note: "python-jose RSA verify \u2014 RSA-PKCS1v15 padding"}
+8bd7dba340a94dd5: {verdict: tp, note: test file}
+cb720dcab6fb90d7: {verdict: tp, note: test file}
+f78c6ca137bae9a3: {verdict: tp, note: sha1 hexdigest for %C token}
+5fc752ada9468375: {verdict: tp, note: ec key generation}
+2a88e1601d228b82: {verdict: tp, note: sha1 digest_size for salt}
+e6e0e2c87b9a9fe8: {verdict: tp, note: sha1 digest_size assertion}
+0cf1853a037bc189: {verdict: tp, note: ec key generation in kex}
+55731fd2fb8d3a11: {verdict: tp, note: ECDH exchange invoked}
+c529b31bb0eb96a1: {verdict: tp, note: ECDH exchange invoked}
+24267a532fd8ce09: {verdict: tp, note: md5 fingerprint digest}
+9f181c1edd3a4301: {verdict: tp, note: "paramiko RSAKey sign/verify \u2014 RSA-PKCS1v15 padding"}
+b1e855490ea786e5: {verdict: tp, note: "paramiko RSAKey sign \u2014 RSA-PKCS1v15 padding"}
+87c6c0df58f38884: {verdict: tp, note: rsa key generation}
+6b13912ba8f57f77: {verdict: tp, note: test fixture key/cert material}
+a3f17a1e25017942: {verdict: tp, note: test fixture key/cert material}
+e84a36ef2dc905a4: {verdict: tp, note: test fixture key/cert material}
+8c55785d6804e5ae: {verdict: tp, note: test fixture key/cert material}
+2e6e48480ec42422: {verdict: tp, note: test fixture key/cert material}
+11a8ad372716f66e: {verdict: tp, note: test fixture key/cert material}
+ba2c736042eb9996: {verdict: tp, note: test fixture key/cert material}
+3600bf688be6ce47: {verdict: tp, note: test fixture key/cert material}
+0962d8756025ad58: {verdict: tp, note: test fixture key/cert material}
+bc8d62d5c4109543: {verdict: tp, note: test fixture key/cert material}
+64286f81c21ee3e2: {verdict: tp, note: "sigstore-python trust verification \u2014 RSA-PKCS1v15 padding"}
+ab3fb707f9b262f8: {verdict: tp, note: ec key generation}
+9fc3f09dc1fd08e5: {verdict: tp, note: ec key generation}
+337d6de8642875f2: {verdict: tp, note: test fixture key/cert material}
+85cd4a9a6395cf56: {verdict: tp, note: test fixture key/cert material}
+254ea3ff741c9677: {verdict: tp, note: test fixture key/cert material}
+26c8756e9eedd0f3: {verdict: tp, note: test fixture key/cert material}
+58773542aabb9bee: {verdict: tp, note: test fixture key/cert material}
+553889cc6e197040: {verdict: tp, note: test fixture key/cert material}
+c6ed1ddc7bdaa6b6: {verdict: tp, note: test fixture key/cert material}
+391f98ab5e881e61: {verdict: tp, note: test fixture key/cert material}
+d56fee4b4ff85339: {verdict: tp, note: test fixture key/cert material}
+4845295394a61c9a: {verdict: tp, note: test fixture key/cert material}
+62ff601c01bbee0b: {verdict: tp, note: test fixture key/cert material}
+edf00506bc374ea5: {verdict: tp, note: test fixture key/cert material}
+89646af028b03b3e: {verdict: tp, note: test fixture key/cert material}
+d3112c814c19cab0: {verdict: tp, note: test fixture key/cert material}
+82c978cf097e11d3: {verdict: tp, note: test fixture key/cert material}
+c7b4dd86798761e9: {verdict: tp, note: test fixture key/cert material}
+a47ef84ee4961b07: {verdict: tp, note: test fixture key/cert material}
+37926deac95b310c: {verdict: tp, note: test fixture key/cert material}
+2e651aaa4e3acb39: {verdict: tp, note: test fixture key/cert material}
+cd3dd24bfb403fc0: {verdict: tp, note: test fixture key/cert material}
+b432b5f6a017b7bc: {verdict: tp, note: test file}
+b271b24d14ef0d2f: {verdict: tp, note: test file}
+ca458a15df3c53e6: {verdict: tp, note: test file}
+37cfec9e0a370b1b: {verdict: tp, note: test file}
+b6fda185f6d6a74e: {verdict: tp, note: test file}
+3a30e992d8421b5b: {verdict: tp, note: test file}
+b082caf869604c0e: {verdict: tp, note: test file}
+d6282214fe3f0c34: {verdict: tp, note: test file}
+62c9a51a039c67d4: {verdict: tp, note: test file}
+0e8654334722b993: {verdict: tp, note: test file, Ed25519 generate}
+535ce37b92fd49bd: {verdict: tp, note: test file, dummy curve}
+0dfab56c7e02a536: {verdict: tp, note: test file}
+9aab041a60614f76: {verdict: tp, note: RSA-PSS construction, test file, real RSA use}
+4dc08f0da940fd2f: {verdict: tp, note: test file}
+805adcf032222820: {verdict: tp, note: RSA-PSS construction, test file, real RSA use}
+a64bfa15ff3c0c3d: {verdict: tp, note: test file}
+b696aa5f31888cb9: {verdict: tp, note: RSA-PSS construction, test file, real RSA use}
+5250ec7f152a05f1: {verdict: tp, note: test file}
+225e078fd74d396d: {verdict: tp, note: test file}
+e16d5148521ed7a5: {verdict: tp, note: test file}
+e464d976d8af1104: {verdict: tp, note: real hashlib.sha1 call}
+126729e23c1efc6e: {verdict: tp, note: test file}
+2ef847c0827d4da0: {verdict: tp, note: test fixture key/cert material}
+80c9968f9d890434: {verdict: tp, note: test fixture key/cert material}
+36ea2511089b9319: {verdict: tp, note: test fixture key/cert material}
+9a0047153e88c211: {verdict: tp, note: test fixture key/cert material}
+c30a5d225da0abe1: {verdict: tp, note: test fixture key/cert material}
+45d6da941c620c23: {verdict: tp, note: test fixture key/cert material}
+0f58416bdfa2c406: {verdict: tp, note: test fixture key/cert material}
+944be1358d234713: {verdict: tp, note: test fixture key/cert material}
+9da292091a7cf711: {verdict: tp, note: test fixture key/cert material}
+7f9297ea1a38c045: {verdict: tp, note: test fixture key/cert material}
+8651ba784f6d297d: {verdict: tp, note: encrypted RSA code-signing key committed for CI Windows binary signing (real asset,
+  correctly flagged)}
+15cec1bae9f28dbd: {verdict: tp, note: test file}
+8364d7b1fb76dc57: {verdict: tp, note: test file}
+9bbcaeb3dc098faa: {verdict: tp, note: test helper, real ECDH}
+1dd6766214c19193: {verdict: tp, note: real ecdh.P256 use}
+6202f26714470d85: {verdict: tp, note: sha1.New in OAEP}
+211b5f1d3f290e76: {verdict: tp, note: sha1.New in OAEP}
+057e2c61a0d2708e: {verdict: tp, note: ephemeral ECDSA keygen}
+4175d44b67a19a63: {verdict: tp, note: test}
+5288cd0d3c9c6867: {verdict: tp, note: test}
+c9551a9056172206: {verdict: tp, note: test}
+bec689bc7618c064: {verdict: tp, note: test}
+e87d877ea1386e59: {verdict: tp, note: test}
+2dc041d5f01347e5: {verdict: tp, note: test}
+2b0d39c5b8abfe8e: {verdict: tp, note: test}
+50e1dedfc0a203ff: {verdict: tp, note: test}
+45fdd3e9b36d615c: {verdict: tp, note: test}
+57008cc9609a0968: {verdict: tp, note: test}
+f7be65f152d3dd43: {verdict: tp, note: test}
+b988adaacf519abd: {verdict: tp, note: test}
+7e0fdfe5361f8278: {verdict: tp, note: test}
+de7fd191d96b18f8: {verdict: tp, note: test}
+3393c9aa2994a98d: {verdict: tp, note: test}
+d4a80ae1ca1bba2a: {verdict: tp, note: test}
+06d517cd6cf98566: {verdict: tp, note: test}
+5de1d35b225279bc: {verdict: tp, note: test}
+07ffaf91c6a19ec4: {verdict: tp, note: test}
+0067bb46b9fc2c1a: {verdict: tp, note: test}
+fe204d401cd4436e: {verdict: tp, note: doc example test}
+141861a5789122a0: {verdict: tp, note: doc example test}
+471be2b24f46745e: {verdict: tp, note: keygen utility}
+c9506f03c42c0976: {verdict: tp, note: keygen utility}
+02234ce8d0e015d6: {verdict: tp, note: keygen utility}
+fb7fb8c133cd5bcf: {verdict: tp, note: keygen utility}
+f72e0db40b1b965a: {verdict: tp, note: keygen utility}
+8d8bf9b946869f6b: {verdict: tp, note: keygen utility}
+24ba878c203658a2: {verdict: tp, note: keygen utility}
+65b6c6d3e94a1b1a: {verdict: tp, note: sha1.Sum x5t thumbprint}
+9930b13ea3194a51: {verdict: tp, note: sha1.Sum x5t thumbprint}
+8af6c238dd211a64: {verdict: tp, note: test}
+3a5e6fa24aa8873c: {verdict: tp, note: test}
+85d2035b06afde3a: {verdict: tp, note: test}
+b8a01924a0aa6166: {verdict: tp, note: test}
+be60b98bb439c2f7: {verdict: tp, note: test}
+c903df23368f394b: {verdict: tp, note: test}
+6f2f48e5a5f80b07: {verdict: tp, note: test}
+32f7c8c368f4bee8: {verdict: tp, note: test}
+d9c38aa0b07cfcf1: {verdict: tp, note: test}
+eb6cf9766e13faaf: {verdict: tp, note: test}
+92745c73a987a70b: {verdict: tp, note: test}
+3e504832b6d7e8e5: {verdict: tp, note: test}
+6f3c3c5804095d3f: {verdict: tp, note: 'sio ncrypt CLI: real scrypt.Key(N=32768) call, below OWASP N>=131072'}
+32e8112a6707096d: {verdict: tp, note: blowfish.NewSaltedCipher call}
+eedda04b7242b783: {verdict: tp, note: test file}
+79500c8efa556303: {verdict: tp, note: test file}
+686c9663578c7ab0: {verdict: tp, note: test file}
+3417b897c2571360: {verdict: tp, note: test file}
+06a8d66078c80e11: {verdict: tp, note: test file}
+d05fe15f3394748f: {verdict: tp, note: test file}
+203dc4f537db75d0: {verdict: tp, note: test file}
+e2b0d22bfc1877d1: {verdict: tp, note: test file}
+52e5b9dc4a5cd28d: {verdict: tp, note: test file}
+d12d5981a36b169c: {verdict: tp, note: test file}
+61ef79412cedb9b6: {verdict: tp, note: test file}
+fb6b4faa53b357ba: {verdict: tp, note: test file}
+7fb266bf86906093: {verdict: tp, note: test fixture key/cert material}
+7c5d5cb18c63bb0a: {verdict: tp, note: test fixture key/cert material}
+744eb2f2c0cdfaf5: {verdict: tp, note: test fixture key/cert material}
+4af49293493d89ba: {verdict: tp, note: test fixture key/cert material}
+8ca6b7dd5635e8be: {verdict: tp, note: test file}
+9277c9ee80fb06ce: {verdict: tp, note: test file}
+517b50e2e9aecadc: {verdict: tp, note: test file}
+5684516dc5ef64e4: {verdict: tp, note: test file}
+e5333fd5ea7cca98: {verdict: tp, note: test file}
+b6d77f8e57c5f6b9: {verdict: tp, note: test file}
+3d5afa3284449119: {verdict: tp, note: sha1.Sum cert thumbprint}
+ce94ca2fdf3b1ee7: {verdict: tp, note: test file}
+a212243a01e8b156: {verdict: tp, note: test file}
+d67b3bd81f1dc51e: {verdict: tp, note: test file}
+787b59eb7b8212d6: {verdict: tp, note: test file}
+5c908fab125f5ffe: {verdict: tp, note: ecdsa.GenerateKey call}
+71cbd2a2eb2deee3: {verdict: tp, note: rsa.GenerateKey call}
+4e87c9c2ee95c262: {verdict: tp, note: ed25519.GenerateKey call}
+9aed0505e7524363: {verdict: tp, note: test file, sha1.New OAEP}
+ba7072323b566776: {verdict: tp, note: test file}
+0a96d6505b8eb0bb: {verdict: tp, note: test file, sha1.New}
+433a24387e48d588: {verdict: tp, note: ecdh.P256 call}
+0415b3f681536590: {verdict: tp, note: ecdh.P384 call}
+36a924b2b7f21b6c: {verdict: tp, note: ecdh.P521 call}
+648f48f255dfd376: {verdict: tp, note: test file}
+ec6d599775015264: {verdict: tp, note: test file}
+4f9154e03f5cba3b: {verdict: tp, note: test file}
+96a923170a0a2a5d: {verdict: tp, note: test file}
+0c13f7a2dd59728f: {verdict: tp, note: sha1.Sum digest}
+f8703190201565dc: {verdict: tp, note: test file}
+1520126f752a0f99: {verdict: tp, note: test file}
+84fcf87a9a270f1b: {verdict: tp, note: test file}
+16c1455b0d5caf16: {verdict: tp, note: test fixture key/cert material}
+bd6d21266b24720b: {verdict: tp, note: test fixture key/cert material}
+94d7b20bc5733855: {verdict: tp, note: ecdh.P256 NewPublicKey}
+1097fa8759068fa4: {verdict: tp, note: ecdh.P384 NewPublicKey}
+8e37e9bef7568fb8: {verdict: tp, note: ecdh.P521 NewPublicKey}
+bb706223f49fd969: {verdict: tp, note: ecdh.P256 NewPrivateKey}
+450f65f637471aad: {verdict: tp, note: ecdh.P384 NewPrivateKey}
+a8f64c7a9445fabb: {verdict: tp, note: ecdh.P521 NewPrivateKey}
+e27e76939a0449b3: {verdict: tp, note: ecdh curve case expression}
+096e022d64631769: {verdict: tp, note: ecdh curve case expression}
+b993f5699675b503: {verdict: tp, note: ecdh curve case expression}
+e904d76992b59c6b: {verdict: tp, note: "mackms.go k.ECDH() \u2014 crypto/ecdsa PublicKey method, darwin/cgo-gated"}
+2b039d98308f40f6: {verdict: tp, note: sha1.New call}
+839bfa8c49080f7c: {verdict: tp, note: "mackms.go sha1Sum(): h := sha1.New(); h.Write(b); return h.Sum(nil) \u2014 real SHA-1\
+  \ use"}
+72c1d69e84cd4609: {verdict: tp, note: test file}
+49aa8d50950e76b0: {verdict: tp, note: test file}
+45ef5defc1458890: {verdict: tp, note: test file}
+ffd9521cf13210c1: {verdict: tp, note: test file}
+39faf70139009102: {verdict: tp, note: test file}
+b73a5b8d2c392c61: {verdict: tp, note: test file}
+182aa70402e1ee77: {verdict: tp, note: test file}
+ffaf42c0e888c3f2: {verdict: tp, note: test file}
+39452d11100c893f: {verdict: tp, note: test file}
+504f9d51c1a25426: {verdict: tp, note: test file}
+060919d5f9347d43: {verdict: tp, note: test file}
+9b19db611f419059: {verdict: tp, note: test file}
+b76ceada176f5aac: {verdict: tp, note: test file}
+58aefd3f5e915adc: {verdict: tp, note: test file}
+205b169f6e9fdf46: {verdict: tp, note: test file}
+1791e8165c1817e5: {verdict: tp, note: test file}
+a706243c8d375087: {verdict: tp, note: test file}
+bca2473f5029b81e: {verdict: tp, note: test file}
+aa23a153bdc23aef: {verdict: tp, note: test file}
+cff871bbdccced68: {verdict: tp, note: test file}
+e6ef7f843153c6a2: {verdict: tp, note: test file}
+55e1a30cd124a713: {verdict: tp, note: test file}
+b27b1a9843d807ee: {verdict: tp, note: returns ecdh.P256 curve}
+450859ae3f55adba: {verdict: tp, note: returns ecdh.P384 curve}
+27bc9e19fc85b03d: {verdict: tp, note: returns ecdh.P521 curve}
+63b81935b1c13048: {verdict: tp, note: "signer.go pub.ECDH() \u2014 crypto/ecdsa PublicKey method, darwin/cgo-gated"}
+88c63c466ae0bda0: {verdict: tp, note: test file}
+012f3cfbf8f8b9ab: {verdict: tp, note: test file}
+dc5c0407dda0f21c: {verdict: tp, note: test file}
+42b75d9879ce0ba0: {verdict: tp, note: "signer_test.go pub.ECDH() \u2014 crypto/ecdsa PublicKey method, test file"}
+052f78e95eee22e3: {verdict: tp, note: "signer_test.go goP256.ECDH(...) \u2014 crypto/ecdh PrivateKey method, test file"}
+19d059c69d47584c: {verdict: tp, note: "signer_test.go pub.ECDH() \u2014 crypto/ecdsa PublicKey method, test file"}
+84b980c510c97e74: {verdict: tp, note: "signer_test.go goP384.ECDH(...) \u2014 crypto/ecdh PrivateKey method, test file"}
+d95aab973b9dc711: {verdict: tp, note: "signer_test.go pub.ECDH() \u2014 crypto/ecdsa PublicKey method, test file"}
+74928a2580879b05: {verdict: tp, note: "signer_test.go goP521.ECDH(...) \u2014 crypto/ecdh PrivateKey method, test file"}
+bfca5560cb558992: {verdict: tp, note: test file}
+ce27134e3a256f08: {verdict: tp, note: test file}
+abe609b049c25f1b: {verdict: tp, note: test file}
+285d906f07e016de: {verdict: tp, note: test file}
+64b8e6049c536b65: {verdict: tp, note: test file}
+c858ef2c9ac90f6f: {verdict: tp, note: "signer_test.go pub.ECDH() \u2014 crypto/ecdsa PublicKey method, test file"}
+35ccf7918d213f3c: {verdict: tp, note: test file}
+3fbf576c31bd1e02: {verdict: tp, note: test file}
+7d08190ab66e3d44: {verdict: tp, note: test file}
+b2410dad6750ddc7: {verdict: tp, note: test file}
+e5c9a86b91e5b4aa: {verdict: tp, note: test file}
+912dfa724e2d20cd: {verdict: tp, note: test file}
+409cf9538eb69540: {verdict: tp, note: test file}
+4f337bf9020c2332: {verdict: tp, note: test file}
+b7a64692abace351: {verdict: tp, note: test file}
+f712d87ad18e3111: {verdict: tp, note: test file}
+abe687462dfd4fa3: {verdict: tp, note: test file}
+4c859a19554b226a: {verdict: tp, note: test fixture key/cert material}
+539b174eb0d2e51d: {verdict: tp, note: test fixture key/cert material}
+54f81771319e833d: {verdict: tp, note: test fixture key/cert material}
+aab402ee1547b5ea: {verdict: tp, note: test fixture key/cert material}
+2f6380c26fc19b09: {verdict: tp, note: test fixture key/cert material}
+8c55c4fc1eb5af22: {verdict: tp, note: test fixture key/cert material}
+95e0479ad5f306c0: {verdict: tp, note: test fixture key/cert material}
+330e7f9b20692b08: {verdict: tp, note: test fixture key/cert material}
+ad181f785159d5cf: {verdict: tp, note: test file}
+15ae246ab0eacad4: {verdict: tp, note: test file}
+9e91fcc6f57f2985: {verdict: tp, note: test file}
+24975ba33c595a07: {verdict: tp, note: test fixture key/cert material}
+781aa2022c80cb1a: {verdict: tp, note: test fixture key/cert material}
+f2c9a2e9e5ed28e5: {verdict: tp, note: test fixture key/cert material}
+78ecfad4d382c657: {verdict: tp, note: test fixture key/cert material}
+9e4f28899976d850: {verdict: tp, note: sha1.Sum key ID}
+25c68d82118e0f29: {verdict: tp, note: test file}
+fb7759d042ef0317: {verdict: tp, note: test file}
+58a95b03f4dd59c1: {verdict: tp, note: test file}
+d01efb60b35ec8ae: {verdict: tp, note: test file}
+cb434d490064bb66: {verdict: tp, note: test file}
+45152f25ce0bd902: {verdict: tp, note: test file}
+0f929493dfa22555: {verdict: tp, note: test file}
+cec232e8ea383764: {verdict: tp, note: test file}
+d27765d76ca18913: {verdict: tp, note: test file}
+92fbf1a2659dbc98: {verdict: tp, note: test file}
+f251bf7fd3c82efb: {verdict: tp, note: test file}
+81da9966f3487157: {verdict: tp, note: test file}
+4e342445c6d5c12d: {verdict: tp, note: test file}
+e357755b6dd9bda3: {verdict: tp, note: test file}
+1cba04705b9bfb92: {verdict: tp, note: test file}
+7faf809ee2d6d2db: {verdict: tp, note: test file}
+9e018a0ef95f4c6f: {verdict: tp, note: test file}
+8a256c0d4ce33a98: {verdict: tp, note: ecdh.P256 NewPublicKey}
+c6da3d243ce98c34: {verdict: tp, note: sha1.New KDF}
+d0a3e8fefd6df7c4: {verdict: tp, note: "nssdb.go intermediateKey(): h := sha1.New(); h.Write(...); return h.Sum(nil) \u2014\
+  \ real SHA-1 use"}
+02942aafda439078: {verdict: tp, note: test fixture key/cert material}
+3df05d2ea5137a31: {verdict: tp, note: test fixture key/cert material}
+8d939cd598d6a529: {verdict: tp, note: test fixture key/cert material}
+45388571dd8c5870: {verdict: tp, note: test fixture key/cert material}
+6eb7bacedbdbef57: {verdict: tp, note: ecdh.P256 assignment}
+9d6e863dc94ca8af: {verdict: tp, note: ecdh.P384 assignment}
+394f5664cce55c1d: {verdict: tp, note: ecdh.P521 assignment}
+116ecf5dfb157700: {verdict: tp, note: ecdh curve case expression}
+71461567d5a916fb: {verdict: tp, note: ecdh curve case expression}
+a94431502c4a3042: {verdict: tp, note: ecdh curve case expression}
+2690241763b8597c: {verdict: tp, note: des.NewCipher legacy keys}
+8975ffb76d7ca47b: {verdict: tp, note: des.NewTripleDESCipher legacy keys}
+2fcfee655d242a24: {verdict: tp, note: test file}
+4d3993fb3568ed6e: {verdict: tp, note: "ssh.go k.PublicKey.ECDH() \u2014 crypto/ecdsa PublicKey method via embedded field"}
+9f7b4d621bb9da27: {verdict: tp, note: test fixture key/cert material}
+67c5b112cfaa08d4: {verdict: tp, note: test fixture key/cert material}
+2f3762b892bd8b96: {verdict: tp, note: test fixture key/cert material}
+7fb541c313ab4756: {verdict: tp, note: test fixture key/cert material}
+7548e763e4122478: {verdict: tp, note: test fixture key/cert material}
+c596ec9586627b53: {verdict: tp, note: test fixture key/cert material}
+faceffff8bf18458: {verdict: tp, note: test fixture key/cert material}
+7a5f07b5bb2d9ad9: {verdict: tp, note: test fixture key/cert material}
+e1d645701fe9e1b9: {verdict: tp, note: test fixture key/cert material}
+7697f9f0fbdea643: {verdict: tp, note: test fixture key/cert material}
+4a48385b44e28caa: {verdict: tp, note: test fixture key/cert material}
+c54881ed7276ab83: {verdict: tp, note: test fixture key/cert material}
+484cb77ccfa099d9: {verdict: tp, note: test fixture key/cert material}
+498e0d4fc6cd3817: {verdict: tp, note: test fixture key/cert material}
+c036256488af4c3a: {verdict: tp, note: test fixture key/cert material}
+38f124878b24ac15: {verdict: tp, note: test fixture key/cert material}
+ae8bfd2ecfefcbb0: {verdict: tp, note: test fixture key/cert material}
+3b88fc4be7d1b35d: {verdict: tp, note: test fixture key/cert material}
+9042b53e43485a05: {verdict: tp, note: test fixture key/cert material}
+b1f3aa409ebc98a1: {verdict: tp, note: test fixture key/cert material}
+ee6232f17f140ea5: {verdict: tp, note: test fixture key/cert material}
+01f5c814a9c8ae94: {verdict: tp, note: test fixture key/cert material}
+61f660a9d8b16ea2: {verdict: tp, note: test fixture key/cert material}
+9f83d132106cae37: {verdict: tp, note: test fixture key/cert material}
+4ffce08999981fb0: {verdict: tp, note: test fixture key/cert material}
+0c1eb86c54670ec6: {verdict: tp, note: test fixture key/cert material}
+7fff92efcb06d9a0: {verdict: tp, note: test fixture key/cert material}
+24b5154299c0d37d: {verdict: tp, note: test fixture key/cert material}
+b5eed86cc3861401: {verdict: tp, note: test fixture key/cert material}
+93927216740eba93: {verdict: tp, note: test fixture key/cert material}
+2b462413516494d4: {verdict: tp, note: test fixture key/cert material}
+d626fc23ca51d498: {verdict: tp, note: test fixture key/cert material}
+adcbef71beb90f8f: {verdict: tp, note: test fixture key/cert material}
+91fd9aea760dde0b: {verdict: tp, note: test fixture key/cert material}
+3386137de82dbeb9: {verdict: tp, note: test fixture key/cert material}
+fdde4c9fdda2a370: {verdict: tp, note: test fixture key/cert material}
+814161864a30c5e6: {verdict: tp, note: test fixture key/cert material}
+e55fda66253e4543: {verdict: tp, note: test fixture key/cert material}
+d5aeabe748588bae: {verdict: tp, note: test fixture key/cert material}
+fe8ad4932656a3dc: {verdict: tp, note: test fixture key/cert material}
+6ed42c59e3d1534a: {verdict: tp, note: test fixture key/cert material}
+fcfcedeb9146c7f1: {verdict: tp, note: test fixture key/cert material}
+50ed01b25394d27f: {verdict: tp, note: test file}
+54ca2f42f85d6853: {verdict: tp, note: test file}
+d8dd39ade915e80e: {verdict: tp, note: ecdh.P256 NewPublicKey}
+24e15c82f87d3302: {verdict: tp, note: "sshutil_test.go k.ECDH() \u2014 crypto/ecdsa PublicKey method, test file"}
+250a556f326eebe8: {verdict: tp, note: test fixture key/cert material}
+c35d7878d98ac229: {verdict: tp, note: test file}
+7b62663a56448f02: {verdict: tp, note: test file}
+7c1a81eb535bfd28: {verdict: tp, note: test file}
+728c74cddd4e232d: {verdict: tp, note: test file}
+68cba2111ebe8a3a: {verdict: tp, note: test file}
+d7caa7bdb7ee8ba5: {verdict: tp, note: test file}
+d4113a229059a9a7: {verdict: tp, note: test file}
+916c91c2af065f57: {verdict: tp, note: test file}
+caa600afe6939f5d: {verdict: tp, note: test file}
+08f101d4d211c78a: {verdict: tp, note: test file}
+40ae2bb21e7bd587: {verdict: tp, note: test file}
+ae86cc2bdb7249ec: {verdict: tp, note: test file}
+a44f61da09a9f34d: {verdict: tp, note: test file}
+9a0640b26bc4c62c: {verdict: tp, note: test file}
+7cc6eb00bc96b419: {verdict: tp, note: test file}
+bcca6e6bc8590d00: {verdict: tp, note: test fixture key/cert material}
+ea1dcf30bbd53fb6: {verdict: tp, note: test fixture key/cert material}
+8ec94d0d61b67535: {verdict: tp, note: test fixture key/cert material}
+87ae08b8efbc1273: {verdict: tp, note: test fixture key/cert material}
+e30da933ae49b2a5: {verdict: tp, note: test fixture key/cert material}
+bc1697cd7a2ebcd7: {verdict: tp, note: real-world CA/leaf cert bundled as test fixture}
+2b7306a002841df1: {verdict: tp, note: test fixture key/cert material}
+51f99900dbaf8e74: {verdict: tp, note: test fixture key/cert material}
+2684d8b60fde1132: {verdict: tp, note: test fixture key/cert material}
+bb6deb172fd4e1e5: {verdict: tp, note: test fixture key/cert material}
+fe621e74d7817ada: {verdict: tp, note: test fixture key/cert material}
+7ecb71b5a4eeeca4: {verdict: tp, note: sha1.Sum subject key ID}

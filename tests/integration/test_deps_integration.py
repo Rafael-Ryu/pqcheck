@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 
 from pqcheck.deps import go_mod, package_lock_json, pom_xml, pyproject_toml, uv_lock
+from pqcheck.deps.base import ManifestError
 
 pytestmark = pytest.mark.integration
 
@@ -46,8 +47,9 @@ def test_pyproject_no_project_fixture_returns_empty() -> None:
     assert pyproject_toml.parse(FIXTURES / "pyproject_no_project.toml") == []
 
 
-def test_pyproject_invalid_fixture_returns_empty() -> None:
-    assert pyproject_toml.parse(FIXTURES / "pyproject_invalid.toml") == []
+def test_pyproject_invalid_fixture_raises_manifest_error() -> None:
+    with pytest.raises(ManifestError):
+        pyproject_toml.parse(FIXTURES / "pyproject_invalid.toml")
 
 
 def test_uv_basic_fixture_emits_pinned_versions() -> None:
@@ -66,8 +68,9 @@ def test_uv_workspace_fixture_emits_workspace_member_without_version() -> None:
     assert by_name["ecdsa"].version == "0.19.0"
 
 
-def test_uv_invalid_fixture_returns_empty() -> None:
-    assert uv_lock.parse(FIXTURES / "uv_invalid.lock") == []
+def test_uv_invalid_fixture_raises_manifest_error() -> None:
+    with pytest.raises(ManifestError):
+        uv_lock.parse(FIXTURES / "uv_invalid.lock")
 
 
 def test_pom_basic_fixture_emits_expected_deps() -> None:
@@ -123,8 +126,9 @@ def test_pom_billion_laughs_fixture_terminates_safely() -> None:
     assert deps == []
 
 
-def test_pom_invalid_fixture_returns_empty() -> None:
-    assert pom_xml.parse(FIXTURES / "pom_invalid.xml") == []
+def test_pom_invalid_fixture_raises_manifest_error() -> None:
+    with pytest.raises(ManifestError):
+        pom_xml.parse(FIXTURES / "pom_invalid.xml")
 
 
 def test_gomod_basic_fixture_emits_single_line_and_block_requires() -> None:
@@ -143,8 +147,9 @@ def test_gomod_basic_fixture_emits_single_line_and_block_requires() -> None:
     )
 
 
-def test_gomod_invalid_fixture_returns_empty() -> None:
-    assert go_mod.parse(FIXTURES / "gomod_invalid.mod") == []
+def test_gomod_invalid_fixture_raises_manifest_error() -> None:
+    with pytest.raises(ManifestError):
+        go_mod.parse(FIXTURES / "gomod_invalid.mod")
 
 
 def test_package_lock_v1_fixture_flattens_nested_dependencies() -> None:
@@ -166,5 +171,6 @@ def test_package_lock_v3_fixture_preserves_scoped_name() -> None:
     assert by_name["@scope/thing"].purl == "pkg:npm/%40scope/thing@2.0.0"
 
 
-def test_package_lock_invalid_fixture_returns_empty() -> None:
-    assert package_lock_json.parse(FIXTURES / "package_lock_invalid.json") == []
+def test_package_lock_invalid_fixture_raises_manifest_error() -> None:
+    with pytest.raises(ManifestError):
+        package_lock_json.parse(FIXTURES / "package_lock_invalid.json")

@@ -40,9 +40,10 @@ def self_signed_cert(
     private_key: rsa.RSAPrivateKey | ec.EllipticCurvePrivateKey,
     *,
     common_name: str = "test",
+    key_usage: x509.KeyUsage | None = None,
 ) -> x509.Certificate:
     name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, common_name)])
-    return (
+    builder = (
         x509.CertificateBuilder()
         .subject_name(name)
         .issuer_name(name)
@@ -50,5 +51,35 @@ def self_signed_cert(
         .serial_number(x509.random_serial_number())
         .not_valid_before(datetime.datetime(2020, 1, 1, tzinfo=datetime.UTC))
         .not_valid_after(datetime.datetime(2030, 1, 1, tzinfo=datetime.UTC))
-        .sign(private_key, hashes.SHA256())
+    )
+    if key_usage is not None:
+        builder = builder.add_extension(key_usage, critical=True)
+    return builder.sign(private_key, hashes.SHA256())
+
+
+def key_agreement_only_usage() -> x509.KeyUsage:
+    return x509.KeyUsage(
+        digital_signature=False,
+        content_commitment=False,
+        key_encipherment=False,
+        data_encipherment=False,
+        key_agreement=True,
+        key_cert_sign=False,
+        crl_sign=False,
+        encipher_only=False,
+        decipher_only=False,
+    )
+
+
+def signing_usage() -> x509.KeyUsage:
+    return x509.KeyUsage(
+        digital_signature=True,
+        content_commitment=False,
+        key_encipherment=False,
+        data_encipherment=False,
+        key_agreement=True,
+        key_cert_sign=False,
+        crl_sign=False,
+        encipher_only=False,
+        decipher_only=False,
     )
