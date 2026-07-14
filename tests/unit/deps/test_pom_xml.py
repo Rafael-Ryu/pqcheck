@@ -490,3 +490,27 @@ def test_parse_property_expansion_bomb_fails_closed_fast(tmp_path: Path) -> None
     elapsed = time.monotonic() - start
     assert elapsed < 1.0
     assert deps[0].version is None
+
+
+def test_parse_entity_bearing_property_emits_none(tmp_path: Path) -> None:
+    # Same fail-closed rule as the <version> case, but for the property
+    # table: an unexpanded entity leaves prop.text holding only "1.0-",
+    # and interpolating that fragment would forge a truncated version.
+    f = _write(tmp_path, """<?xml version="1.0"?>
+<!DOCTYPE project [<!ENTITY ver "9.9">]>
+<project>
+  <properties>
+    <bc.version>1.0-&ver;-end</bc.version>
+  </properties>
+  <dependencies>
+    <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bcprov-jdk18on</artifactId>
+      <version>${bc.version}</version>
+    </dependency>
+  </dependencies>
+</project>
+""")
+    deps = parse(f)
+    assert deps[0].version is None
+    assert "1.0-" not in deps[0].purl

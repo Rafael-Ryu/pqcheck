@@ -136,6 +136,11 @@ def _collect_properties(root: etree._Element) -> dict[str, str]:
             continue
         for prop in child:
             name = _local(prop.tag)
+            # Same unexpanded-entity guard as _child_text: an Entity child
+            # means prop.text holds only the fragment before the reference,
+            # so using it would interpolate a truncated value into a PURL.
+            if len(prop) > 0:
+                continue
             text = prop.text
             if name and isinstance(text, str):
                 stripped = text.strip()

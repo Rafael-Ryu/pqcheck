@@ -72,8 +72,9 @@ def parse(path: Path) -> list[CryptoDependency]:
                 ecosystem="golang",
                 declared_in=path,
                 introduces_algorithms=lookup_introduces("golang", module_path),
-                # No go.sum to consult => no negative claim (default True).
-                integrity_verified=summed is None or key in summed,
+                # No go.sum to consult => no claim at all (None), not a
+                # positive "verified" the CBOM would then publish.
+                integrity_verified=None if summed is None else key in summed,
             )
         )
 

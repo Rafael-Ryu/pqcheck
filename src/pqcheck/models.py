@@ -312,10 +312,13 @@ class CryptoDependency(BaseModel):
     ecosystem: str = Field(min_length=1)
     declared_in: Path
     introduces_algorithms: tuple[str, ...] = ()
-    # False only when a companion checksum file (e.g. go.sum) is present but
-    # carries no entry for this (name, version) — a not-pinned / tampered
-    # signal. True when verified, or when no checksum file applies.
-    integrity_verified: bool = True
+    # Tri-state. True: the companion checksum file (e.g. go.sum) carries an
+    # entry for this (name, version). False: the checksum file exists but has
+    # no entry — a not-pinned / tampered signal. None: no checksum source was
+    # consulted (no go.sum, unreadable go.sum, or an ecosystem without one) —
+    # no claim either way, and the CBOM omits the property instead of
+    # asserting a verification that never happened.
+    integrity_verified: bool | None = None
 
     @field_validator("purl")
     @classmethod
