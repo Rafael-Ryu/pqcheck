@@ -72,6 +72,14 @@ jobs:
           enable-cache: true
       - run: uv sync --all-extras --frozen
       - run: uv run pytest ${{ matrix.pytest-extra-args }}
+      # The aggregate threshold let both artifact validators sit near 50% while
+      # the repo total stayed green. They gate every release (CBOM and SARIF
+      # schema conformance), so they carry their own floor.
+      - name: Coverage floor for the release-critical validators
+        shell: bash
+        run: |
+          uv run coverage report --fail-under=85 \
+            --include='src/pqcheck/cbom/validator.py,src/pqcheck/output/sarif_validator.py'
       - name: Validate emitted CBOM against the official CycloneDX 1.6 schema
         shell: bash
         run: |
