@@ -1,12 +1,12 @@
 {
-  "tp": 261,
+  "tp": 382,
   "fp": 0,
   "pending": 0,
   "precision": 1.0,
   "per_repo": {
     "pyjwt": {
-      "gated": 8,
-      "tp": 8,
+      "gated": 12,
+      "tp": 12,
       "fp": 0,
       "pending": 0
     },
@@ -17,14 +17,14 @@
       "pending": 0
     },
     "paramiko": {
-      "gated": 11,
-      "tp": 11,
+      "gated": 21,
+      "tp": 21,
       "fp": 0,
       "pending": 0
     },
     "sigstore-python": {
-      "gated": 23,
-      "tp": 23,
+      "gated": 43,
+      "tp": 43,
       "fp": 0,
       "pending": 0
     },
@@ -35,14 +35,14 @@
       "pending": 0
     },
     "golang-jwt": {
-      "gated": 1,
-      "tp": 1,
+      "gated": 11,
+      "tp": 11,
       "fp": 0,
       "pending": 0
     },
     "age": {
-      "gated": 4,
-      "tp": 4,
+      "gated": 5,
+      "tp": 5,
       "fp": 0,
       "pending": 0
     },
@@ -59,8 +59,8 @@
       "pending": 0
     },
     "smallstep-crypto": {
-      "gated": 157,
-      "tp": 157,
+      "gated": 233,
+      "tp": 233,
       "fp": 0,
       "pending": 0
     }

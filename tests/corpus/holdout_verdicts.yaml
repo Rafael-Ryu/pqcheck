@@ -80,3 +80,31 @@ c24e1e4a91e42728: {verdict: tp, note: "rsa key generation"}
 ef91821e90f41317: {verdict: tp, note: "rsa key generation"}
 6a759ebaa6733fe5: {verdict: tp, note: "ecdsa key generation"}
 2538d20a3416ea91: {verdict: tp, note: "ecdsa key generation"}
+
+# C1 (key-material detector): certificates and keys on disk, adjudicated 2026-07-13.
+# All are test fixtures/testdata -- genuine crypto material, not a detector false positive.
+a01857129605145e: {verdict: tp, note: "test fixture key/cert material"}
+ea48c87c57471092: {verdict: tp, note: "test fixture key/cert material"}
+ba3a692c5dfdbac3: {verdict: tp, note: "test fixture key/cert material"}
+0f55c15642f24f53: {verdict: tp, note: "test fixture key/cert material"}
+1442ebc22d44b22a: {verdict: tp, note: "test fixture key/cert material"}
+9e9b2dc3f25f54f5: {verdict: tp, note: "test fixture key/cert material"}
+ac393130daa51618: {verdict: tp, note: "test fixture key/cert material"}
+a9b1eca9478cc139: {verdict: tp, note: "test fixture key/cert material"}
+ba40ee412831c953: {verdict: tp, note: "test fixture key/cert material"}
+8e42f42f0d506d5f: {verdict: tp, note: "test fixture key/cert material"}
+7bcdf3c04fa35304: {verdict: tp, note: "test fixture key/cert material"}
+a72414ab2bc1f5ac: {verdict: tp, note: "test fixture key/cert material"}
+39fb78f7649a69af: {verdict: tp, note: "test fixture key/cert material"}
+26217b47e1ec64ea: {verdict: tp, note: "test fixture key/cert material"}
+7897062d6ef86dc6: {verdict: tp, note: "test fixture key/cert material"}
+3d04ba575a32feba: {verdict: tp, note: "test fixture key/cert material"}
+0a8a52f76a0fb38d: {verdict: tp, note: "test fixture key/cert material"}
+1e95e8decc2b291c: {verdict: tp, note: "test fixture key/cert material"}
+40508231c70f9bd1: {verdict: tp, note: "test fixture key/cert material"}
+ef991c12015449cc: {verdict: tp, note: "test fixture key/cert material"}
+0fffb734258710a2: {verdict: tp, note: "test fixture key/cert material"}
+067c333daa6f96de: {verdict: tp, note: "test fixture key/cert material"}
+cf1c9c767ae2588b: {verdict: tp, note: "test fixture key/cert material"}
+0b3632bac3fa4088: {verdict: tp, note: "test fixture key/cert material"}
+2115284fc771395c: {verdict: tp, note: "test fixture key/cert material"}
