@@ -146,3 +146,15 @@ def test_unreadable_ignore_file_is_an_error_not_a_crash(tmp_path: Path) -> None:
         (root / ".gitignore").chmod(0o644)
     assert [p.name for p in d.python_files] == ["a.py"]
     assert any(".gitignore" in e for e in d.errors)
+
+
+def test_oversized_ignore_file_is_skipped_with_error(tmp_path: Path) -> None:
+    # A hostile repo can ship a giant .gitignore; the walk must cap the read
+    # (safe_read_bytes) instead of pulling it into memory whole.
+    (tmp_path / "app.py").write_text("x = 1\n", encoding="utf-8")
+    with (tmp_path / ".gitignore").open("wb") as f:
+        f.seek(5 * 1024 * 1024)
+        f.write(b"\n")
+    d = discover(tmp_path)
+    assert [p.name for p in d.python_files] == ["app.py"]
+    assert any("skipped (unreadable or oversized)" in e for e in d.errors)

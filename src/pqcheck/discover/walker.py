@@ -19,6 +19,8 @@ from pathlib import Path
 
 import pathspec
 
+from pqcheck.deps.base import safe_read_bytes
+
 _ALWAYS_IGNORE_DIRS = frozenset({
     ".git",
     ".hg",
@@ -66,8 +68,14 @@ def _load_ignore_spec(root: Path) -> tuple[pathspec.PathSpec, list[str]]:
         ignore_file = root / name
         try:
             if ignore_file.is_file() and not ignore_file.is_symlink():
-                text = ignore_file.read_text(encoding="utf-8", errors="replace")
-                lines.extend(text.splitlines())
+                # safe_read_bytes gives the size cap and race-free
+                # O_NOFOLLOW open the plain read_text lacked; the ignore
+                # file lives in the scanned (untrusted) tree.
+                raw = safe_read_bytes(ignore_file)
+                if raw is None:
+                    errors.append(f"{ignore_file}: skipped (unreadable or oversized)")
+                    continue
+                lines.extend(raw.decode("utf-8", errors="replace").splitlines())
         except OSError as exc:
             errors.append(f"{ignore_file}: {exc.strerror or exc}")
     return pathspec.GitIgnoreSpec.from_lines(lines), errors
