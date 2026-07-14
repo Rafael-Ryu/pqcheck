@@ -77,7 +77,10 @@ class ImportResolver:
 
     A frame collects a scope's own import statements AND a sentinel set of
     every other name the scope binds — parameters, assignments, function/class
-    definitions, loop/with/except/match targets. Resolution walks the frames a
+    definitions, loop/with/except/match targets. Comprehensions and generator
+    expressions get their own frame (their for-targets never leak into the
+    containing scope; their walrus targets do, per PEP 572). Resolution walks
+    the frames a
     real Python lookup would see (class frames are invisible to the methods
     they enclose) and an outer import never shines through an inner non-import
     binding: `def f(hashlib): hashlib.md5()` is a parameter, not the module.
@@ -94,6 +97,16 @@ class ImportResolver:
 
     def push_scope(self, node: ast.AST) -> None:
         frame = _Frame(_frame_kind(node))
+        if isinstance(node, _COMP_SCOPE_NODE_TYPES):
+            # A comprehension/genexp frame binds exactly its for-targets;
+            # walrus targets inside it bind in the enclosing function scope
+            # (PEP 572) and are collected there via _own_scope_nodes.
+            for gen in node.generators:
+                frame.bound.update(
+                    name.id for name in ast.walk(gen.target) if isinstance(name, ast.Name)
+                )
+            self._frames.append(frame)
+            return
         if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda):
             frame.bound.update(_param_names(node))
         for child in _own_scope_nodes(node):
@@ -256,16 +269,37 @@ _DATAFLOW_METHOD_CONFIDENCE = 0.9
 # catalog assignments inside them never count toward the enclosing
 # function's own single-assignment analysis.
 _NESTED_SCOPE_NODE_TYPES = (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)
+# Comprehensions and generator expressions are also their own lexical scope:
+# their for-targets never bind in the enclosing frame. Their walrus (:=)
+# targets are the one exception — PEP 572 binds those in the enclosing
+# function scope, so _own_scope_nodes still surfaces them.
+_COMP_SCOPE_NODE_TYPES = (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)
 
 
 def _own_scope_nodes(node: ast.AST) -> Iterator[ast.AST]:
     """Yield every descendant of `node`, without descending into a nested
-    function/lambda/class body -- those own their own bindings independently.
+    function/lambda/class/comprehension body -- those own their own bindings
+    independently (except comprehension walrus targets, which leak out).
     """
     for child in ast.iter_child_nodes(node):
         yield child
-        if not isinstance(child, _NESTED_SCOPE_NODE_TYPES):
+        if isinstance(child, _COMP_SCOPE_NODE_TYPES):
+            yield from _leaked_walrus_targets(child)
+        elif not isinstance(child, _NESTED_SCOPE_NODE_TYPES):
             yield from _own_scope_nodes(child)
+
+
+def _leaked_walrus_targets(node: ast.AST) -> Iterator[ast.Name]:
+    """Walrus targets under a comprehension that bind in the enclosing
+    function scope (PEP 572) — including those in nested comprehensions,
+    but not inside a nested function/lambda/class, which recaptures them.
+    """
+    for child in ast.iter_child_nodes(node):
+        if isinstance(child, _NESTED_SCOPE_NODE_TYPES):
+            continue
+        if isinstance(child, ast.NamedExpr):
+            yield child.target
+        yield from _leaked_walrus_targets(child)
 
 
 def _param_names(node: ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda) -> list[str]:
@@ -307,36 +341,109 @@ class PythonDetector(ast.NodeVisitor):
         self._visit_function(node)
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
-        # A class body owns its imports like a function does. The resolver's
-        # frame visibility keeps this frame out of method-body lookups (class
-        # scope is invisible to the methods it wraps — `class C: import
-        # hashlib` followed by `hashlib.md5()` inside a method is a NameError
-        # at runtime, not stdlib MD5).
+        # Decorators, bases, and keywords evaluate in the ENCLOSING scope
+        # before the class body runs — a name the body rebinds must not
+        # shadow them. The body owns its imports like a function does; the
+        # resolver's frame visibility keeps this frame out of method-body
+        # lookups (class scope is invisible to the methods it wraps —
+        # `class C: import hashlib` followed by `hashlib.md5()` inside a
+        # method is a NameError at runtime, not stdlib MD5).
+        for expr in (*node.decorator_list, *node.bases, *(kw.value for kw in node.keywords)):
+            self.visit(expr)
+        for type_param in node.type_params:
+            self.visit(type_param)
         self._imports.push_scope(node)
         try:
-            self.generic_visit(node)
+            for stmt in node.body:
+                self.visit(stmt)
         finally:
             self._imports.pop_scope()
 
     def visit_Lambda(self, node: ast.Lambda) -> None:
-        # Lambdas cannot import, but their parameters shadow outer names for
-        # the body (`lambda hashlib: hashlib.md5(x)` is not the module).
+        # Parameter defaults evaluate in the enclosing scope; only the body
+        # sees the parameters (`lambda hashlib: hashlib.md5(x)` is not the
+        # module, but `lambda h=hashlib.md5(): ...`'s default is).
+        for default in (*node.args.defaults, *node.args.kw_defaults):
+            if default is not None:
+                self.visit(default)
         self._imports.push_scope(node)
         try:
-            self.generic_visit(node)
+            self.visit(node.body)
+        finally:
+            self._imports.pop_scope()
+
+    def visit_ListComp(self, node: ast.ListComp) -> None:
+        self._visit_comprehension(node)
+
+    def visit_SetComp(self, node: ast.SetComp) -> None:
+        self._visit_comprehension(node)
+
+    def visit_DictComp(self, node: ast.DictComp) -> None:
+        self._visit_comprehension(node)
+
+    def visit_GeneratorExp(self, node: ast.GeneratorExp) -> None:
+        self._visit_comprehension(node)
+
+    def _visit_comprehension(
+        self, node: ast.ListComp | ast.SetComp | ast.DictComp | ast.GeneratorExp
+    ) -> None:
+        # The outermost iterable evaluates in the ENCLOSING scope (it is
+        # passed as the implicit function's argument); everything else —
+        # remaining generators, conditions, and the element expression —
+        # runs inside the comprehension's own frame, where the for-targets
+        # shadow outer names but never leak back out.
+        self.visit(node.generators[0].iter)
+        self._imports.push_scope(node)
+        try:
+            for index, gen in enumerate(node.generators):
+                if index > 0:
+                    self.visit(gen.iter)
+                self.visit(gen.target)
+                for condition in gen.ifs:
+                    self.visit(condition)
+            if isinstance(node, ast.DictComp):
+                self.visit(node.key)
+                self.visit(node.value)
+            else:
+                self.visit(node.elt)
         finally:
             self._imports.pop_scope()
 
     def _visit_function(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
+        # Decorators, parameter defaults, and definition-time annotations
+        # evaluate in the ENCLOSING scope before the function frame exists —
+        # a name the body rebinds must not shadow them. Only the body runs
+        # under the function's own frame.
+        self._visit_definition_time_exprs(node)
         # Import frame first: _compute_single_assigned resolves constructor
         # callees and must see this function's own imports.
         self._imports.push_scope(node)
         self._scope_stack.append(self._compute_single_assigned(node))
         try:
-            self.generic_visit(node)
+            for stmt in node.body:
+                self.visit(stmt)
         finally:
             self._scope_stack.pop()
             self._imports.pop_scope()
+
+    def _visit_definition_time_exprs(
+        self, node: ast.FunctionDef | ast.AsyncFunctionDef
+    ) -> None:
+        for decorator in node.decorator_list:
+            self.visit(decorator)
+        for type_param in node.type_params:
+            self.visit(type_param)
+        args = node.args
+        for default in (*args.defaults, *args.kw_defaults):
+            if default is not None:
+                self.visit(default)
+        annotated = (*args.posonlyargs, *args.args, *args.kwonlyargs, args.vararg, args.kwarg)
+        for annotation in (
+            *(arg.annotation for arg in annotated if arg is not None),
+            node.returns,
+        ):
+            if annotation is not None:
+                self.visit(annotation)
 
     def _compute_single_assigned(
         self, node: ast.FunctionDef | ast.AsyncFunctionDef

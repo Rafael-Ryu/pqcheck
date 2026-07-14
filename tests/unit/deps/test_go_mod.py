@@ -1,9 +1,10 @@
+import sys
 import time
 from pathlib import Path
 
 import pytest
 
-from pqcheck.deps.base import ManifestError
+from pqcheck.deps.base import MAX_FILE_BYTES, ManifestError
 from pqcheck.deps.go_mod import parse
 
 _FIXTURES = Path(__file__).parent.parent.parent / "fixtures" / "deps"
@@ -329,3 +330,166 @@ def test_other_directives_stay_ignored(tmp_path: Path) -> None:
     )
     deps = parse(f)
     assert [d.name for d in deps] == ["golang.org/x/crypto"]
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "module",  # missing path
+        "module example.com/m extra",  # trailing junk
+        "go",  # missing version
+        "go nope",  # not a go version
+        "go nope extra",  # junk + extra token
+        "go 1.22 extra",  # trailing junk
+        "toolchain",  # missing name
+        "toolchain go1.22 extra",  # trailing junk
+        "replace example.com/x =>",  # missing replacement
+        "replace example.com/x",  # no arrow
+        "replace => ../x",  # missing original
+        "replace ../x => example.com/y v1.0.0",  # dir-shaped original
+        "exclude example.com/x",  # missing version
+        "exclude example.com/x 1.2.3",  # version without v prefix
+        "retract",  # missing version
+        "retract [v1.0.0,] junk",  # half-open interval + junk
+        "retract v1.0.0 v1.1.0",  # two bare versions
+    ],
+)
+def test_malformed_known_directive_single_line_raises(tmp_path: Path, line: str) -> None:
+    # Item 6 (Codex round 4): every known directive is validated against
+    # go.mod's grammar, not just require — a malformed known directive means
+    # `go` itself refuses the file, so a silent accept passes off a partial
+    # inventory as complete.
+    f = tmp_path / "go.mod"
+    f.write_text(f"{line}\nrequire golang.org/x/crypto v0.21.0\n", encoding="utf-8")
+    with pytest.raises(ManifestError, match=r"malformed go\.mod"):
+        parse(f)
+
+
+@pytest.mark.parametrize(
+    "block",
+    [
+        "module (\na b\n)",  # two tokens in a module block entry
+        "exclude (\nexample.com/x\n)",  # missing version
+        "replace (\nexample.com/x =>\n)",  # missing replacement
+        "retract (\n[v1.0.0,] junk\n)",  # half-open interval + junk
+        "go (\n1.22\n)",  # go has no block form
+        "toolchain (\ngo1.22\n)",  # toolchain has no block form
+    ],
+)
+def test_malformed_known_directive_block_form_raises(tmp_path: Path, block: str) -> None:
+    f = tmp_path / "go.mod"
+    f.write_text(f"{block}\nrequire golang.org/x/crypto v0.21.0\n", encoding="utf-8")
+    with pytest.raises(ManifestError, match=r"malformed go\.mod"):
+        parse(f)
+
+
+@pytest.mark.parametrize(
+    "snippet",
+    [
+        "module example.com/m",
+        'module "example.com/m"',  # quoted path is valid go.mod
+        "module (\nexample.com/m\n)",  # block form is in the grammar
+        "go 1.22",
+        "go 1.21rc1",
+        "go 1.22.3",
+        "toolchain go1.22.3",
+        "toolchain default",
+        "exclude example.com/x v1.0.0",
+        "exclude (\nexample.com/x v1.0.0 // broken\n)",
+        "replace example.com/x => ../local",
+        "replace example.com/x v1.0.0 => example.com/y v2.0.0",
+        "replace example.com/x => `../out side`",  # raw string with a space
+        'replace "example.com/x" => "./local dir"',  # quoted path with a space
+        "replace (\nexample.com/x => ./l\n)",
+        "retract v1.0.0",
+        "retract [v1.0.0, v1.1.0]",
+        "retract [v1.0.0,v1.1.0]",
+        "retract (\nv1.0.0 // broken\n[v1.0.0, v1.1.0]\n)",
+        "tool example.com/tool",  # valid unknown/future directives stay ignored
+        "godebug x=y",
+        "weirddirective foo bar",
+    ],
+)
+def test_valid_directives_accepted(tmp_path: Path, snippet: str) -> None:
+    f = tmp_path / "go.mod"
+    f.write_text(f"{snippet}\nrequire golang.org/x/crypto v0.21.0\n", encoding="utf-8")
+    assert [d.name for d in parse(f)] == ["golang.org/x/crypto"]
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="backslash paths are dir-shaped on Windows")
+def test_backslash_replacement_rejected_on_posix(tmp_path: Path) -> None:
+    # `..\outside\pkg` is not a go directory path on POSIX (dir_shaped is
+    # platform-aware, matching the boundary check in go_module_detector);
+    # on Windows go itself accepts backslash paths, so this only raises here.
+    f = tmp_path / "go.mod"
+    f.write_text(
+        "module example.com/m\nreplace example.com/x => ..\\outside\\pkg\n", encoding="utf-8"
+    )
+    with pytest.raises(ManifestError, match=r"malformed go\.mod"):
+        parse(f)
+
+
+def test_unlexable_line_raises(tmp_path: Path) -> None:
+    f = tmp_path / "go.mod"
+    f.write_text('module example.com/m\nrequire "untermin\n', encoding="utf-8")
+    with pytest.raises(ManifestError, match="cannot be lexed"):
+        parse(f)
+
+
+def test_unclosed_replace_block_raises(tmp_path: Path) -> None:
+    f = tmp_path / "go.mod"
+    f.write_text("module example.com/m\nreplace (\nexample.com/x => ./l\n", encoding="utf-8")
+    with pytest.raises(ManifestError, match="unclosed replace block"):
+        parse(f)
+
+
+def test_quoted_require_path_is_unquoted(tmp_path: Path) -> None:
+    # go.mod's lexer strips the quotes; the dependency name must not keep them.
+    f = tmp_path / "go.mod"
+    f.write_text(
+        'module example.com/m\nrequire "golang.org/x/crypto" v0.21.0\n', encoding="utf-8"
+    )
+    deps = parse(f)
+    assert [d.name for d in deps] == ["golang.org/x/crypto"]
+
+
+def test_oversized_go_sum_reports_skip_and_keeps_inventory(tmp_path: Path) -> None:
+    # Item 2 (Codex round 4): a go.sum skipped by the size cap must not read
+    # as "no checksum companion exists" — the inventory survives with no
+    # integrity claim, and the skip lands in the caller's error sink.
+    (tmp_path / "go.mod").write_text(
+        "module example.com/m\nrequire golang.org/x/crypto v0.21.0\n", encoding="utf-8"
+    )
+    (tmp_path / "go.sum").write_bytes(
+        b"golang.org/x/crypto v0.21.0 h1:AAAA\n" + b"#" * (MAX_FILE_BYTES + 1)
+    )
+    errors: list[str] = []
+    deps = parse(tmp_path / "go.mod", errors=errors)
+    assert [d.name for d in deps] == ["golang.org/x/crypto"]
+    assert deps[0].integrity_verified is None
+    assert len(errors) == 1
+    assert str(tmp_path / "go.sum") in errors[0]
+    assert "ManifestError" in errors[0]
+
+
+def test_non_utf8_go_sum_reports_skip_and_keeps_inventory(tmp_path: Path) -> None:
+    (tmp_path / "go.mod").write_text(
+        "module example.com/m\nrequire golang.org/x/crypto v0.21.0\n", encoding="utf-8"
+    )
+    (tmp_path / "go.sum").write_bytes(b"\xff\xfe not utf-8")
+    errors: list[str] = []
+    deps = parse(tmp_path / "go.mod", errors=errors)
+    assert deps[0].integrity_verified is None
+    assert len(errors) == 1
+    assert "malformed go.sum" in errors[0]
+
+
+def test_go_sum_skip_without_error_sink_still_parses(tmp_path: Path) -> None:
+    # Callers that pass no sink (direct API use) keep the old behavior:
+    # inventory preserved, no integrity claim, no crash.
+    (tmp_path / "go.mod").write_text(
+        "module example.com/m\nrequire golang.org/x/crypto v0.21.0\n", encoding="utf-8"
+    )
+    (tmp_path / "go.sum").write_bytes(b"#" * (MAX_FILE_BYTES + 1))
+    deps = parse(tmp_path / "go.mod")
+    assert deps[0].integrity_verified is None

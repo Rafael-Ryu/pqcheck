@@ -5,6 +5,7 @@ from cryptography.hazmat.primitives import serialization
 
 import pqcheck.scanner as scanner_mod
 from pqcheck import __version__
+from pqcheck.deps.base import MAX_FILE_BYTES
 from pqcheck.models import AlgorithmFamily, CryptoFinding, SourceLocation
 from pqcheck.policy.loader import load_default_policy
 from pqcheck.scanner import scan
@@ -181,3 +182,19 @@ def test_scan_reports_oversized_manifest_as_error(tmp_path: Path) -> None:
         "requirements.txt: ManifestError" in e and "inventory incomplete" in e
         for e in result.errors
     )
+
+
+def test_scan_reports_oversized_go_sum_and_keeps_dependencies(tmp_path: Path) -> None:
+    # End-to-end thread of the go.sum skip diagnostic (Codex round 4, Item 2):
+    # _load_go_sum -> go_mod.parse -> scan -> ScanResult.errors, with the
+    # go.mod dependency inventory intact.
+    (tmp_path / "go.mod").write_text(
+        "module example.com/m\nrequire golang.org/x/crypto v0.21.0\n", encoding="utf-8"
+    )
+    (tmp_path / "go.sum").write_bytes(
+        b"golang.org/x/crypto v0.21.0 h1:AAAA\n" + b"#" * (MAX_FILE_BYTES + 1)
+    )
+    result = scan(tmp_path)
+    assert [d.name for d in result.dependencies] == ["golang.org/x/crypto"]
+    assert result.dependencies[0].integrity_verified is None
+    assert any("go.sum" in e and "ManifestError" in e for e in result.errors)

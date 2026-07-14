@@ -1911,3 +1911,198 @@ def test_star_import_blocked_by_local_binding(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     assert detect_python_file(target) == []
+
+
+# --- Item 5 (Codex round 4): comprehension and definition-time scoping ---
+
+
+def test_comprehension_target_does_not_leak_into_function() -> None:
+    # The comp target has its own scope; after the comprehension, `hashlib`
+    # is the module again — the MD5 call is real and must be detected.
+    findings = _scan(
+        "import hashlib\n"
+        "def f(xs):\n"
+        "    [hashlib for hashlib in xs]\n"
+        "    return hashlib.md5(b'x')\n"
+    )
+    assert [(f.algorithm, f.location.line) for f in findings] == [("MD5", 4)]
+
+
+def test_genexp_target_does_not_leak_into_function() -> None:
+    findings = _scan(
+        "import hashlib\n"
+        "def f(xs):\n"
+        "    list(hashlib for hashlib in xs)\n"
+        "    return hashlib.md5(b'x')\n"
+    )
+    assert [(f.algorithm, f.location.line) for f in findings] == [("MD5", 4)]
+
+
+def test_nested_dictcomp_targets_do_not_leak() -> None:
+    findings = _scan(
+        "import hashlib\n"
+        "def f(xs):\n"
+        "    {hashlib: [hashlib for hashlib in x] for hashlib in xs}\n"
+        "    return hashlib.md5(b'x')\n"
+    )
+    assert [(f.algorithm, f.location.line) for f in findings] == [("MD5", 4)]
+
+
+def test_setcomp_target_does_not_leak_at_module_level() -> None:
+    findings = _scan(
+        "import hashlib\n"
+        "{hashlib for hashlib in ()}\n"
+        "hashlib.md5(b'x')\n"
+    )
+    assert [(f.algorithm, f.location.line) for f in findings] == [("MD5", 3)]
+
+
+def test_comprehension_target_shadows_inside_its_own_body() -> None:
+    # Inside the comprehension the target IS the binding — `hashlib.md5`
+    # there refers to each element, not the module.
+    findings = _scan(
+        "import hashlib\n"
+        "def f(mods):\n"
+        "    return [hashlib.md5(b'') for hashlib in mods]\n"
+    )
+    assert findings == []
+
+
+def test_comprehension_first_iterable_evaluates_in_enclosing_scope() -> None:
+    # The outermost iterable is evaluated before the comp scope exists, so a
+    # same-named for-target does not shadow it.
+    findings = _scan(
+        "import hashlib\n"
+        "def f(xs):\n"
+        "    return [0 for hashlib in xs(hashlib.md5(b''))]\n"
+    )
+    assert [(f.algorithm, f.location.line) for f in findings] == [("MD5", 3)]
+
+
+def test_walrus_in_comprehension_still_binds_function_scope() -> None:
+    # PEP 572: a walrus target inside a comprehension binds in the enclosing
+    # function — after the comp, `hashlib` is provably rebound, so the call
+    # stays blocked (deliberate behavior preserved from before the comp fix).
+    findings = _scan(
+        "import hashlib\n"
+        "def f(xs):\n"
+        "    ys = [(hashlib := x) for x in xs]\n"
+        "    return hashlib.md5(b'')\n"
+    )
+    assert findings == []
+
+
+def test_walrus_in_nested_comprehension_still_binds_function_scope() -> None:
+    findings = _scan(
+        "import hashlib\n"
+        "def f(xs):\n"
+        "    ys = [[(hashlib := y) for y in x] for x in xs]\n"
+        "    return hashlib.md5(b'')\n"
+    )
+    assert findings == []
+
+
+def test_decorator_evaluates_in_enclosing_scope_despite_body_shadow() -> None:
+    # Decorators run before the function frame exists; a body-local rebinding
+    # of `hashlib` must not block the real MD5 call in the decorator.
+    findings = _scan(
+        "import hashlib\n"
+        "def deco(value):\n"
+        "    def wrap(fn):\n"
+        "        return fn\n"
+        "    return wrap\n"
+        "\n"
+        "@deco(hashlib.md5(b'x'))\n"
+        "def f():\n"
+        "    hashlib = object()\n"
+    )
+    assert [(f.algorithm, f.location.line) for f in findings] == [("MD5", 7)]
+
+
+def test_parameter_default_evaluates_in_enclosing_scope() -> None:
+    findings = _scan(
+        "import hashlib\n"
+        "def f(x=hashlib.md5(b'x')):\n"
+        "    hashlib = object()\n"
+    )
+    assert [(f.algorithm, f.location.line) for f in findings] == [("MD5", 2)]
+
+
+def test_keyword_only_default_evaluates_in_enclosing_scope() -> None:
+    findings = _scan(
+        "import hashlib\n"
+        "def f(*, x=hashlib.md5(b'x')):\n"
+        "    hashlib = object()\n"
+    )
+    assert [(f.algorithm, f.location.line) for f in findings] == [("MD5", 2)]
+
+
+def test_annotation_evaluates_in_enclosing_scope() -> None:
+    findings = _scan(
+        "import hashlib\n"
+        "def f(x: hashlib.md5(b'x') = None):\n"
+        "    hashlib = object()\n"
+    )
+    assert [(f.algorithm, f.location.line) for f in findings] == [("MD5", 2)]
+
+
+def test_lambda_default_evaluates_in_enclosing_scope() -> None:
+    findings = _scan(
+        "import hashlib\n"
+        "def f():\n"
+        "    hashlib = object()\n"
+        "g = lambda h=hashlib.md5(b'x'): h\n"
+    )
+    assert [(f.algorithm, f.location.line) for f in findings] == [("MD5", 4)]
+
+
+def test_class_decorator_evaluates_in_enclosing_scope() -> None:
+    findings = _scan(
+        "import hashlib\n"
+        "def deco(v):\n"
+        "    return lambda c: c\n"
+        "\n"
+        "@deco(hashlib.md5(b'x'))\n"
+        "class C:\n"
+        "    hashlib = object()\n"
+    )
+    assert [(f.algorithm, f.location.line) for f in findings] == [("MD5", 5)]
+
+
+def test_class_base_evaluates_in_enclosing_scope() -> None:
+    findings = _scan(
+        "import hashlib\n"
+        "class C(type(hashlib.md5(b'x'))):\n"
+        "    hashlib = object()\n"
+    )
+    assert [(f.algorithm, f.location.line) for f in findings] == [("MD5", 2)]
+
+
+def test_function_body_shadow_still_blocks() -> None:
+    # The body itself still sees its own frame — a local rebinding blocks.
+    findings = _scan(
+        "import hashlib\n"
+        "def f():\n"
+        "    hashlib = object()\n"
+        "    return hashlib.md5(b'x')\n"
+    )
+    assert findings == []
+
+
+def test_lambda_parameter_still_shadows_body() -> None:
+    findings = _scan("import hashlib\ng = lambda hashlib: hashlib.md5(b'x')\n")
+    assert findings == []
+
+
+def test_single_assignment_dataflow_survives_comprehension_target_reuse() -> None:
+    # A comp target named like the single-assigned var lives in its own scope
+    # and must not count as a reassignment for the C2 dataflow proof.
+    findings = _scan(
+        "import hashlib\n"
+        "def f(xs):\n"
+        "    h = hashlib.sha256(b'x')\n"
+        "    [h for h in xs]\n"
+        "    return h.hexdigest()\n"
+    )
+    algorithms = [(f.algorithm, f.location.line) for f in findings]
+    assert ("SHA-256", 5) in algorithms
