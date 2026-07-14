@@ -256,3 +256,6 @@ planted:
   - {path: go/dataflow_single_assignment.go, line: 19, algorithm: SHA-256}
   - {path: go/dataflow_single_assignment.go, line: 23, algorithm: HMAC}
   - {path: go/dataflow_single_assignment.go, line: 25, algorithm: HMAC}
+  # var-form single assignment (Task C4): `var h = ctor()`.
+  - {path: go/dataflow_single_assignment.go, line: 31, algorithm: SHA-256}
+  - {path: go/dataflow_single_assignment.go, line: 33, algorithm: SHA-256}

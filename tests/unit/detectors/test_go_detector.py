@@ -797,6 +797,66 @@ def test_go_dataflow_ignores_unrelated_calls_in_scope() -> None:
     assert [f.algorithm for f in fs].count("SHA-256") == 2
 
 
+def test_single_assigned_var_form_hash_sum_call_attributes_hash() -> None:
+    # `var h = sha256.New()` (var_declaration/var_spec), not `:=`, must be
+    # treated as a single-assignment candidate the same way.
+    fs = _findings(
+        'package m\nimport "crypto/sha256"\n'
+        "func f(data []byte) []byte {\n"
+        "    var h = sha256.New()\n"
+        "    h.Write(data)\n"
+        "    return h.Sum(nil)\n"
+        "}\n"
+    )
+    algos = [f.algorithm for f in fs]
+    assert algos.count("SHA-256") == 2
+    sum_finding = next(f for f in fs if f.location.line == 6)
+    assert sum_finding.algorithm == "SHA-256"
+    assert sum_finding.confidence == pytest.approx(0.9)
+
+
+def test_var_form_multi_name_declaration_does_not_attribute() -> None:
+    # `var a, b = f(), g()` -- multi-name var_spec is never a candidate, even
+    # when one of the values is a catalogued constructor.
+    fs = _findings(
+        'package m\nimport "crypto/sha256"\n'
+        "func f() []byte {\n"
+        "    var a, b = sha256.New(), sha256.New224()\n"
+        "    _ = b\n"
+        "    return a.Sum(nil)\n"
+        "}\n"
+    )
+    assert [f.algorithm for f in fs] == ["SHA-256", "SHA-224"]
+
+
+def test_var_form_no_value_declaration_does_not_attribute() -> None:
+    # `var h2 hash.Hash` has no value at all -- never a dataflow candidate,
+    # so `.Sum()` on it stays unattributed.
+    fs = _findings(
+        'package m\nimport "hash"\n'
+        "func f() []byte {\n"
+        "    var h2 hash.Hash\n"
+        "    return h2.Sum(nil)\n"
+        "}\n"
+    )
+    assert fs == []
+
+
+def test_var_form_then_short_var_shadow_does_not_attribute() -> None:
+    # `var h = md5.New()` followed by `h := sha256.New()` in the same
+    # function scope: the var_spec name must count toward the binding count
+    # so this reads as reassigned/shadowed, not single-assigned to SHA-256.
+    fs = _findings(
+        'package m\nimport (\n "crypto/md5"\n "crypto/sha256"\n)\n'
+        "func f(data []byte) []byte {\n"
+        "    var h = md5.New()\n"
+        "    h := sha256.New()\n"
+        "    return h.Sum(nil)\n"
+        "}\n"
+    )
+    assert [f.algorithm for f in fs] == ["MD5", "SHA-256"]
+
+
 def test_go_dataflow_scope_does_not_cross_function_boundary() -> None:
     fs = _findings(
         'package m\nimport "crypto/sha256"\n'

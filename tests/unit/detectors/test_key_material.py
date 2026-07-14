@@ -282,6 +282,75 @@ def test_legacy_rsa_header_with_corrupted_body_still_names_rsa_at_low_confidence
     assert finding.confidence < 0.5
 
 
+def test_truncated_typed_header_without_end_marker_falls_back_to_header_only(
+    tmp_path: Path,
+) -> None:
+    # BEGIN with no matching END at all -- a severely truncated file. The
+    # legacy RSA header still names the algorithm at low confidence, same as
+    # a complete-but-corrupted block.
+    path = tmp_path / "truncated.key"
+    path.write_bytes(b"-----BEGIN RSA PRIVATE KEY-----\nMIIEow")
+
+    [finding] = detect_key_material_file(path)
+    assert finding.algorithm == "RSA"
+    assert finding.material_kind == "private-key"
+    assert finding.confidence < 0.5
+
+
+def test_truncated_agnostic_header_without_end_marker_falls_back_to_unknown(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "truncated.pem"
+    path.write_bytes(b"-----BEGIN CERTIFICATE-----\nMIIEow")
+
+    [finding] = detect_key_material_file(path)
+    assert finding.algorithm == "UNKNOWN"
+    assert finding.material_kind == "certificate"
+    assert finding.confidence < 0.5
+
+
+def test_truncated_unrecognized_header_without_end_marker_stays_silent(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "truncated-req.pem"
+    path.write_bytes(b"-----BEGIN CERTIFICATE REQUEST-----\nMIIEow")
+
+    assert detect_key_material_file(path) == []
+
+
+def test_truncated_begin_after_complete_block_does_not_double_report(
+    tmp_path: Path,
+) -> None:
+    # A complete block followed by a second, truncated BEGIN: the complete
+    # block reports normally through the ordinary parse path, and the
+    # truncated tail reports once via the header-only fallback -- never
+    # both paths firing for the same BEGIN.
+    key = keymaterial.rsa_key(2048)
+    cert = keymaterial.self_signed_cert(key)
+    blob = cert.public_bytes(serialization.Encoding.PEM) + b"-----BEGIN RSA PRIVATE KEY-----\nMII"
+    path = tmp_path / "mixed.pem"
+    path.write_bytes(blob)
+
+    findings = detect_key_material_file(path)
+    assert len(findings) == 2
+    assert findings[0].material_kind == "certificate"
+    assert findings[0].confidence == 1.0
+    assert findings[1].material_kind == "private-key"
+    assert findings[1].algorithm == "RSA"
+    assert findings[1].confidence < 0.5
+
+
+def test_complete_block_is_unaffected_by_begin_only_fallback(tmp_path: Path) -> None:
+    key = keymaterial.rsa_key(2048)
+    cert = keymaterial.self_signed_cert(key)
+    path = tmp_path / "server.pem"
+    path.write_bytes(cert.public_bytes(serialization.Encoding.PEM))
+
+    findings = detect_key_material_file(path)
+    assert len(findings) == 1
+    assert findings[0].confidence == 1.0
+
+
 def test_no_header_and_no_parse_is_silent(tmp_path: Path) -> None:
     path = tmp_path / "not-a-key.pem"
     path.write_bytes(b"just some random text, no PEM markers at all\n")
