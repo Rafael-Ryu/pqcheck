@@ -1,3 +1,4 @@
+import sys
 import time
 from pathlib import Path
 
@@ -345,7 +346,6 @@ def test_other_directives_stay_ignored(tmp_path: Path) -> None:
         "replace example.com/x =>",  # missing replacement
         "replace example.com/x",  # no arrow
         "replace => ../x",  # missing original
-        "replace example.com/x => ..\\outside\\pkg",  # not a go dir path
         "replace ../x => example.com/y v1.0.0",  # dir-shaped original
         "exclude example.com/x",  # missing version
         "exclude example.com/x 1.2.3",  # version without v prefix
@@ -414,6 +414,19 @@ def test_valid_directives_accepted(tmp_path: Path, snippet: str) -> None:
     f = tmp_path / "go.mod"
     f.write_text(f"{snippet}\nrequire golang.org/x/crypto v0.21.0\n", encoding="utf-8")
     assert [d.name for d in parse(f)] == ["golang.org/x/crypto"]
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="backslash paths are dir-shaped on Windows")
+def test_backslash_replacement_rejected_on_posix(tmp_path: Path) -> None:
+    # `..\outside\pkg` is not a go directory path on POSIX (dir_shaped is
+    # platform-aware, matching the boundary check in go_module_detector);
+    # on Windows go itself accepts backslash paths, so this only raises here.
+    f = tmp_path / "go.mod"
+    f.write_text(
+        "module example.com/m\nreplace example.com/x => ..\\outside\\pkg\n", encoding="utf-8"
+    )
+    with pytest.raises(ManifestError, match=r"malformed go\.mod"):
+        parse(f)
 
 
 def test_unlexable_line_raises(tmp_path: Path) -> None:
