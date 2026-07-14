@@ -191,3 +191,35 @@ def test_output_streams_degrade_on_legacy_codepages(monkeypatch: pytest.MonkeyPa
     # the mark degrades to "?"; the em dash exists in cp1252 (0x97) and
     # survives. Normalize newlines: Windows text streams emit \r\n.
     assert legacy.buffer.getvalue().replace(b"\r\n", b"\n") == b"? RSA \x97 Shor\n"
+
+
+def test_scan_refuses_symlinked_output(tmp_path: Path) -> None:
+    (tmp_path / "repo").mkdir()
+    repo = _repo(tmp_path / "repo", _RSA_SRC)
+    victim = tmp_path / "victim.txt"
+    victim.write_text("precious\n", encoding="utf-8")
+    out = tmp_path / "cbom.json"
+    out.symlink_to(victim)
+    result = runner.invoke(
+        app, ["scan", str(repo), "--format", "cbom", "-o", str(out)]
+    )
+    assert result.exit_code == 73
+    assert "refusing to write through a symlink" in result.output
+    assert victim.read_text(encoding="utf-8") == "precious\n"
+
+
+def test_scan_warns_about_unevaluated_policy_constraints(tmp_path: Path) -> None:
+    result = runner.invoke(
+        app, ["scan", str(_repo(tmp_path, _RSA_SRC)), "--policy", "cryptoct-default"]
+    )
+    assert "does not evaluate" in result.output
+    assert "hash, params" in result.output
+
+
+def test_terminal_report_strips_control_chars(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "evil\x1b[31m.py").write_text(_RSA_SRC, encoding="utf-8")
+    result = runner.invoke(app, ["scan", str(repo)])
+    assert result.exit_code == 0
+    assert "\x1b[31m" not in result.output

@@ -25,7 +25,7 @@ _LEVEL_BY_ACTION: dict[RuleAction, str] = {
 }
 
 
-def _sanitize(raw: str) -> str:
+def sanitize_text(raw: str) -> str:
     # Strip control (Cc) and format (Cf) characters. Cf covers the bidirectional
     # override codes (U+202A-202E, U+2066-2069) behind Trojan-Source visual
     # spoofing (CVE-2021-42574): evidence text is taken verbatim from untrusted
@@ -37,10 +37,12 @@ def _sanitize(raw: str) -> str:
 
 
 def _relative_uri(path: Path, target: Path) -> str:
+    # Sanitized like message text: a hostile filename can carry the same ANSI
+    # or bidi payload as evidence strings.
     try:
-        return path.relative_to(target).as_posix()
+        return sanitize_text(path.relative_to(target).as_posix())
     except ValueError:
-        return path.as_posix()
+        return sanitize_text(path.as_posix())
 
 
 def _fingerprint(finding: CryptoFinding, uri: str) -> str:
@@ -66,7 +68,7 @@ def _message(finding: CryptoFinding, decision: PolicyDecision | None) -> str:
     if decision is not None and decision.reason:
         parts.append(decision.reason)
     parts.append(f"evidence: {finding.evidence}")
-    return _sanitize(" — ".join(parts))
+    return sanitize_text(" — ".join(parts))
 
 
 def _result_entry(
@@ -123,14 +125,15 @@ def build_sarif(result: ScanResult) -> dict[str, object]:
             short = f"{finding.algorithm} usage detected"
             if decision is not None:
                 short = f"{finding.algorithm} is {decision.rule_kind} by policy"
-            rules.append({"id": rule_id, "shortDescription": {"text": _sanitize(short)}})
+            rules.append({"id": rule_id, "shortDescription": {"text": sanitize_text(short)}})
         results.append(_result_entry(finding, decision, result.target, rule_indexes[rule_id]))
 
     run_properties: dict[str, object] = {}
     if result.policy_id is not None:
         run_properties["policy_id"] = result.policy_id
     if result.errors:
-        run_properties["scan_errors"] = list(result.errors)
+        # Errors embed paths from the scanned tree — same injection surface.
+        run_properties["scan_errors"] = [sanitize_text(e) for e in result.errors]
 
     run: dict[str, object] = {
         "tool": {
