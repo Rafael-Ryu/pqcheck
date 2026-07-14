@@ -267,6 +267,16 @@ class CryptoFinding(BaseModel):
     evidence: str
     detector_id: str
     confidence: float = Field(default=1.0, ge=0.0, le=1.0)
+    # Populated only by the key-material detector (pqcheck.detectors.key_material)
+    # to steer CBOM component shape (assetType certificate/related-crypto-material
+    # instead of algorithm) — every other detector leaves these None, which
+    # preserves the existing "algorithm" CBOM shape untouched.
+    material_kind: Literal["certificate", "private-key", "public-key"] | None = None
+    cert_subject: str | None = None
+    cert_issuer: str | None = None
+    cert_not_valid_before: str | None = None
+    cert_not_valid_after: str | None = None
+    cert_format: Literal["PEM", "DER"] | None = None
 
     @field_validator("key_size")
     @classmethod

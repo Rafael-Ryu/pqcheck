@@ -120,6 +120,55 @@ def test_policy_decisions_are_attached_as_properties() -> None:
     assert props["pqcheck:quantum_risk"] == "quantum-vulnerable"
 
 
+def test_certificate_finding_becomes_certificate_asset() -> None:
+    finding = _finding(
+        key_size=2048,
+        material_kind="certificate",
+        cert_subject="CN=test",
+        cert_issuer="CN=test",
+        cert_not_valid_before="2020-01-01T00:00:00+00:00",
+        cert_not_valid_after="2030-01-01T00:00:00+00:00",
+        cert_format="PEM",
+    )
+    doc = build_cbom(_result(findings=(finding,), dependencies=()))
+    [asset] = [c for c in _components(doc) if c["type"] == "cryptographic-asset"]
+    crypto_props = asset["cryptoProperties"]
+    assert crypto_props["assetType"] == "certificate"
+    assert crypto_props["algorithmProperties"]["primitive"] == "pke"
+    assert crypto_props["algorithmProperties"]["parameterSetIdentifier"] == "2048"
+    cert_props = crypto_props["certificateProperties"]
+    assert cert_props["subjectName"] == "CN=test"
+    assert cert_props["issuerName"] == "CN=test"
+    assert cert_props["notValidBefore"] == "2020-01-01T00:00:00+00:00"
+    assert cert_props["notValidAfter"] == "2030-01-01T00:00:00+00:00"
+    assert cert_props["certificateFormat"] == "PEM"
+    assert validate_cyclonedx_16(doc) == []
+
+
+def test_private_key_finding_becomes_related_crypto_material_asset() -> None:
+    finding = _finding(key_size=2048, material_kind="private-key")
+    doc = build_cbom(_result(findings=(finding,), dependencies=()))
+    [asset] = [c for c in _components(doc) if c["type"] == "cryptographic-asset"]
+    crypto_props = asset["cryptoProperties"]
+    assert crypto_props["assetType"] == "related-crypto-material"
+    assert crypto_props["relatedCryptoMaterialProperties"]["type"] == "private-key"
+    assert crypto_props["algorithmProperties"]["primitive"] == "pke"
+    assert validate_cyclonedx_16(doc) == []
+
+
+def test_public_key_finding_becomes_related_crypto_material_asset() -> None:
+    finding = _finding(
+        algorithm="EdDSA", family=AlgorithmFamily.SIGNATURE, curve="Ed25519",
+        material_kind="public-key",
+    )
+    doc = build_cbom(_result(findings=(finding,), dependencies=()))
+    [asset] = [c for c in _components(doc) if c["type"] == "cryptographic-asset"]
+    crypto_props = asset["cryptoProperties"]
+    assert crypto_props["assetType"] == "related-crypto-material"
+    assert crypto_props["relatedCryptoMaterialProperties"]["type"] == "public-key"
+    assert validate_cyclonedx_16(doc) == []
+
+
 def test_built_cbom_validates_against_official_schema() -> None:
     finding = _finding()
     decision = PolicyDecision(

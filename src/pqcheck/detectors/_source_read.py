@@ -15,13 +15,14 @@ MAX_SOURCE_BYTES = 2 * 1024 * 1024
 _READ_CHUNK = 64 * 1024
 
 
-def read_source_bytes(path: Path) -> bytes | None:
+def read_source_bytes(path: Path, *, max_bytes: int = MAX_SOURCE_BYTES) -> bytes | None:
     """Read a source file as bytes, returning None on any error or oversize.
 
     Returns None for: missing path, symlink, non-regular file (FIFO/device/
-    socket/directory), file larger than MAX_SOURCE_BYTES, or a file that grows
+    socket/directory), file larger than `max_bytes`, or a file that grows
     past the cap between fstat and read. Never raises — callers treat None as
-    "skip this file".
+    "skip this file". `max_bytes` defaults to MAX_SOURCE_BYTES; the
+    key-material detector passes a smaller cap (see key_material.py).
 
     Open uses O_NOFOLLOW (reject symlinks) and O_NONBLOCK (a FIFO opens
     immediately, then the S_ISREG guard rejects it). fstat and read run on the
@@ -46,10 +47,10 @@ def read_source_bytes(path: Path) -> bytes | None:
         return None
     try:
         info = os.fstat(fd)
-        if not stat.S_ISREG(info.st_mode) or info.st_size > MAX_SOURCE_BYTES:
+        if not stat.S_ISREG(info.st_mode) or info.st_size > max_bytes:
             return None
         chunks: list[bytes] = []
-        budget = MAX_SOURCE_BYTES + 1
+        budget = max_bytes + 1
         while budget > 0:
             chunk = os.read(fd, min(budget, _READ_CHUNK))
             if not chunk:

@@ -66,9 +66,13 @@ def _relative_location(path: Path, target: Path) -> str:
         return path.as_posix()
 
 
-def _finding_component(
-    index: int, finding: CryptoFinding, decision: PolicyDecision | None, target: Path
-) -> dict[str, object]:
+_RELATED_MATERIAL_TYPE: dict[str, str] = {
+    "private-key": "private-key",
+    "public-key": "public-key",
+}
+
+
+def _crypto_properties(finding: CryptoFinding) -> dict[str, object]:
     algorithm_properties: dict[str, object] = {"primitive": _primitive(finding)}
     if finding.key_size is not None:
         algorithm_properties["parameterSetIdentifier"] = str(finding.key_size)
@@ -79,6 +83,40 @@ def _finding_component(
     if finding.padding is not None:
         algorithm_properties["padding"] = _enum_or_other(finding.padding, _PADDINGS)
 
+    # material_kind is only set by the key-material detector (certificates
+    # and keys on disk) -- every other detector leaves it None and keeps the
+    # plain "algorithm" asset shape below.
+    if finding.material_kind == "certificate":
+        certificate_properties: dict[str, object] = {}
+        if finding.cert_subject is not None:
+            certificate_properties["subjectName"] = finding.cert_subject
+        if finding.cert_issuer is not None:
+            certificate_properties["issuerName"] = finding.cert_issuer
+        if finding.cert_not_valid_before is not None:
+            certificate_properties["notValidBefore"] = finding.cert_not_valid_before
+        if finding.cert_not_valid_after is not None:
+            certificate_properties["notValidAfter"] = finding.cert_not_valid_after
+        if finding.cert_format is not None:
+            certificate_properties["certificateFormat"] = finding.cert_format
+        return {
+            "assetType": "certificate",
+            "algorithmProperties": algorithm_properties,
+            "certificateProperties": certificate_properties,
+        }
+    if finding.material_kind in _RELATED_MATERIAL_TYPE:
+        return {
+            "assetType": "related-crypto-material",
+            "algorithmProperties": algorithm_properties,
+            "relatedCryptoMaterialProperties": {
+                "type": _RELATED_MATERIAL_TYPE[finding.material_kind]
+            },
+        }
+    return {"assetType": "algorithm", "algorithmProperties": algorithm_properties}
+
+
+def _finding_component(
+    index: int, finding: CryptoFinding, decision: PolicyDecision | None, target: Path
+) -> dict[str, object]:
     properties: list[dict[str, str]] = [
         {"name": "pqcheck:detector_id", "value": finding.detector_id},
         {"name": "pqcheck:confidence", "value": f"{finding.confidence:.2f}"},
@@ -108,10 +146,7 @@ def _finding_component(
                 }
             ]
         },
-        "cryptoProperties": {
-            "assetType": "algorithm",
-            "algorithmProperties": algorithm_properties,
-        },
+        "cryptoProperties": _crypto_properties(finding),
         "properties": properties,
     }
 

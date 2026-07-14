@@ -25,6 +25,7 @@ from pqcheck.detectors.go_module_detector import (
     detect_go_module,
     group_go_files_by_module,
 )
+from pqcheck.detectors.key_material import detect_key_material_file
 from pqcheck.detectors.python_detector import detect_python_file
 from pqcheck.discover.walker import discover
 from pqcheck.models import CryptoDependency, CryptoFinding, ScanResult
@@ -71,6 +72,9 @@ def scan(root: Path, policy: CryptoPolicy | None = None) -> ScanResult:
         parser = _MANIFEST_PARSERS.get(manifest.name)
         if parser is not None:
             _swallow(parser, manifest, dependencies, errors)
+
+    for key_material_file in discovery.key_material_files:
+        _swallow(detect_key_material_file, key_material_file, findings, errors)
 
     findings.sort(
         key=lambda f: (str(f.location.path), f.location.line, f.location.column, f.algorithm)

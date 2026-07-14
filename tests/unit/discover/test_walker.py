@@ -34,6 +34,20 @@ def test_classifies_python_go_and_manifests(tmp_path: Path) -> None:
     assert d.errors == ()
 
 
+def test_classifies_key_material_files(tmp_path: Path) -> None:
+    root = _tree(tmp_path, {
+        "certs/server.pem": "",
+        "certs/server.key": "",
+        "certs/ca.crt": "",
+        "certs/ca.der": "",
+        "certs/README.md": "not key material",
+    })
+    d = discover(root)
+    assert sorted(p.name for p in d.key_material_files) == [
+        "ca.crt", "ca.der", "server.key", "server.pem",
+    ]
+
+
 def test_results_are_absolute_sorted_and_deterministic(tmp_path: Path) -> None:
     root = _tree(tmp_path, {"b/z.py": "", "a/a.py": "", "a/m.py": ""})
     d1 = discover(root)

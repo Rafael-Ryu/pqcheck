@@ -1,12 +1,12 @@
 {
-  "tp": 78,
+  "tp": 103,
   "fp": 1,
   "pending": 0,
-  "precision": 0.9873,
+  "precision": 0.9904,
   "per_repo": {
     "authlib": {
-      "gated": 16,
-      "tp": 16,
+      "gated": 23,
+      "tp": 23,
       "fp": 0,
       "pending": 0
     },
@@ -17,8 +17,8 @@
       "pending": 0
     },
     "certbot": {
-      "gated": 5,
-      "tp": 5,
+      "gated": 23,
+      "tp": 23,
       "fp": 0,
       "pending": 0
     },
