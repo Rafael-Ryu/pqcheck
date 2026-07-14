@@ -9,7 +9,8 @@ source detectors emit, so an RSA-2048 certificate is classified by policy
 identically to an RSA-2048 code usage finding.
 
 When a block fails every loader (encrypted key, unsupported/legacy params,
-corrupted body) but carries a recognizable PEM header, a lower-confidence
+corrupted body), or a BEGIN marker has no matching END at all (a severely
+truncated file), but carries a recognizable PEM header, a lower-confidence
 finding is still emitted — the header alone names the algorithm for the
 legacy RSA/EC/DSA headers, and stays UNKNOWN for the algorithm-agnostic
 PKCS8/SPKI/certificate headers. No header and no successful parse means
@@ -49,6 +50,12 @@ _HEADER_ONLY_CONFIDENCE = 0.3
 _PARSE_EXCEPTIONS = (ValueError, TypeError, UnsupportedAlgorithm)
 
 _PEM_BLOCK_RE = re.compile(rb"-----BEGIN ([A-Z0-9 ]+)-----.*?-----END \1-----", re.DOTALL)
+
+# A BEGIN marker with no matching END at all -- e.g. a severely truncated
+# file cut off mid-body. Used only to find BEGIN headers _PEM_BLOCK_RE left
+# unmatched (see _detect_pem_blocks); a BEGIN that IS part of a complete
+# block is already reported through the ordinary parse path above.
+_PEM_BEGIN_RE = re.compile(rb"-----BEGIN ([A-Z0-9 ]+)-----")
 
 # Legacy/typed PEM headers that name their algorithm outright, used only by
 # the header-only fallback path (a successful parse asks the parsed key
@@ -288,10 +295,23 @@ def _detect_pem_block(block: bytes, label: bytes, *, path: Path, line: int) -> C
 
 def _detect_pem_blocks(data: bytes, path: Path) -> list[CryptoFinding]:
     findings: list[CryptoFinding] = []
+    consumed: list[tuple[int, int]] = []
     for match in _PEM_BLOCK_RE.finditer(data):
         label = match.group(1)
         line = _line_at(data, match.start())
+        consumed.append((match.start(), match.end()))
         finding = _detect_pem_block(match.group(0), label, path=path, line=line)
+        if finding is not None:
+            findings.append(finding)
+    for match in _PEM_BEGIN_RE.finditer(data):
+        # Skip a BEGIN that's already part of a complete block matched above
+        # -- only a BEGIN with no matching END reaches the fallback below.
+        if any(start <= match.start() < end for start, end in consumed):
+            continue
+        label = match.group(1)
+        line = _line_at(data, match.start())
+        evidence = f"PEM block {label.decode('ascii', errors='replace')} (truncated, no END marker)"
+        finding = _header_only_finding(label, path=path, line=line, evidence=evidence)
         if finding is not None:
             findings.append(finding)
     return findings

@@ -24,3 +24,11 @@ func sign(key, text []byte) []byte {
 	mac.Write(text)
 	return mac.Sum(nil)
 }
+
+// var-form single assignment (Task C4): `var h = ctor()`, not `:=`, is the
+// same kind of single-assignment candidate.
+func checksumVar(data []byte) []byte {
+	var h = sha256.New()
+	h.Write(data)
+	return h.Sum(nil)
+}

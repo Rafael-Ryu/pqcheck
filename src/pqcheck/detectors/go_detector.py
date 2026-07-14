@@ -18,6 +18,7 @@ from __future__ import annotations
 import re
 from collections.abc import Iterator
 from pathlib import Path
+from typing import cast
 
 from tree_sitter import Node, Parser
 
@@ -311,15 +312,50 @@ def _resolve_call_hit(
     return lookup_go_symbol(f"{import_path}.{_node_text(field, source)}")
 
 
-def _collect_single_assigned(
-    func_node: Node, imports: GoImportResolver, source: bytes
-) -> dict[str, AlgorithmHit]:
-    """Vars `:=`-assigned exactly once in `func_node`'s own scope, from a
-    catalogued HASH/MAC constructor. Mirrors python_detector's
-    _compute_single_assigned: every Store-like occurrence of a name
-    (short_var_declaration or assignment_statement target, or a parameter)
-    counts toward "assigned once"; two or more rules the name out, matching
-    the documented reassignment/conditional-assignment exclusions.
+def _var_spec_binding(
+    node: Node, source: bytes
+) -> tuple[list[Node], tuple[str, Node] | None]:
+    """Names bound by a `var_spec`, and its candidate (name, call_expression)
+    when it has exactly one name and a value that is a single call_expression
+    -- `var h = ctor()`. Multi-name (`var a, b = f(), g()`) and no-value
+    (`var h2 hash.Hash`) var_specs bind names but are never candidates.
+    """
+    names = [c for c in node.named_children if c.type == "identifier"]
+    value = node.child_by_field_name("value")
+    if len(names) != 1 or value is None:
+        return names, None
+    exprs = value.named_children
+    if len(exprs) != 1 or exprs[0].type != "call_expression":
+        return names, None
+    return names, (_node_text(names[0], source), exprs[0])
+
+
+def _assignment_binding(
+    node: Node, source: bytes
+) -> list[tuple[str, Node | None]]:
+    """(name, rhs expr or None) pairs for a short_var_declaration's or
+    assignment_statement's LHS identifiers, paired positionally with the RHS.
+    """
+    left = node.child_by_field_name("left")
+    right = node.child_by_field_name("right")
+    if left is None or right is None:
+        return []
+    lhs_idents = [c for c in left.named_children if c.type == "identifier"]
+    rhs_exprs = right.named_children
+    return [
+        (_node_text(ident, source), expr)
+        for ident, expr in zip(lhs_idents, rhs_exprs, strict=False)
+    ]
+
+
+def _scope_bindings(
+    func_node: Node, source: bytes
+) -> tuple[dict[str, int], list[tuple[str, Node]]]:
+    """Binding counts and constructor-call candidates over `func_node`'s own
+    scope: every parameter, var_spec name, and short_var_declaration/
+    assignment_statement LHS identifier counts toward "assigned once"; a
+    single-name `var h = ctor()` var_spec or a `h := ctor()` short_var_
+    declaration is a candidate (name, call_expression) pair.
     """
     counts: dict[str, int] = {}
     params = func_node.child_by_field_name("parameters")
@@ -330,19 +366,34 @@ def _collect_single_assigned(
                 counts[name] = counts.get(name, 0) + 1
     candidates: list[tuple[str, Node]] = []
     for node in _own_scope_nodes(func_node):
-        if node.type not in ("short_var_declaration", "assignment_statement"):
-            continue
-        left = node.child_by_field_name("left")
-        right = node.child_by_field_name("right")
-        if left is None or right is None:
-            continue
-        lhs_idents = [c for c in left.named_children if c.type == "identifier"]
-        rhs_exprs = right.named_children
-        for ident, expr in zip(lhs_idents, rhs_exprs, strict=False):
-            name = _node_text(ident, source)
-            counts[name] = counts.get(name, 0) + 1
-            if node.type == "short_var_declaration" and expr.type == "call_expression":
-                candidates.append((name, expr))
+        if node.type == "var_spec":
+            names, candidate = _var_spec_binding(node, source)
+            for name_node in names:
+                name = _node_text(name_node, source)
+                counts[name] = counts.get(name, 0) + 1
+            if candidate is not None:
+                candidates.append(candidate)
+        elif node.type in ("short_var_declaration", "assignment_statement"):
+            for name, expr in _assignment_binding(node, source):
+                counts[name] = counts.get(name, 0) + 1
+                is_ctor_call = expr is not None and expr.type == "call_expression"
+                if node.type == "short_var_declaration" and is_ctor_call:
+                    candidates.append((name, cast("Node", expr)))
+    return counts, candidates
+
+
+def _collect_single_assigned(
+    func_node: Node, imports: GoImportResolver, source: bytes
+) -> dict[str, AlgorithmHit]:
+    """Vars assigned exactly once in `func_node`'s own scope -- via `:=` or a
+    single-name `var h = ctor()` declaration -- from a catalogued HASH/MAC
+    constructor. Mirrors python_detector's _compute_single_assigned: every
+    Store-like occurrence of a name (short_var_declaration/assignment_statement
+    target, a var_spec name, or a parameter) counts toward "assigned once";
+    two or more rules the name out, matching the documented reassignment/
+    conditional-assignment exclusions.
+    """
+    counts, candidates = _scope_bindings(func_node, source)
     single_assigned: dict[str, AlgorithmHit] = {}
     for name, call in candidates:
         if counts.get(name, 0) != 1:
