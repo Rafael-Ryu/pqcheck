@@ -18,7 +18,7 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
-from pqcheck.deps.base import extract_pep508_name, pypi_purl, safe_read_bytes
+from pqcheck.deps.base import ManifestError, extract_pep508_name, pypi_purl, safe_read_bytes
 from pqcheck.deps.packages import lookup_introduces
 from pqcheck.models import CryptoDependency
 
@@ -28,12 +28,13 @@ def parse(path: Path) -> list[CryptoDependency]:
     if raw is None:
         return []
     # Deeply nested TOML (arrays/inline tables) parses recursively and can
-    # exhaust the stack; the size cap does not bound nesting depth. Catch it
-    # to keep the never-raise contract.
+    # exhaust the stack; the size cap does not bound nesting depth. Surfaced as
+    # ManifestError so the scan reports an incomplete inventory rather than an
+    # empty-but-clean one.
     try:
         data: dict[str, Any] = tomllib.loads(raw.decode("utf-8-sig"))
-    except (tomllib.TOMLDecodeError, UnicodeDecodeError, RecursionError, MemoryError):
-        return []
+    except (tomllib.TOMLDecodeError, UnicodeDecodeError, RecursionError, MemoryError) as exc:
+        raise ManifestError(f"malformed pyproject.toml: {exc}") from exc
 
     seen: set[str] = set()  # keyed on PEP 503 lowercased name for dedup
     deps: list[CryptoDependency] = []

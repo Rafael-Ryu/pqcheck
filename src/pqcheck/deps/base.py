@@ -18,6 +18,17 @@ MAX_FILE_BYTES = 5 * 1024 * 1024
 _READ_CHUNK = 64 * 1024
 
 
+class ManifestError(Exception):
+    """A manifest was read but could not be parsed (syntax/decode failure).
+
+    Distinct from the read failures `safe_read_bytes` swallows (missing,
+    symlink, oversized — deliberate skips). A manifest the scanner *saw* and
+    could not parse means the dependency inventory is incomplete, so the
+    scanner records it in `ScanResult.errors` instead of reporting a clean
+    scan over a silently dropped file.
+    """
+
+
 def safe_read_bytes(path: Path) -> bytes | None:
     """Read a file as bytes, returning None on any error or oversize.
 

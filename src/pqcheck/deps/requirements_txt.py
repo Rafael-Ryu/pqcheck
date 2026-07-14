@@ -18,7 +18,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from pqcheck.deps.base import extract_pep508_name, pypi_purl, safe_read_bytes
+from pqcheck.deps.base import ManifestError, extract_pep508_name, pypi_purl, safe_read_bytes
 from pqcheck.deps.packages import lookup_introduces
 from pqcheck.models import CryptoDependency
 
@@ -65,8 +65,8 @@ def parse(path: Path) -> list[CryptoDependency]:
         return []
     try:
         text = raw.decode("utf-8")
-    except UnicodeDecodeError:
-        return []
+    except UnicodeDecodeError as exc:
+        raise ManifestError(f"malformed requirements.txt: {exc}") from exc
 
     seen: set[tuple[str, str | None]] = set()
     deps: list[CryptoDependency] = []

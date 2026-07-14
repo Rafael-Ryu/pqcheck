@@ -1,7 +1,9 @@
 import time
 from pathlib import Path
 
-from pqcheck.deps.base import MAX_FILE_BYTES
+import pytest
+
+from pqcheck.deps.base import MAX_FILE_BYTES, ManifestError
 from pqcheck.deps.pom_xml import parse
 
 
@@ -295,9 +297,10 @@ def test_parse_pom_without_namespace(tmp_path: Path) -> None:
     assert deps[0].name == "tink"
 
 
-def test_parse_invalid_xml_returns_empty_list(tmp_path: Path) -> None:
+def test_parse_invalid_xml_raises_manifest_error(tmp_path: Path) -> None:
     f = _write(tmp_path, "<project><dependencies><dependency></project>")
-    assert parse(f) == []
+    with pytest.raises(ManifestError):
+        parse(f)
 
 
 def test_parse_missing_file_returns_empty_list(tmp_path: Path) -> None:

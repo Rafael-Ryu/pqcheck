@@ -1,5 +1,8 @@
 from pathlib import Path
 
+import pytest
+
+from pqcheck.deps.base import ManifestError
 from pqcheck.deps.package_lock_json import parse
 
 _FIXTURES = Path(__file__).parent.parent.parent / "fixtures" / "deps"
@@ -143,18 +146,20 @@ def test_parse_deduplicates_name_version_pairs(tmp_path: Path) -> None:
     assert len(x_deps) == 1
 
 
-def test_parse_invalid_json_returns_empty_list() -> None:
-    assert parse(_fixture("package_lock_invalid.json")) == []
+def test_parse_invalid_json_raises_manifest_error() -> None:
+    with pytest.raises(ManifestError):
+        parse(_fixture("package_lock_invalid.json"))
 
 
 def test_parse_missing_file_returns_empty_list(tmp_path: Path) -> None:
     assert parse(tmp_path / "does-not-exist.json") == []
 
 
-def test_parse_non_dict_root_returns_empty_list(tmp_path: Path) -> None:
+def test_parse_non_dict_root_raises_manifest_error(tmp_path: Path) -> None:
     lock = tmp_path / "package-lock.json"
     lock.write_text("[1, 2, 3]", encoding="utf-8")
-    assert parse(lock) == []
+    with pytest.raises(ManifestError):
+        parse(lock)
 
 
 def test_parse_no_packages_or_dependencies_returns_empty_list(tmp_path: Path) -> None:
@@ -163,13 +168,14 @@ def test_parse_no_packages_or_dependencies_returns_empty_list(tmp_path: Path) ->
     assert parse(lock) == []
 
 
-def test_parse_deeply_nested_dependencies_never_raises(tmp_path: Path) -> None:
+def test_parse_deeply_nested_dependencies_raise_manifest_error(tmp_path: Path) -> None:
     # A hostile v1 lockfile can nest "dependencies" far past the recursion
-    # limit; parse must honour the never-raise contract rather than crash.
+    # limit; the RecursionError must surface as a ManifestError the scan
+    # records, never as a crash.
     inner = '{"version": "1.0.0"}'
     for _ in range(5000):
         inner = '{"version": "1.0.0", "dependencies": {"a": ' + inner + "}}"
     lock = tmp_path / "package-lock.json"
     lock.write_text('{"dependencies": {"a": ' + inner + "}}", encoding="utf-8")
-    result = parse(lock)
-    assert isinstance(result, list)
+    with pytest.raises(ManifestError):
+        parse(lock)

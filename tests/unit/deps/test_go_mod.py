@@ -1,6 +1,9 @@
 import time
 from pathlib import Path
 
+import pytest
+
+from pqcheck.deps.base import ManifestError
 from pqcheck.deps.go_mod import parse
 
 _FIXTURES = Path(__file__).parent.parent.parent / "fixtures" / "deps"
@@ -203,9 +206,17 @@ def test_parse_introduces_algorithms_empty_for_unknown(tmp_path: Path) -> None:
     assert deps[0].introduces_algorithms == ()
 
 
-def test_parse_invalid_returns_empty(tmp_path: Path) -> None:
+def test_parse_invalid_raises_manifest_error(tmp_path: Path) -> None:
     f = _FIXTURES / "gomod_invalid.mod"
-    assert parse(f) == []
+    with pytest.raises(ManifestError):
+        parse(f)
+
+
+def test_parse_unclosed_require_block_raises_manifest_error(tmp_path: Path) -> None:
+    f = tmp_path / "go.mod"
+    f.write_text("module example.com/broken\nrequire (\n  golang.org/x/crypto v0.40.0\n")
+    with pytest.raises(ManifestError, match="unclosed require block"):
+        parse(f)
 
 
 def test_parse_missing_file_returns_empty(tmp_path: Path) -> None:
@@ -226,10 +237,10 @@ def test_parse_unterminated_require_block_terminates_promptly(tmp_path: Path) ->
     f = tmp_path / "go.mod"
     f.write_text("module example.com/app\n\n" + "require (\n" * 8000, encoding="utf-8")
     start = time.perf_counter()
-    deps = parse(f)
+    with pytest.raises(ManifestError):
+        parse(f)
     elapsed = time.perf_counter() - start
     assert elapsed < 1.0
-    assert deps == []
 
 
 def test_parse_fixture_basic(tmp_path: Path) -> None:

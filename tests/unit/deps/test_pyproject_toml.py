@@ -1,5 +1,8 @@
 from pathlib import Path
 
+import pytest
+
+from pqcheck.deps.base import ManifestError
 from pqcheck.deps.pyproject_toml import parse
 
 
@@ -177,9 +180,12 @@ line-length = 100
     assert parse(f) == []
 
 
-def test_parse_invalid_toml_returns_empty_list(tmp_path: Path) -> None:
+def test_parse_invalid_toml_raises_manifest_error(tmp_path: Path) -> None:
+    # A manifest we saw but could not parse means an incomplete inventory; the
+    # scanner records it in ScanResult.errors instead of reporting a clean scan.
     f = _write(tmp_path, "this is not [valid TOML\n")
-    assert parse(f) == []
+    with pytest.raises(ManifestError):
+        parse(f)
 
 
 def test_parse_missing_file_returns_empty_list(tmp_path: Path) -> None:
@@ -253,7 +259,10 @@ test = ["cryptography", "CRYPTOGRAPHY"]
     assert deps[0].purl == "pkg:pypi/cryptography"
 
 
-def test_parse_deeply_nested_toml_never_raises(tmp_path: Path) -> None:
+def test_parse_deeply_nested_toml_raises_manifest_error(tmp_path: Path) -> None:
     # Nested arrays parse recursively; a hostile pyproject can blow the stack.
+    # The RecursionError must surface as a ManifestError the scan records, not
+    # as an empty-but-clean parse or a crash.
     f = _write(tmp_path, "a = " + "[" * 3000 + "]" * 3000 + "\n")
-    assert parse(f) == []
+    with pytest.raises(ManifestError):
+        parse(f)

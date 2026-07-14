@@ -24,7 +24,7 @@ from pathlib import Path
 
 from lxml import etree
 
-from pqcheck.deps.base import maven_purl, safe_read_bytes
+from pqcheck.deps.base import ManifestError, maven_purl, safe_read_bytes
 from pqcheck.deps.packages import lookup_introduces
 from pqcheck.models import CryptoDependency
 
@@ -64,8 +64,8 @@ def parse(path: Path) -> list[CryptoDependency]:
         return []
     try:
         root = etree.fromstring(raw, parser=_build_parser())
-    except etree.XMLSyntaxError:
-        return []
+    except etree.XMLSyntaxError as exc:
+        raise ManifestError(f"malformed pom.xml: {exc}") from exc
     if root is None:  # pragma: no cover - lxml raises rather than returning None
         return []
 

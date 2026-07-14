@@ -19,7 +19,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from pqcheck.deps.base import npm_purl, safe_read_bytes
+from pqcheck.deps.base import ManifestError, npm_purl, safe_read_bytes
 from pqcheck.deps.packages import lookup_introduces
 from pqcheck.models import CryptoDependency
 
@@ -31,14 +31,14 @@ def parse(path: Path) -> list[CryptoDependency]:
     if raw is None:
         return []
     # Deeply nested JSON can exhaust the C/Python stack in json.loads; bounding
-    # input size does not bound nesting depth. Catch it to keep the never-raise
-    # contract.
+    # input size does not bound nesting depth. Surfaced as ManifestError so the
+    # scan reports an incomplete inventory.
     try:
         data: Any = json.loads(raw.decode("utf-8-sig"))
-    except (json.JSONDecodeError, UnicodeDecodeError, RecursionError, MemoryError):
-        return []
+    except (json.JSONDecodeError, UnicodeDecodeError, RecursionError, MemoryError) as exc:
+        raise ManifestError(f"malformed package-lock.json: {exc}") from exc
     if not isinstance(data, dict):
-        return []
+        raise ManifestError("malformed package-lock.json: root is not an object")
 
     seen: set[tuple[str, str | None]] = set()
     deps: list[CryptoDependency] = []
