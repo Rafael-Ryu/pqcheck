@@ -45,6 +45,7 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
+from pqcheck.deps.go_mod import dir_shaped, lex_go_mod_line
 from pqcheck.detectors._source_read import ResourceLimitError
 from pqcheck.detectors.go_detector import _MAX_KEY_SIZE, detect_go_file
 from pqcheck.models import AlgorithmFamily, CryptoFinding, SourceLocation
@@ -194,83 +195,7 @@ def _merge_findings(
     return merged
 
 
-def _lex_go_mod_line(line: str) -> list[str] | None:
-    """Tokens of one go.mod line, or None when it cannot be lexed safely.
-
-    A minimal fail-closed lexer for the token shapes go.mod's own lexer
-    produces: bare tokens, interpreted strings (`"..."`, honoring only the
-    `\\\\` and `\\"` escapes), raw strings (backticks), `//` comments, and
-    `(`/`)` as standalone punctuation. Anything it cannot decide —
-    unterminated string, unsupported escape, a raw string that would span
-    lines — returns None so the boundary check treats the file as hostile
-    instead of guessing. A naive whitespace split turned a quoted path
-    containing a space into two RHS tokens, which read as a module+version
-    replacement and let the path escape the scan boundary unchecked.
-    """
-    tokens: list[str] = []
-    i, size = 0, len(line)
-    while i < size:
-        ch = line[i]
-        if ch in " \t":
-            i += 1
-        elif line.startswith("//", i):
-            break
-        elif ch in "()":
-            tokens.append(ch)
-            i += 1
-        elif ch == '"':
-            lexed = _lex_interpreted_string(line, i)
-            if lexed is None:
-                return None  # unterminated string or an escape we do not model
-            token, i = lexed
-            tokens.append(token)
-        elif ch == "`":
-            end = line.find("`", i + 1)
-            if end == -1:
-                return None  # unterminated raw string (could span lines)
-            tokens.append(line[i + 1 : end])
-            i = end + 1
-        else:
-            j = i
-            while j < size and line[j] not in ' \t"`()' and not line.startswith("//", j):
-                j += 1
-            tokens.append(line[i:j])
-            i = j
-    return tokens
-
-
-def _lex_interpreted_string(line: str, start: int) -> tuple[str, int] | None:
-    """Decode the `"..."` string opening at line[start]; (value, next_index),
-    or None (fail closed) on an unterminated string or unmodelled escape."""
-    i = start + 1
-    size = len(line)
-    buf: list[str] = []
-    while i < size and line[i] != '"':
-        if line[i] == "\\":
-            if i + 1 >= size or line[i + 1] not in '\\"':
-                return None
-            buf.append(line[i + 1])
-            i += 2
-        else:
-            buf.append(line[i])
-            i += 1
-    if i >= size:
-        return None
-    return "".join(buf), i + 1
-
-
 _MODULE_VERSION_TOKENS = 2  # `module/path v1.2.3` — a cache-resolved replacement side
-
-
-def _dir_shaped(token: str) -> bool:
-    """True when `token` is a filesystem-path replacement target per go.mod's
-    grammar: rooted, or starting with `./` / `../` (go rejects anything else
-    as a versionless replacement)."""
-    if token in (".", "..") or token.startswith(("./", "../")):
-        return True
-    if sys.platform == "win32" and token.startswith((".\\", "..\\")):  # pragma: no cover
-        return True
-    return Path(token).is_absolute()
 
 
 def _boundary_violation(module_root: Path, boundary: Path) -> str | None:
@@ -292,7 +217,7 @@ def _boundary_violation(module_root: Path, boundary: Path) -> str | None:
         return "go.mod unreadable"
     in_block = False
     for lineno, raw_line in enumerate(text.split("\n"), start=1):
-        tokens = _lex_go_mod_line(raw_line.rstrip("\r"))
+        tokens = lex_go_mod_line(raw_line.rstrip("\r"))
         if tokens is None:
             return f"go.mod line {lineno} cannot be lexed"
         if not tokens:
@@ -336,11 +261,11 @@ def _classify_replace(
         return malformed
     split = directive.index("=>")
     lhs, rhs = directive[:split], directive[split + 1 :]
-    if len(lhs) not in (1, _MODULE_VERSION_TOKENS) or not all(lhs) or _dir_shaped(lhs[0]):
+    if len(lhs) not in (1, _MODULE_VERSION_TOKENS) or not all(lhs) or dir_shaped(lhs[0]):
         return malformed
-    if len(rhs) == _MODULE_VERSION_TOKENS and rhs[1].startswith("v") and not _dir_shaped(rhs[0]):
+    if len(rhs) == _MODULE_VERSION_TOKENS and rhs[1].startswith("v") and not dir_shaped(rhs[0]):
         return None  # module path + version: resolved by the cache, not the fs
-    if len(rhs) != 1 or not _dir_shaped(rhs[0]):
+    if len(rhs) != 1 or not dir_shaped(rhs[0]):
         return malformed
     return _path_target_violation(rhs[0], module_root, boundary, lineno)
 
