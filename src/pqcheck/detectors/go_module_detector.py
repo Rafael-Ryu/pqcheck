@@ -45,6 +45,7 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
+from pqcheck.detectors._source_read import ResourceLimitError
 from pqcheck.detectors.go_detector import _MAX_KEY_SIZE, detect_go_file
 from pqcheck.models import AlgorithmFamily, CryptoFinding, SourceLocation
 
@@ -99,7 +100,11 @@ _RSS_POLL_SECONDS = 0.25
 _MEMORY_LIMIT_BYTES = 3 * 1024**3
 
 
-def detect_go_module(module_root: Path, scan_root: Path | None = None) -> list[CryptoFinding]:
+def detect_go_module(
+    module_root: Path,
+    scan_root: Path | None = None,
+    errors: list[str] | None = None,
+) -> list[CryptoFinding]:
     """Detect crypto in the Go module rooted at `module_root`. Never raises.
 
     Union of both detectors (corpus decision 2026-06-11, ADR 0005): go/types
@@ -115,9 +120,14 @@ def detect_go_module(module_root: Path, scan_root: Path | None = None) -> list[C
     follow (defaults to `module_root`): `packages.Load` resolves local
     replacements before any output filtering, so a hostile go.mod pointing at
     `../outside` would make the child read source beyond the scan boundary.
-    An escaping replacement skips the analyzer entirely, like every other
-    analyzer failure, and the syntactic floor stands.
+    An escaping (or undecidable — the check fails closed) replacement skips
+    the analyzer entirely and the syntactic floor stands; that suppression is
+    never silent — a diagnostic is appended to `errors` (when provided) so
+    the scan reports itself as semantically incomplete for this module.
+    `errors` also collects per-file resource-guard skips from the syntactic
+    fallback walk.
     """
+    sink = errors if errors is not None else []
     # Resolve once so BOTH passes derive paths from the same spelling — the
     # analyzer echoes whatever root it is handed, while the fallback resolves
     # internally; a symlinked root (macOS /var→/private/var, mkdtemp under a
@@ -125,18 +135,25 @@ def detect_go_module(module_root: Path, scan_root: Path | None = None) -> list[C
     # union dedup misses (caught by the release smoke on macOS/Windows).
     module_root = module_root.resolve()
     boundary = scan_root.resolve() if scan_root is not None else module_root
+    syntactic = _fallback(module_root, sink)
     if not _argv_encodable(module_root):
-        return _fallback(module_root)
-    syntactic = _fallback(module_root)
+        return syntactic
     located = _locate_binary()
     if located is not None:
         binary, trusted = located
-        if _verify_sha256(binary, trusted=trusted) and not _replace_escapes(
-            module_root, boundary
-        ):
-            stdout = _run_analyzer(module_root, binary)
-            if stdout is not None:
-                return _merge_findings(_map_findings(stdout, module_root), syntactic)
+        if _verify_sha256(binary, trusted=trusted):
+            violation = _boundary_violation(module_root, boundary)
+            if violation is None:
+                stdout = _run_analyzer(module_root, binary)
+                if stdout is not None:
+                    return _merge_findings(_map_findings(stdout, module_root), syntactic)
+            else:
+                # Suppressed semantic analysis must never look like a clean
+                # semantic pass — record why the scan is incomplete here.
+                sink.append(
+                    f"{module_root / 'go.mod'}: ScanBoundaryError: "
+                    f"semantic analysis suppressed: {violation}"
+                )
     return syntactic
 
 
@@ -177,47 +194,115 @@ def _merge_findings(
     return merged
 
 
-def _replace_escapes(module_root: Path, boundary: Path) -> bool:
-    """True when go.mod carries a filesystem `replace` resolving outside `boundary`.
+def _lex_go_mod_line(line: str) -> list[str] | None:
+    """Tokens of one go.mod line, or None when it cannot be lexed safely.
 
-    In a replace directive the right-hand side is a directory path exactly when
-    it carries no version token (the go.mod grammar requires a version for a
-    module-path replacement), so a single token after `=>` is treated as a
-    path. Relative paths resolve against the go.mod's directory; `resolve()`
-    also collapses a symlink pointing outside. Unreadable go.mod fails closed —
-    the analyzer could not load the module anyway.
+    A minimal fail-closed lexer for the token shapes go.mod's own lexer
+    produces: bare tokens, interpreted strings (`"..."`, honoring only the
+    `\\\\` and `\\"` escapes), raw strings (backticks), `//` comments, and
+    `(`/`)` as standalone punctuation. Anything it cannot decide —
+    unterminated string, unsupported escape, a raw string that would span
+    lines — returns None so the boundary check treats the file as hostile
+    instead of guessing. A naive whitespace split turned a quoted path
+    containing a space into two RHS tokens, which read as a module+version
+    replacement and let the path escape the scan boundary unchecked.
+    """
+    tokens: list[str] = []
+    i, size = 0, len(line)
+    while i < size:
+        ch = line[i]
+        if ch in " \t":
+            i += 1
+        elif line.startswith("//", i):
+            break
+        elif ch in "()":
+            tokens.append(ch)
+            i += 1
+        elif ch == '"':
+            lexed = _lex_interpreted_string(line, i)
+            if lexed is None:
+                return None  # unterminated string or an escape we do not model
+            token, i = lexed
+            tokens.append(token)
+        elif ch == "`":
+            end = line.find("`", i + 1)
+            if end == -1:
+                return None  # unterminated raw string (could span lines)
+            tokens.append(line[i + 1 : end])
+            i = end + 1
+        else:
+            j = i
+            while j < size and line[j] not in ' \t"`()' and not line.startswith("//", j):
+                j += 1
+            tokens.append(line[i:j])
+            i = j
+    return tokens
+
+
+def _lex_interpreted_string(line: str, start: int) -> tuple[str, int] | None:
+    """Decode the `"..."` string opening at line[start]; (value, next_index),
+    or None (fail closed) on an unterminated string or unmodelled escape."""
+    i = start + 1
+    size = len(line)
+    buf: list[str] = []
+    while i < size and line[i] != '"':
+        if line[i] == "\\":
+            if i + 1 >= size or line[i + 1] not in '\\"':
+                return None
+            buf.append(line[i + 1])
+            i += 2
+        else:
+            buf.append(line[i])
+            i += 1
+    if i >= size:
+        return None
+    return "".join(buf), i + 1
+
+
+_MODULE_VERSION_TOKENS = 2  # `module/path v1.2.3` — a cache-resolved replacement side
+
+
+def _dir_shaped(token: str) -> bool:
+    """True when `token` is a filesystem-path replacement target per go.mod's
+    grammar: rooted, or starting with `./` / `../` (go rejects anything else
+    as a versionless replacement)."""
+    if token in (".", "..") or token.startswith(("./", "../")):
+        return True
+    if sys.platform == "win32" and token.startswith((".\\", "..\\")):  # pragma: no cover
+        return True
+    return Path(token).is_absolute()
+
+
+def _boundary_violation(module_root: Path, boundary: Path) -> str | None:
+    """Reason the analyzer must not run on this module, or None when safe.
+
+    Fail-closed over the whole go.mod: any line the lexer cannot decide, any
+    replace directive that does not match the grammar exactly, and any
+    filesystem replacement target resolving outside `boundary` all suppress
+    semantic analysis (`packages.Load` resolves local replacements before any
+    output filtering, so a hostile go.mod pointing at `../outside` would make
+    the child read source beyond the scan boundary). Relative paths resolve
+    against the go.mod's directory; `resolve()` also collapses a symlink
+    pointing outside. Unreadable go.mod fails closed — the analyzer could not
+    load the module anyway.
     """
     try:
         text = (module_root / "go.mod").read_text(encoding="utf-8", errors="replace")
     except OSError:
-        return True
-    for target in _replacement_paths(text):
-        candidate = target if target.is_absolute() else module_root / target
-        try:
-            if not candidate.resolve().is_relative_to(boundary):
-                return True
-        except OSError:
-            return True
-    return False
-
-
-def _replacement_paths(go_mod_text: str) -> Iterable[Path]:
-    """Filesystem targets of every `replace` directive in `go_mod_text`.
-
-    The right-hand side of a replace is a directory exactly when it carries no
-    version token — the go.mod grammar requires a version for a module-path
-    replacement — so a lone token after `=>` is a path. Both the single-line
-    and the parenthesised block form are handled.
-    """
+        return "go.mod unreadable"
     in_block = False
-    for raw_line in go_mod_text.splitlines():
-        tokens = raw_line.split("//", 1)[0].split()
+    for lineno, raw_line in enumerate(text.split("\n"), start=1):
+        tokens = _lex_go_mod_line(raw_line.rstrip("\r"))
+        if tokens is None:
+            return f"go.mod line {lineno} cannot be lexed"
         if not tokens:
             continue
         if in_block:
-            if tokens[0] == ")":
+            if tokens == [")"]:
                 in_block = False
                 continue
+            if ")" in tokens or "(" in tokens:
+                return f"go.mod line {lineno}: malformed replace block"
             directive = tokens
         elif tokens[0] == "replace":
             if tokens[1:] == ["("]:
@@ -226,11 +311,51 @@ def _replacement_paths(go_mod_text: str) -> Iterable[Path]:
             directive = tokens[1:]
         else:
             continue
-        if "=>" not in directive:
-            continue
-        rhs = directive[directive.index("=>") + 1 :]
-        if len(rhs) == 1:  # a module path + version is resolved by the cache, not the fs
-            yield Path(rhs[0].strip('"'))
+        reason = _classify_replace(directive, module_root, boundary, lineno)
+        if reason is not None:
+            return reason
+    if in_block:
+        return "go.mod: unclosed replace block"
+    return None
+
+
+def _classify_replace(
+    directive: list[str], module_root: Path, boundary: Path, lineno: int
+) -> str | None:
+    """Reason one replace directive is unsafe, or None when provably safe.
+
+    Safe shapes only: `mod [ver] => mod ver` (resolved by the module cache,
+    never the filesystem — and the RHS must not be dir-shaped) and
+    `mod [ver] => dir` with the directory resolving inside the boundary.
+    Every other shape is malformed go.mod `go` itself would refuse; treating
+    it as escaping costs nothing (the analyzer would fail on it anyway) and
+    closes the gap where a parser disagreement smuggles a path through.
+    """
+    malformed = f"go.mod line {lineno}: malformed replace directive"
+    if directive.count("=>") != 1:
+        return malformed
+    split = directive.index("=>")
+    lhs, rhs = directive[:split], directive[split + 1 :]
+    if len(lhs) not in (1, _MODULE_VERSION_TOKENS) or not all(lhs) or _dir_shaped(lhs[0]):
+        return malformed
+    if len(rhs) == _MODULE_VERSION_TOKENS and rhs[1].startswith("v") and not _dir_shaped(rhs[0]):
+        return None  # module path + version: resolved by the cache, not the fs
+    if len(rhs) != 1 or not _dir_shaped(rhs[0]):
+        return malformed
+    return _path_target_violation(rhs[0], module_root, boundary, lineno)
+
+
+def _path_target_violation(
+    token: str, module_root: Path, boundary: Path, lineno: int
+) -> str | None:
+    target = Path(token)
+    candidate = target if target.is_absolute() else module_root / target
+    try:
+        if not candidate.resolve().is_relative_to(boundary):
+            return f"go.mod line {lineno}: replace target resolves outside the scan root"
+    except OSError:
+        return f"go.mod line {lineno}: replace target cannot be resolved"
+    return None
 
 
 def _argv_encodable(module_root: Path) -> bool:
@@ -248,14 +373,16 @@ def _argv_encodable(module_root: Path) -> bool:
     return True
 
 
-def _fallback(module_root: Path) -> list[CryptoFinding]:
+def _fallback(module_root: Path, errors: list[str]) -> list[CryptoFinding]:
     """Tree-sitter fallback for one module root. Never raises.
 
     Walks every `.go` file under `module_root`, skipping files that belong to a
     nested module (those have a `go.mod` ancestor below the root that is not the
     root itself, so they will be dispatched on their own root). Returns [] on an
     empty or unreadable module rather than propagating any error — callers rely on
-    the never-raise contract.
+    the never-raise contract. A file skipped by a resource guard is recorded in
+    `errors` (one bad file must not discard the rest of the module's findings,
+    but it must not pass as scanned either).
     """
     module_root = module_root.resolve()
     findings: list[CryptoFinding] = []
@@ -266,7 +393,10 @@ def _fallback(module_root: Path) -> list[CryptoFinding]:
     for go_file in go_files:
         if _nearest_go_mod_dir(go_file, module_root) != module_root:
             continue  # nested module: dispatched on its own root, not here
-        findings.extend(detect_go_file(go_file))
+        try:
+            findings.extend(detect_go_file(go_file))
+        except ResourceLimitError as exc:
+            errors.append(f"{go_file}: {exc.__class__.__name__}: {exc}")
     return findings
 
 

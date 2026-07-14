@@ -82,7 +82,7 @@ def test_scan_dispatches_go_modules_once_and_loose_files_per_file(
     file_calls: list[Path] = []
     monkeypatch.setattr(
         scanner_mod, "detect_go_module",
-        lambda p, *, scan_root: module_calls.append((p, scan_root)) or [],
+        lambda p, *, scan_root, errors: module_calls.append((p, scan_root)) or [],
     )
     monkeypatch.setattr(
         scanner_mod, "detect_go_file",
@@ -154,3 +154,30 @@ def test_scan_reports_malformed_manifests_and_keeps_scanning(tmp_path: Path) -> 
     assert any("package-lock.json" in e and "ManifestError" in e for e in result.errors)
     assert [d.name for d in result.dependencies] == ["cryptography"]
     assert [f.algorithm for f in result.findings] == ["MD5"]
+
+
+def test_scan_reports_resource_guard_skips_as_errors(tmp_path: Path) -> None:
+    # A resource-guard skip must never read as a clean file: 80 KB of filler
+    # after a real md5 call would otherwise suppress the finding silently.
+    root = _tree(tmp_path, {"app.py": "import hashlib\nhashlib.md5(b'x')\n"})
+    (root / "big.py").write_bytes(
+        b"import hashlib\nhashlib.md5(b'x')\n" + b"x=1\n" * 20_000
+    )
+    (root / "huge.pem").write_bytes(b"-----BEGIN CERTIFICATE-----\n" + b"#" * (1024 * 1024 + 1))
+    result = scan(root)
+    # the clean file still yields its finding; the capped ones yield diagnostics
+    assert any(f.algorithm == "MD5" and f.location.path.name == "app.py" for f in result.findings)
+    assert not any(f.location.path.name in ("big.py", "huge.pem") for f in result.findings)
+    assert any("big.py: ResourceLimitError" in e and "scan incomplete" in e for e in result.errors)
+    assert any("huge.pem: ResourceLimitError" in e for e in result.errors)
+
+
+def test_scan_reports_oversized_manifest_as_error(tmp_path: Path) -> None:
+    root = _tree(tmp_path, {"app.py": "x = 1\n"})
+    (root / "requirements.txt").write_bytes(b"# pad\n" * (1024 * 1024))  # 6 MiB > 5 MiB cap
+    result = scan(root)
+    assert result.dependencies == ()
+    assert any(
+        "requirements.txt: ManifestError" in e and "inventory incomplete" in e
+        for e in result.errors
+    )
