@@ -1056,7 +1056,8 @@ def test_merge_keeps_distinct_calls_on_the_same_line() -> None:
     "body",
     [
         'replace example.com/spaced => "../outside dir"\n',  # quoted path w/ space (Codex 2.1)
-        "replace example.com/x => `../outside`\n",  # raw-string path
+        "replace example.com/x => `../outside`\n",  # raw string: modfile refuses, fail closed
+        "replace example.com/x => `./inside`\n",  # raw string, even inside: fail closed
         'replace example.com/x => ../x "unterminated\n',  # unterminated string: fail closed
         "replace example.com/x => `unterminated\n",  # raw string spanning lines: fail closed
         'replace (\n    example.com/x => "../outside dir"\n)\n',  # block form, quoted
@@ -1082,7 +1083,6 @@ def test_boundary_violation_fails_closed_on_hostile_replace(
     "body",
     [
         'replace example.com/x => "./inside"\n',  # quoted path, inside
-        "replace example.com/x => `./inside`\n",  # raw-string path, inside
         "replace example.com/a => example.com/b v1.2.3\n",  # module+version: cache, not fs
         "replace example.com/a v1.0.0 => ./inside\n",  # versioned LHS, dir inside
     ],
@@ -1148,3 +1148,14 @@ def test_replace_with_escaped_traversal_still_detected(tmp_path: Path) -> None:
     module = tmp_path / "root"
     _write_go_mod(module, 'replace example.com/x => "\\x2e./outside"\n')
     assert gmd._boundary_violation(module, module) is not None
+
+
+def test_replace_target_with_embedded_nul_fails_closed(tmp_path: Path) -> None:
+    # `"./nul\x00fresh"` is a legal go.mod escape but Path.resolve() raises
+    # ValueError on the decoded NUL (round 6). The boundary check must report
+    # the target as unresolvable instead of crashing — a crash propagated out
+    # of detect_go_module and discarded the already-found syntactic findings.
+    module = tmp_path / "m"
+    _write_go_mod(module, 'replace example.com/x => "./nul\\x00fresh"\n')
+    violation = gmd._boundary_violation(module, module)
+    assert violation is not None and "cannot be resolved" in violation
