@@ -79,6 +79,10 @@ def _fingerprint(repo: str, result: ScanResult, index: int) -> str:
     # detector_id is deliberately NOT part of the fingerprint: a verdict
     # adjudicates a call site, and must survive the same site being
     # re-attributed to a different detector (e.g. tree-sitter -> go/types).
+    # The column IS part of it: two calls to the same algorithm can share a
+    # line (`OAEP(MGF1(SHA1()), SHA1(), None)`), and without the column they
+    # collapse to one adjudication key — so a TP and an FP on the same line
+    # could not be told apart.
     material = "|".join(
         [
             repo,
@@ -86,6 +90,7 @@ def _fingerprint(repo: str, result: ScanResult, index: int) -> str:
             finding.family.value,
             rel.as_posix(),
             str(finding.location.line),
+            str(finding.location.column),
         ]
     )
     return hashlib.sha256(material.encode("utf-8")).hexdigest()[:16]
