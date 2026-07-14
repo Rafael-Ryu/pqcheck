@@ -163,8 +163,13 @@ def _dependency_component(index: int, dep: CryptoDependency, target: Path) -> di
     properties: list[dict[str, str]] = [
         {"name": "pqcheck:ecosystem", "value": dep.ecosystem},
         {"name": "pqcheck:declared_in", "value": _relative_location(dep.declared_in, target)},
-        {"name": "pqcheck:integrity_verified", "value": str(dep.integrity_verified).lower()},
     ]
+    # None means no checksum source was consulted; omit the property rather
+    # than publish "true" for a verification that never ran.
+    if dep.integrity_verified is not None:
+        properties.append(
+            {"name": "pqcheck:integrity_verified", "value": str(dep.integrity_verified).lower()}
+        )
     if dep.introduces_algorithms:
         properties.append(
             {"name": "pqcheck:introduces", "value": ",".join(dep.introduces_algorithms)}

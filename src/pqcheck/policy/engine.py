@@ -93,6 +93,27 @@ def rule_matches(rule: AlgorithmRule, finding: CryptoFinding) -> bool:
     return rule.modes is None or finding.mode in rule.modes
 
 
+# Policy constructs the schema accepts (mirroring the §13 template) but this
+# engine does not evaluate yet. Surfaced to the user at load time instead of
+# silently narrowing the gate: an approved rule scoped by e.g. `hash` matches
+# ALL findings of that algorithm, because findings do not carry the digest —
+# so the declared constraint is wider-open than it reads.
+_UNEVALUATED_RULE_FIELDS = ("hash", "params", "context")
+
+
+def unevaluated_constructs(policy: CryptoPolicy) -> list[str]:
+    """Sorted names of declared policy constructs the engine ignores."""
+    found: set[str] = set()
+    for rule in (*policy.spec.approved, *policy.spec.banned):
+        for field in _UNEVALUATED_RULE_FIELDS:
+            if getattr(rule, field) is not None:
+                found.add(field)
+    for section in ("hybrid_required", "fail_on", "warn_on", "info_only"):
+        if getattr(policy.spec, section):
+            found.add(section.replace("_", "-"))
+    return sorted(found)
+
+
 _DEFAULT_BASE = Severity.MEDIUM  # base for default-action (unmatched) findings
 
 

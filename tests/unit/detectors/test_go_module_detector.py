@@ -937,3 +937,23 @@ def test_detect_go_module_resolves_root_before_both_passes(
     monkeypatch.setattr(gmd, "_locate_binary", lambda: None)
     detect_go_module(link)
     assert received == [real.resolve()]
+
+
+def test_symlinked_go_mod_does_not_establish_module_boundary(tmp_path: Path) -> None:
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "real-go.mod").write_text("module evil.example/x\n", encoding="utf-8")
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "go.mod").symlink_to(outside / "real-go.mod")
+    go_file = repo / "main.go"
+    go_file.write_text("package main\n", encoding="utf-8")
+    grouping = gmd.group_go_files_by_module([go_file], scan_root=repo)
+    assert grouping == {None: [go_file]}
+
+
+def test_verify_sha256_fails_closed_when_binary_vanishes(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(gmd, "_CRYPTO_ANALYZER_SHA256", "0" * 64)
+    assert gmd._verify_sha256(tmp_path / "gone", trusted=False) is False

@@ -46,6 +46,7 @@ dependencies = [
     "rich>=13.9,<15",
     "pydantic>=2.11,<3",
     "pydantic-settings>=2.6,<3",
+    "cryptography>=43,<47",
     "tree-sitter>=0.23,<0.26",
     "tree-sitter-java>=0.23,<0.26",
     "tree-sitter-go>=0.23,<0.26",

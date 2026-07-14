@@ -3,7 +3,8 @@
 `scan` runs the end-to-end pipeline (walk → detect → parse → evaluate)
 and emits a terminal report, a CycloneDX 1.6 CBOM, or SARIF 2.1.0.
 Exit codes: 0 clean, 1 policy gate tripped, 2 usage/policy error,
-70 internal error (emitted CBOM/SARIF failed self-validation).
+70 internal error (emitted CBOM/SARIF failed self-validation),
+73 refused to write output through a symlink.
 """
 
 from __future__ import annotations
@@ -21,9 +22,9 @@ from pqcheck import __version__
 from pqcheck.cbom.builder import build_cbom
 from pqcheck.cbom.validator import validate_cyclonedx_16
 from pqcheck.models import ScanResult
-from pqcheck.output.sarif import build_sarif
+from pqcheck.output.sarif import build_sarif, sanitize_text
 from pqcheck.output.sarif_validator import validate_sarif_210
-from pqcheck.policy.engine import gate
+from pqcheck.policy.engine import gate, unevaluated_constructs
 from pqcheck.policy.loader import PolicyError, load_default_policy, load_policy
 from pqcheck.policy.schema import CryptoPolicy
 from pqcheck.scanner import scan as run_scan
@@ -87,18 +88,38 @@ def _load_policy_arg(value: str) -> CryptoPolicy:
     path = Path(value)
     try:
         if value.endswith((".yaml", ".yml")) or path.exists():
-            return load_policy(path)
-        return load_default_policy(value)
+            loaded = load_policy(path)
+        else:
+            loaded = load_default_policy(value)
     except PolicyError as exc:
         raise typer.BadParameter(str(exc), param_hint="--policy") from exc
+    _warn_unevaluated(loaded)
+    return loaded
+
+
+def _warn_unevaluated(policy: CryptoPolicy) -> None:
+    constructs = unevaluated_constructs(policy)
+    if constructs:
+        typer.echo(
+            "warning: policy declares constraints pqcheck v0.1 does not evaluate "
+            f"(rules match on family/algorithm/parameter-sets/curves/modes/paddings "
+            f"only): {', '.join(constructs)}",
+            err=True,
+        )
 
 
 def _emit_json(doc: dict[str, object], output: Path | None) -> None:
     text = json.dumps(doc, indent=2) + "\n"
     if output is None:
         typer.echo(text, nl=False)
-    else:
-        output.write_text(text, encoding="utf-8")
+        return
+    # write_text follows symlinks: a scanned repo could pre-plant the default
+    # output name (self-cbom.json) as a symlink and redirect the write over
+    # any file the user can touch. Refuse instead of silently replacing.
+    if output.is_symlink():
+        typer.echo(f"refusing to write through a symlink: {output}", err=True)
+        raise typer.Exit(code=73)
+    output.write_text(text, encoding="utf-8")
 
 
 def _relative(path: Path, target: Path) -> str:
@@ -108,7 +129,17 @@ def _relative(path: Path, target: Path) -> str:
         return path.as_posix()
 
 
+def _safe_line(text: str) -> str:
+    # sanitize_text keeps \n and \t (fine inside SARIF strings); a terminal
+    # report is line-oriented, so either one would let a hostile filename
+    # forge extra report lines or misalign columns. Collapse them to spaces.
+    return sanitize_text(text).replace("\n", " ").replace("\t", " ")
+
+
 def _terminal_report(result: ScanResult) -> None:
+    # Paths, reasons, and error strings originate in the scanned (untrusted)
+    # tree; sanitize_text strips the ANSI/bidi control characters that would
+    # otherwise reach the terminal verbatim.
     target = result.target
     if result.policy_decisions:
         for decision in result.policy_decisions:
@@ -122,18 +153,20 @@ def _terminal_report(result: ScanResult) -> None:
             )
             if decision.reason:
                 line += f" — {decision.reason}"
-            typer.echo(line)
+            typer.echo(_safe_line(line))
     else:
         for finding in result.findings:
             loc = finding.location
             typer.echo(
-                f"• {_relative(loc.path, target)}:{loc.line} — {finding.algorithm}"
-                f" ({finding.family.value})"
+                _safe_line(
+                    f"• {_relative(loc.path, target)}:{loc.line} — {finding.algorithm}"
+                    f" ({finding.family.value})"
+                )
             )
     if result.dependencies:
         typer.echo(f"dependencies: {len(result.dependencies)} parsed")
     for error in result.errors:
-        typer.echo(f"warning: {error}", err=True)
+        typer.echo(_safe_line(f"warning: {error}"), err=True)
     if result.policy_id is not None:
         actions = [d.action.value for d in result.policy_decisions]
         typer.echo(
@@ -244,6 +277,7 @@ def self_audit(
     bans.
     """
     policy = load_default_policy("cryptoct-default")
+    _warn_unevaluated(policy)
     result = run_scan(target, policy)
     doc = build_cbom(result)
     violations = validate_cyclonedx_16(doc)
@@ -353,6 +387,7 @@ def policy_validate(
     except PolicyError as exc:
         typer.echo(f"invalid: {exc}", err=True)
         raise typer.Exit(code=1) from exc
+    _warn_unevaluated(loaded)
     typer.echo(f"valid: {loaded.metadata.name} {loaded.metadata.version}")
 
 

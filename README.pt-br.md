@@ -16,8 +16,8 @@ legados, primitivas pós-quânticas — e emite CBOM CycloneDX 1.6 + SARIF
 2.1.0, avaliados contra uma política YAML versionável. Roda no laptop e
 no CI, sem servidor, sem conta e sem rede durante o scan.
 
-Por que agora: o NIST IR 8547 deprecia RSA e ECC em 2030 e os proíbe em
-2035, e todo framework de migração trata o inventário como o primeiro
+Por que agora: o NIST IR 8547 (rascunho público inicial) propõe
+depreciar RSA e ECC após 2030 e proibi-los após 2035, e todo framework de migração trata o inventário como o primeiro
 passo. **Nenhuma regulação brasileira exige inventário criptográfico ou
 migração PQC hoje** — os perfis BR inclusos (`br-bcb-conservative`,
 `br-drex-piloto`, `br-vendor-dd`) antecipam essa direção alinhados aos

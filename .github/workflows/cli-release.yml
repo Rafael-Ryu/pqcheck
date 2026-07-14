@@ -152,7 +152,12 @@ jobs:
             esac
           done
           [ -n "$linux_whl" ] || { echo "no manylinux wheel to smoke-test"; exit 1; }
-          uv run --no-project --with "$linux_whl" pqcheck --help
+          # Fresh venv, not `uv run --with`: layering the wheel over an
+          # existing environment can mask a dependency missing from the wheel
+          # metadata (see the equivalent ci.yml smoke step).
+          uv venv /tmp/wheel-smoke
+          VIRTUAL_ENV=/tmp/wheel-smoke uv pip install "$linux_whl"
+          /tmp/wheel-smoke/bin/pqcheck --help
       # Publish first, while dist/ holds only wheels; signing adds .sigstore
       # bundles that PyPI must not receive.
       - name: Publish to TestPyPI (dry-run channel)

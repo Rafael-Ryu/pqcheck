@@ -154,3 +154,19 @@ def test_validator_rejects_malformed_document() -> None:
     errors = validate_sarif_210({"version": "2.1.0"})
     assert errors
     assert any("runs" in error for error in errors)
+
+
+def test_scan_errors_are_sanitized() -> None:
+    doc = build_sarif(_result(errors=("path/\x1b[31mevil\x1b[0m: denied",)))
+    errors = _run(doc)["properties"]["scan_errors"]
+    assert errors == ["path/[31mevil[0m: denied"]
+
+
+def test_artifact_uri_is_sanitized() -> None:
+    hostile = _finding(
+        location=SourceLocation(path=Path("/repo/src/\x1b[2Jwipe.py"), line=1, column=0)
+    )
+    doc = build_sarif(_result(findings=(hostile,)))
+    uri = _run(doc)["results"][0]["locations"][0]["physicalLocation"]["artifactLocation"]["uri"]
+    assert "\x1b" not in uri
+    assert uri == "src/[2Jwipe.py"

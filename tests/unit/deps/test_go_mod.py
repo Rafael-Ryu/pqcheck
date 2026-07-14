@@ -93,15 +93,15 @@ def test_parse_block_skips_compact_comment_line(tmp_path: Path) -> None:
     assert {d.name for d in deps} == {"golang.org/x/crypto"}
 
 
-def test_parse_integrity_verified_true_when_no_go_sum(tmp_path: Path) -> None:
+def test_parse_integrity_unknown_when_no_go_sum(tmp_path: Path) -> None:
     f = tmp_path / "go.mod"
     f.write_text(
         "module example.com/app\n\nrequire golang.org/x/crypto v0.21.0\n",
         encoding="utf-8",
     )
     deps = parse(f)
-    # No go.sum to cross-reference: the parser makes no negative integrity claim.
-    assert all(d.integrity_verified for d in deps)
+    # No go.sum to cross-reference: no integrity claim in either direction.
+    assert all(d.integrity_verified is None for d in deps)
 
 
 def test_parse_integrity_unverified_when_go_sum_lacks_entry(tmp_path: Path) -> None:
