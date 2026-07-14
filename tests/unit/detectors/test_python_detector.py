@@ -1564,3 +1564,170 @@ def test_ssl_constant_reference_does_not_double_emit_alongside_calls() -> None:
     findings = _scan(src)
     assert len(findings) == 1
     assert findings[0].algorithm == "MD5"
+
+
+# ---- single-assignment dataflow (Task C2) ----
+
+
+def test_single_assigned_var_digest_call_attributes_hash() -> None:
+    # authlib's oauth1 HMAC-SHA1 signer (held-out recall miss): the hmac.new()
+    # object is single-assigned, then .digest() is called on it several lines
+    # later. The constructor call site already fires; this closes the second.
+    src = (
+        "import hmac, hashlib\n"
+        "def sign(key, text):\n"
+        "    signature = hmac.new(key, text, hashlib.sha1)\n"
+        "    return signature.digest()\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 2
+    lines = sorted(f.location.line for f in findings)
+    assert lines == [3, 4]
+    assert all(f.algorithm == "HMAC" for f in findings)
+    method_finding = next(f for f in findings if f.location.line == 4)
+    assert method_finding.confidence == pytest.approx(0.9)
+
+
+def test_single_assigned_hashlib_var_hexdigest_call_attributes_hash() -> None:
+    src = (
+        "import hashlib\n"
+        "def checksum(data):\n"
+        "    h = hashlib.sha256()\n"
+        "    h.update(data)\n"
+        "    return h.hexdigest()\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 2
+    algos = {f.algorithm for f in findings}
+    assert algos == {"SHA-256"}
+
+
+def test_reassigned_var_digest_call_does_not_attribute() -> None:
+    # Reassignment is explicitly out of scope: two Assigns to the same name
+    # means the "single assignment" proof does not hold, so only the two
+    # constructor call sites fire -- not a third finding for .digest().
+    src = (
+        "import hashlib\n"
+        "def f(data):\n"
+        "    h = hashlib.sha256()\n"
+        "    h = hashlib.md5()\n"
+        "    return h.digest()\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 2
+    assert {f.algorithm for f in findings} == {"SHA-256", "MD5"}
+
+
+def test_conditionally_assigned_var_digest_call_does_not_attribute() -> None:
+    # Conditional assignment (if/else) is out of scope -- textually two
+    # Assign nodes bind the same name, same rigid rule as reassignment.
+    src = (
+        "import hashlib\n"
+        "def f(data, flag):\n"
+        "    if flag:\n"
+        "        h = hashlib.sha256()\n"
+        "    else:\n"
+        "        h = hashlib.md5()\n"
+        "    return h.digest()\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 2
+    assert {f.algorithm for f in findings} == {"SHA-256", "MD5"}
+
+
+def test_module_level_single_assignment_is_out_of_scope() -> None:
+    # Intra-function only: a module-level (not-inside-a-function) single
+    # assignment must not be attributed.
+    src = "import hashlib\nh = hashlib.sha256()\nh.digest()\n"
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "SHA-256"
+
+
+def test_async_function_single_assignment_is_scoped_too() -> None:
+    src = (
+        "import hashlib\n"
+        "async def f(data):\n"
+        "    h = hashlib.sha256()\n"
+        "    return h.digest()\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 2
+    assert {f.algorithm for f in findings} == {"SHA-256"}
+
+
+def test_vararg_and_kwarg_params_count_as_bindings() -> None:
+    # A crypto-named *args/**kwargs parameter shadows any same-named var, so
+    # a later `h = hashlib.sha256()` inside such a function is a second
+    # binding (param + assign) and must not be attributed.
+    src = (
+        "import hashlib\n"
+        "def f(*h, **kwargs):\n"
+        "    h = hashlib.sha256()\n"
+        "    return h.digest()\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "SHA-256"
+
+
+def test_non_name_receiver_digest_call_does_not_attribute() -> None:
+    # `d["h"].digest()` -- the receiver isn't a bare Name, so it can never
+    # match a single-assigned var; only the constructor call site fires.
+    src = (
+        "import hashlib\n"
+        "def f(d, data):\n"
+        "    d['h'] = hashlib.sha256()\n"
+        "    return d['h'].digest()\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "SHA-256"
+
+
+def test_single_assigned_var_from_unresolved_call_does_not_attribute() -> None:
+    # The assigned value is a Call, but its callee isn't import-resolvable
+    # (a local helper function) -- no catalog hit, so `.digest()` on it must
+    # not be attributed to anything.
+    src = (
+        "def make_thing():\n"
+        "    return object()\n"
+        "def f():\n"
+        "    h = make_thing()\n"
+        "    return h.digest()\n"
+    )
+    findings = _scan(src)
+    assert findings == []
+
+
+def test_single_assigned_var_wrong_family_does_not_attribute() -> None:
+    # AES is a catalogued constructor, but not in the HASH/MAC family this
+    # mechanism attributes -- an (implausible) `.digest()` call on it must
+    # not pick up a spurious finding.
+    src = (
+        "from cryptography.hazmat.primitives.ciphers import algorithms\n"
+        "def f(key):\n"
+        "    h = algorithms.AES(key)\n"
+        "    return h.digest()\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "AES"
+
+
+def test_dataflow_scope_does_not_cross_function_boundary() -> None:
+    # A var single-assigned in one function is invisible to another
+    # function's body, even if the name is reused (cross-function flow is
+    # explicitly out of scope).
+    src = (
+        "import hashlib\n"
+        "def make():\n"
+        "    h = hashlib.sha256()\n"
+        "    return h\n"
+        "def use(h):\n"
+        "    return h.digest()\n"
+    )
+    findings = _scan(src)
+    assert len(findings) == 1
+    assert findings[0].algorithm == "SHA-256"
+    assert findings[0].location.line == 3

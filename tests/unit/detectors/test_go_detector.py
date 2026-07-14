@@ -737,3 +737,76 @@ def test_rsa_key_size_const_identifier_does_not_resolve() -> None:
     rsa = [f for f in fs if f.algorithm == "RSA"]
     assert len(rsa) == 1
     assert rsa[0].key_size is None
+
+
+# ---- single-assignment dataflow (Task C2) ----
+
+
+def test_single_assigned_hash_var_sum_call_attributes_hash() -> None:
+    fs = _findings(
+        'package m\nimport "crypto/sha256"\n'
+        "func f(data []byte) []byte {\n"
+        "    h := sha256.New()\n"
+        "    h.Write(data)\n"
+        "    return h.Sum(nil)\n"
+        "}\n"
+    )
+    algos = [f.algorithm for f in fs]
+    assert algos.count("SHA-256") == 2
+    sum_finding = next(f for f in fs if f.location.line == 6)
+    assert sum_finding.algorithm == "SHA-256"
+    assert sum_finding.confidence == pytest.approx(0.9)
+
+
+def test_single_assigned_hmac_var_sum_call_attributes_hmac() -> None:
+    fs = _findings(
+        'package m\nimport (\n "crypto/hmac"\n "crypto/sha256"\n)\n'
+        "func f(key, data []byte) []byte {\n"
+        "    mac := hmac.New(sha256.New, key)\n"
+        "    mac.Write(data)\n"
+        "    return mac.Sum(nil)\n"
+        "}\n"
+    )
+    assert [f.algorithm for f in fs].count("HMAC") == 2
+
+
+def test_reassigned_go_var_sum_call_does_not_attribute() -> None:
+    fs = _findings(
+        'package m\nimport (\n "crypto/sha256"\n "crypto/md5"\n)\n'
+        "func f(data []byte) []byte {\n"
+        "    h := sha256.New()\n"
+        "    h = md5.New()\n"
+        "    return h.Sum(nil)\n"
+        "}\n"
+    )
+    assert [f.algorithm for f in fs] == ["SHA-256", "MD5"]
+
+
+def test_go_dataflow_ignores_unrelated_calls_in_scope() -> None:
+    # A bare function-value call (`fn()`, no selector) and a .Sum() call on
+    # an unrelated var must not confuse the single-assignment scan for `h`.
+    fs = _findings(
+        'package m\nimport "crypto/sha256"\n'
+        "func f(fn func(), data []byte) []byte {\n"
+        "    h := sha256.New()\n"
+        "    fn()\n"
+        "    other.Sum(nil)\n"
+        "    return h.Sum(nil)\n"
+        "}\n"
+    )
+    assert [f.algorithm for f in fs].count("SHA-256") == 2
+
+
+def test_go_dataflow_scope_does_not_cross_function_boundary() -> None:
+    fs = _findings(
+        'package m\nimport "crypto/sha256"\n'
+        "func make() []byte {\n"
+        "    h := sha256.New()\n"
+        "    return h.Sum(nil)\n"
+        "}\n"
+        "func use(h interface{ Sum([]byte) []byte }) []byte {\n"
+        "    return h.Sum(nil)\n"
+        "}\n"
+    )
+    assert [f.algorithm for f in fs] == ["SHA-256", "SHA-256"]
+    assert sorted(f.location.line for f in fs) == [4, 5]

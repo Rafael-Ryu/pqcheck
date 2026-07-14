@@ -245,3 +245,14 @@ planted:
   - {path: python/tls_config.py, line: 12, algorithm: TLS-1.0}
   - {path: python/tls_config.py, line: 13, algorithm: TLS-1.1}
   - {path: python/tls_config.py, line: 14, algorithm: SSL-3.0}
+
+  # Single-assignment dataflow (Task C2): constructor call site + the
+  # method-call site on the single-assigned variable, both expected.
+  - {path: python/dataflow_single_assignment.py, line: 16, algorithm: SHA-256}
+  - {path: python/dataflow_single_assignment.py, line: 18, algorithm: SHA-256}
+  - {path: python/dataflow_single_assignment.py, line: 22, algorithm: HMAC}
+  - {path: python/dataflow_single_assignment.py, line: 23, algorithm: HMAC}
+  - {path: go/dataflow_single_assignment.go, line: 17, algorithm: SHA-256}
+  - {path: go/dataflow_single_assignment.go, line: 19, algorithm: SHA-256}
+  - {path: go/dataflow_single_assignment.go, line: 23, algorithm: HMAC}
+  - {path: go/dataflow_single_assignment.go, line: 25, algorithm: HMAC}
