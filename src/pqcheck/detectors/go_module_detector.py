@@ -99,7 +99,7 @@ _RSS_POLL_SECONDS = 0.25
 _MEMORY_LIMIT_BYTES = 3 * 1024**3
 
 
-def detect_go_module(module_root: Path) -> list[CryptoFinding]:
+def detect_go_module(module_root: Path, scan_root: Path | None = None) -> list[CryptoFinding]:
     """Detect crypto in the Go module rooted at `module_root`. Never raises.
 
     Union of both detectors (corpus decision 2026-06-11, ADR 0005): go/types
@@ -110,6 +110,13 @@ def detect_go_module(module_root: Path) -> list[CryptoFinding]:
     (path, line, algorithm), the semantic finding winning the duplicate
     because it carries key size / curve. Analyzer absent, unverified, or
     failed → the syntactic result stands alone (the detection floor).
+
+    `scan_root` bounds which filesystem `replace` directives the analyzer may
+    follow (defaults to `module_root`): `packages.Load` resolves local
+    replacements before any output filtering, so a hostile go.mod pointing at
+    `../outside` would make the child read source beyond the scan boundary.
+    An escaping replacement skips the analyzer entirely, like every other
+    analyzer failure, and the syntactic floor stands.
     """
     # Resolve once so BOTH passes derive paths from the same spelling — the
     # analyzer echoes whatever root it is handed, while the fallback resolves
@@ -117,13 +124,16 @@ def detect_go_module(module_root: Path) -> list[CryptoFinding]:
     # link) otherwise yields two spellings of the same call site and the
     # union dedup misses (caught by the release smoke on macOS/Windows).
     module_root = module_root.resolve()
+    boundary = scan_root.resolve() if scan_root is not None else module_root
     if not _argv_encodable(module_root):
         return _fallback(module_root)
     syntactic = _fallback(module_root)
     located = _locate_binary()
     if located is not None:
         binary, trusted = located
-        if _verify_sha256(binary, trusted=trusted):
+        if _verify_sha256(binary, trusted=trusted) and not _replace_escapes(
+            module_root, boundary
+        ):
             stdout = _run_analyzer(module_root, binary)
             if stdout is not None:
                 return _merge_findings(_map_findings(stdout, module_root), syntactic)
@@ -133,10 +143,15 @@ def detect_go_module(module_root: Path) -> list[CryptoFinding]:
 def _merge_findings(
     semantic: list[CryptoFinding], syntactic: list[CryptoFinding]
 ) -> list[CryptoFinding]:
-    def call_site(finding: CryptoFinding) -> tuple[str, int, str]:
+    def call_site(finding: CryptoFinding) -> tuple[str, int, int, str]:
+        # Column is part of the key: two calls to the same primitive can share
+        # a line (`f(); g()`), and a line-only key collapsed them into one.
+        # Both detectors emit zero-based columns, so they still dedupe against
+        # each other.
         return (
             str(finding.location.path),
             finding.location.line,
+            finding.location.column,
             finding.algorithm.upper(),
         )
 
@@ -144,7 +159,7 @@ def _merge_findings(
     # Tests:true type-checks a production file once per package variant.
     # Dedupe both sides on the call site, semantic entries winning.
     merged: list[CryptoFinding] = []
-    index: dict[tuple[str, int, str], int] = {}
+    index: dict[tuple[str, int, int, str], int] = {}
     for finding in (*semantic, *syntactic):
         key = call_site(finding)
         pos = index.get(key)
@@ -160,6 +175,62 @@ def _merge_findings(
             # needs it).
             merged[pos] = merged[pos].model_copy(update={"key_size": finding.key_size})
     return merged
+
+
+def _replace_escapes(module_root: Path, boundary: Path) -> bool:
+    """True when go.mod carries a filesystem `replace` resolving outside `boundary`.
+
+    In a replace directive the right-hand side is a directory path exactly when
+    it carries no version token (the go.mod grammar requires a version for a
+    module-path replacement), so a single token after `=>` is treated as a
+    path. Relative paths resolve against the go.mod's directory; `resolve()`
+    also collapses a symlink pointing outside. Unreadable go.mod fails closed —
+    the analyzer could not load the module anyway.
+    """
+    try:
+        text = (module_root / "go.mod").read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return True
+    for target in _replacement_paths(text):
+        candidate = target if target.is_absolute() else module_root / target
+        try:
+            if not candidate.resolve().is_relative_to(boundary):
+                return True
+        except OSError:
+            return True
+    return False
+
+
+def _replacement_paths(go_mod_text: str) -> Iterable[Path]:
+    """Filesystem targets of every `replace` directive in `go_mod_text`.
+
+    The right-hand side of a replace is a directory exactly when it carries no
+    version token — the go.mod grammar requires a version for a module-path
+    replacement — so a lone token after `=>` is a path. Both the single-line
+    and the parenthesised block form are handled.
+    """
+    in_block = False
+    for raw_line in go_mod_text.splitlines():
+        tokens = raw_line.split("//", 1)[0].split()
+        if not tokens:
+            continue
+        if in_block:
+            if tokens[0] == ")":
+                in_block = False
+                continue
+            directive = tokens
+        elif tokens[0] == "replace":
+            if tokens[1:] == ["("]:
+                in_block = True
+                continue
+            directive = tokens[1:]
+        else:
+            continue
+        if "=>" not in directive:
+            continue
+        rhs = directive[directive.index("=>") + 1 :]
+        if len(rhs) == 1:  # a module path + version is resolved by the cache, not the fs
+            yield Path(rhs[0].strip('"'))
 
 
 def _argv_encodable(module_root: Path) -> bool:
