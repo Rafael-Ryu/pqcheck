@@ -9,7 +9,8 @@ metadata:
     with the cybersecurity controls of Res. CMN 4.893/2021 and Res. BCB
     85/2021. Advisory baseline: no Brazilian regulation currently mandates a
     cryptographic inventory or PQC migration. This profile anticipates the
-    NIST IR 8547 timeline (RSA/ECC deprecated 2030, disallowed 2035) so the
+    NIST IR 8547 draft timeline (RSA/ECC proposed deprecated 2030, disallowed
+    2035) so the
     inventory exists before any local guidance lands.
   effective-from: "2026-06-11"
   review-date: "2026-12-11"
@@ -41,9 +42,9 @@ spec:
       params: { memory-kib-min: 131072, iterations-min: 4, parallelism-min: 1 }
       action: allow
   banned:
-    - { family: asymmetric-encryption, algorithm: RSA, action: fail, severity: critical, reason: "Shor-vulnerable; NIST IR 8547 deprecates by 2030 — migrate to ML-KEM-768" }
+    - { family: asymmetric-encryption, algorithm: RSA, action: fail, severity: critical, reason: "Shor-vulnerable; NIST IR 8547 draft deprecates by 2030 — migrate to ML-KEM-768" }
     - { family: asymmetric-encryption, algorithm: RSA, paddings: ["PKCS1v15", "OAEP-SHA1"], action: fail, severity: critical, reason: "RSA-PKCS1v1.5 / RSA-OAEP-SHA1 padding — independently broken (Bleichenbacher / SHA-1) on top of Shor" }
-    - { family: signature, algorithm: ECDSA, action: fail, severity: critical, reason: "Shor-vulnerable; NIST IR 8547 deprecates by 2030 — migrate to ML-DSA-65" }
+    - { family: signature, algorithm: ECDSA, action: fail, severity: critical, reason: "Shor-vulnerable; NIST IR 8547 draft deprecates by 2030 — migrate to ML-DSA-65" }
     - { family: signature, algorithm: EdDSA, curves: ["Ed25519", "Ed448"], action: fail, severity: critical }
     - { family: key-agreement, algorithm: DH, action: fail, severity: critical }
     - { family: key-agreement, algorithm: ECDH, action: fail, severity: critical }

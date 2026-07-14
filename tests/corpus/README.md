@@ -212,3 +212,13 @@ round. Same contamination caveat again: this gap is now fixed specifically
 because it showed up here. Recall after the fix: **0.9834** (296/301), up
 from 0.9801. The remaining 5 misses are unchanged (authlib dataflow x2,
 borgbackup Cython/OpenSSL binding x3).
+
+**Fourth held-out-driven fix round (2026-07-13, constructor-variable
+attribution, PRs #253-#254):** attributing method calls on single-assigned
+constructor variables resolved one of the two authlib dataflow misses.
+Current held-out recall: **0.9867** (297/301). The remaining 4 misses are
+structural (authlib conditional-assignment dataflow x1, borgbackup
+Cython/OpenSSL binding x3) and are documented as Known Limitations rather
+than catalog gaps. Held-out precision is gated by
+`run_bench.py --corpus holdout.yaml --check` against the committed
+`holdout_verdicts.yaml`: **0.9904** (103/104 adjudicated true).

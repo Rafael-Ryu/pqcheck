@@ -15,8 +15,8 @@ primitives — and emits a CycloneDX 1.6 CBOM plus SARIF 2.1.0, evaluated
 against a versionable YAML policy. It runs on a laptop and in CI with no
 server, no account, and no network access during the scan.
 
-Why now: NIST IR 8547 deprecates RSA and ECC by 2030 and disallows them
-by 2035. Every migration framework (OMB M-23-02, the EU coordinated
+Why now: NIST IR 8547 (initial public draft) proposes deprecating RSA
+and ECC after 2030 and disallowing them after 2035. Every migration framework (OMB M-23-02, the EU coordinated
 roadmap, FS-ISAC guidance) makes inventory the first step. The existing
 open tooling for that step needs a SonarQube server; the commercial
 options start at enterprise pricing. This is the `pip install` version.
