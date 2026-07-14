@@ -216,6 +216,9 @@ def test_scan_warns_about_unevaluated_policy_constraints(tmp_path: Path) -> None
     assert "hash, params" in result.output
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="NTFS rejects control characters in filenames"
+)
 def test_terminal_report_strips_control_chars(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
