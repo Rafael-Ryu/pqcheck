@@ -9,8 +9,8 @@
 Generate a Cryptography Bill of Materials (CBOM) for your codebase in
 seconds, and gate CI on a crypto policy you can read.
 
-`pqcheck` scans source code and dependency lockfiles for cryptographic
-algorithm usage — RSA, ECDSA, AES modes, legacy hashes, post-quantum
+`pqcheck` scans source code, dependency lockfiles, and key material on
+disk (PEM/DER certificates and keys) for cryptographic algorithm usage — RSA, ECDSA, AES modes, legacy hashes, post-quantum
 primitives — and emits a CycloneDX 1.6 CBOM plus SARIF 2.1.0, evaluated
 against a versionable YAML policy. It runs on a laptop and in CI with no
 server, no account, and no network access during the scan.
@@ -70,6 +70,7 @@ OK: pqcheck-0.1.0-py3-none-any.whl verified against pqcheck-0.1.0-py3-none-any.w
 | Python source | stdlib `hashlib`, `cryptography` (current + legacy + decrepit paths), `pycryptodome` — via AST, no execution |
 | Go source | stdlib `crypto/*` and `golang.org/x/crypto` — union of a bundled `go/types` analyzer (semantic: key sizes, curves, modes) and a tree-sitter pass that also covers GOOS/cgo-gated files, which type resolution cannot see by construction |
 | Lockfiles | `pyproject.toml`, `uv.lock`, `requirements.txt`, `pom.xml`, `go.mod`+`go.sum`, `package-lock.json` |
+| Key material | `*.pem`/`*.key`/`*.crt`/`*.der` — certificates and private/public keys parsed with pyca `cryptography` (algorithm, key size, cert metadata), emitted as CBOM `certificate`/`related-crypto-material` components; a labeled PEM block that fails to parse (e.g. encrypted key) falls back to a low-confidence header-only finding |
 
 Java is next on the roadmap; it is not in v0.1.
 
@@ -97,20 +98,20 @@ does not exist.
 
 Every HIGH/CRITICAL finding across a 10-repo public corpus (pyjwt,
 paramiko, sigstore-python, age, go-jose, smallstep/crypto, …) was
-human-adjudicated by reading the flagged line: **261 findings, 0 false
+human-adjudicated by reading the flagged line: **384 findings, 0 false
 positives**. Recall on the same repos, against a ground truth of 584
 adjudicated call sites, is 1.00. The honest caveat: that corpus's miss
 list drove the catalog expansion, so it is a tuning set and says
 nothing about generalization. A held-out set of 6 unseen repos
 (authlib, borgbackup, certbot, cosign, wireguard-go, certmagic)
-measures recall 0.9834 (296/301) and precision 0.9873 (78/79). That
+measures recall 0.9867 (297/301) and precision 0.9904 (103/104). That
 precision is adjudicated in `holdout_verdicts.yaml` and re-checked by the
 same `run_bench.py --check` gate as the tuning corpus (point it at
-`holdout.yaml`), so it no longer drifts silently. The 5
-remaining misses are all structural — authlib's dataflow-dependent
-digest calls and borgbackup's Cython/OpenSSL binding, the same gap
-classes documented under [Known limitations](#known-limitations)
-below. Three rounds of fixes came from the held-out miss list, so it
+`holdout.yaml`), so it no longer drifts silently. The 4
+remaining misses are all structural — one authlib digest call reached
+through a conditionally assigned variable, and borgbackup's
+Cython/OpenSSL binding, the same gap classes documented under
+[Known limitations](#known-limitations) below. Three rounds of fixes came from the held-out miss list, so it
 is no longer strictly untouched either — future generalization claims
 need fresh repos. Protocols, pinned SHAs, and verdicts are in
 `tests/corpus/`.
@@ -120,11 +121,13 @@ need fresh repos. Protocols, pinned SHAs, and verdicts are in
 pqcheck is a static, single-repo scanner, and these gaps follow from
 that design:
 
-- No dataflow analysis: an algorithm reached through a variable,
-  parameter, or lookup table is either missed or reported as a generic
-  low-confidence finding — e.g. `.digest()` called on a hash object
-  passed in as a parameter, or a cipher picked from a dict at runtime.
-  authlib is the clearest example in the held-out corpus.
+- Dataflow analysis stops at single assignment: a hash or MAC object
+  bound exactly once inside a function (`h = hashlib.sha256()` …
+  `h.digest()`) is attributed to its constructor, but anything beyond
+  that — reassignment, conditional branches, parameters, cross-function
+  flow, lookup tables — is either missed or reported as a generic
+  low-confidence finding. authlib's conditionally assigned digest call
+  is the clearest example in the held-out corpus.
 - No C-extension or FFI visibility: crypto implemented behind an
   in-repo Cython or C binding, like borgbackup's OpenSSL binding, is
   invisible to source-level detection — only the Python or Go call

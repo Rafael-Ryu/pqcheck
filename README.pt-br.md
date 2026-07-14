@@ -9,7 +9,8 @@
 Gere um Cryptography Bill of Materials (CBOM) do seu código em segundos
 e bloqueie o CI com uma política de criptografia que dá para ler.
 
-O `pqcheck` escaneia código-fonte e lockfiles de dependências em busca de
+O `pqcheck` escaneia código-fonte, lockfiles de dependências e material
+de chave em disco (certificados e chaves PEM/DER) em busca de
 uso de algoritmos criptográficos — RSA, ECDSA, modos de AES, hashes
 legados, primitivas pós-quânticas — e emite CBOM CycloneDX 1.6 + SARIF
 2.1.0, avaliados contra uma política YAML versionável. Roda no laptop e
@@ -46,15 +47,19 @@ Verifique um release você mesmo (extra `sigstore`; o bundle
 Cobertura: Python (hashlib, cryptography, pycryptodome) e Go (stdlib +
 x/crypto, união de análise semântica via `go/types` com um passe
 tree-sitter que cobre arquivos condicionados a GOOS/cgo); 6 formatos de
-lockfile. Java vem a seguir no roadmap.
+lockfile; material de chave em `*.pem`/`*.key`/`*.crt`/`*.der`
+(certificados e chaves parseados com pyca `cryptography` — algoritmo,
+tamanho de chave, metadados do certificado — com fallback header-only de
+baixa confiança quando o parse falha, ex.: chave criptografada). Java vem
+a seguir no roadmap.
 
-Precisão medida: 261 findings HIGH/CRITICAL em 10 repos públicos, todos
+Precisão medida: 384 findings HIGH/CRITICAL em 10 repos públicos, todos
 adjudicados manualmente — 0 falsos positivos. Recall de 1.00 sobre 584
 call sites adjudicados nos mesmos repos (conjunto de tuning) e de
-0.9834 (296/301) em 6 repos held-out, com precisão de 0.9873 (78/79). A
+0.9867 (297/301) em 6 repos held-out, com precisão de 0.9904 (103/104). A
 precisão do held-out é adjudicada em `holdout_verdicts.yaml` e re-checada
 pelo mesmo gate `run_bench.py --check` do corpus de tuning (apontado para
-`holdout.yaml`), então não drifta em silêncio. Os 5 misses restantes são
+`holdout.yaml`), então não drifta em silêncio. Os 4 misses restantes são
 todos estruturais, das classes descritas em "Limitações conhecidas" abaixo.
 Três rodadas de correções vieram da lista de misses do held-out, então
 ele já não é estritamente intocado; afirmações de generalização exigem
@@ -65,12 +70,14 @@ repos frescos (protocolo e caveats em `tests/corpus/`).
 O `pqcheck` é um scanner estático de repositório único, e essas lacunas
 vêm dessa escolha de design:
 
-- Sem análise de dataflow: um algoritmo alcançado via variável,
-  parâmetro ou lookup table passa despercebido ou vira um finding
-  genérico de baixa confiança — ex.: `.digest()` chamado sobre um
-  objeto de hash recebido como parâmetro, ou uma cifra escolhida de um
-  dict em tempo de execução. authlib é o exemplo mais claro no corpus
-  held-out.
+- Análise de dataflow para em atribuição única: um objeto de hash ou
+  MAC atribuído exatamente uma vez dentro de uma função
+  (`h = hashlib.sha256()` … `h.digest()`) é atribuído ao seu
+  construtor, mas qualquer coisa além disso — reatribuição, branches
+  condicionais, parâmetros, fluxo entre funções, lookup tables — passa
+  despercebida ou vira um finding genérico de baixa confiança. A
+  chamada de digest do authlib atribuída condicionalmente é o exemplo
+  mais claro no corpus held-out.
 - Sem visibilidade de extensão C/FFI: cripto implementada atrás de um
   binding Cython ou C no próprio repo — o binding OpenSSL do
   borgbackup, por exemplo — é invisível para detecção em nível de
