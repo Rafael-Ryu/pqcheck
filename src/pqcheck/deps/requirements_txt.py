@@ -18,12 +18,20 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from pqcheck.deps.base import ManifestError, extract_pep508_name, pypi_purl, safe_read_bytes
+from pqcheck.deps.base import ManifestError, pypi_purl, safe_read_bytes, strict_pep508_name
 from pqcheck.deps.packages import lookup_introduces
 from pqcheck.models import CryptoDependency
 
 _EXACT_PIN_RE = re.compile(r"={2,3}\s*([A-Za-z0-9!+.*_-]+)")
 _INLINE_COMMENT_RE = re.compile(r"\s+#.*$")
+
+# PEP 508 named direct reference: `name [extras] @ URL [; marker]`. This is a
+# NAMED requirement — dropping it with the unnamed-URL lines silently removed
+# a real dependency from the inventory (round 10). The URL pins the version,
+# which our exact-pin model records as None.
+_DIRECT_REF_RE = re.compile(
+    r"^([A-Za-z0-9][A-Za-z0-9._-]*)\s*(\[[^\]]*\])?\s*@\s*[^;\s]+\s*(;.*)?$"
+)
 
 
 def _logical_lines(text: str) -> list[str]:
@@ -44,8 +52,11 @@ def _requirement_part(line: str) -> str | None:
     line = _INLINE_COMMENT_RE.sub("", line).strip()
     if not line or line.startswith(("#", "-")):
         return None  # comment, include (-r/-c), editable (-e), or pip option
+    named_ref = _DIRECT_REF_RE.match(line)
+    if named_ref is not None:
+        return named_ref.group(1)  # `name @ URL`: keep the name, URL pins it
     if "://" in line or line.startswith((".", "/", "~")):
-        return None  # URL or filesystem path, not a named requirement
+        return None  # unnamed URL or filesystem path, not a named requirement
     line = line.split(";", 1)[0]  # drop environment marker
     line = line.split(" --", 1)[0]  # drop per-requirement options (--hash=...)
     return line.strip() or None
@@ -70,13 +81,18 @@ def parse(path: Path) -> list[CryptoDependency]:
 
     seen: set[tuple[str, str | None]] = set()
     deps: list[CryptoDependency] = []
-    for line in _logical_lines(text):
+    for lineno, line in enumerate(_logical_lines(text), start=1):
         requirement = _requirement_part(line)
         if requirement is None:
             continue
-        name = extract_pep508_name(requirement)
-        if name is None:
-            continue
+        try:
+            name = strict_pep508_name(requirement)
+        except ValueError as exc:
+            # pip/uv refuse the whole file on an invalid requirement — a
+            # silent skip would pass off a partial inventory as complete.
+            raise ManifestError(
+                f"malformed requirements.txt: line {lineno}: {exc}"
+            ) from exc
         version = _exact_version(requirement)
         key = (name.lower(), version)
         if key in seen:

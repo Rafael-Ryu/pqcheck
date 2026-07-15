@@ -191,3 +191,21 @@ def test_parse_deeply_nested_toml_raises_manifest_error(tmp_path: Path) -> None:
     f = _write(tmp_path, "a = " + "[" * 3000 + "]" * 3000 + "\n")
     with pytest.raises(ManifestError):
         parse(f)
+
+
+def test_parse_non_string_version_raises(tmp_path: Path) -> None:
+    # uv rejects the lock on a non-string version (round-10) — degrading it
+    # to an unversioned dependency silently rewrote the inventory.
+    f = tmp_path / "uv.lock"
+    f.write_text(
+        'version = 1\n[[package]]\nname = "cryptography"\nversion = 43\n', encoding="utf-8"
+    )
+    with pytest.raises(ManifestError, match="version is not a string"):
+        parse(f)
+
+
+def test_parse_non_table_package_entry_raises(tmp_path: Path) -> None:
+    f = tmp_path / "uv.lock"
+    f.write_text('version = 1\npackage = ["not-a-table"]\n', encoding="utf-8")
+    with pytest.raises(ManifestError, match="not a table"):
+        parse(f)

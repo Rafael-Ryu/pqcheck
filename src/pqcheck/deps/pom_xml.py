@@ -58,7 +58,14 @@ def _build_parser() -> etree.XMLParser[etree._Element]:
     )
 
 
-def parse(path: Path) -> list[CryptoDependency]:
+def parse(path: Path, errors: list[str] | None = None) -> list[CryptoDependency]:
+    """Parse `path` into CryptoDependency entries.
+
+    `errors` (when provided) collects non-fatal diagnostics: a declared
+    <version> whose property resolution failed (missing property, cycle,
+    depth/expansion cap) is emitted unversioned, and pretending that is
+    "no version declared" would hide a degraded inventory from the scan.
+    """
     raw = safe_read_bytes(path)
     if raw is None:
         return []
@@ -78,7 +85,12 @@ def parse(path: Path) -> list[CryptoDependency]:
         version_raw = _child_text(dep_el, "version")
         if not group_id or not artifact_id:
             continue
-        version = _resolve_version(version_raw, properties)
+        version, failure = _resolve_version(version_raw, properties)
+        if failure is not None and errors is not None:
+            errors.append(
+                f"{path}: ManifestError: {failure}; dependency "
+                f"{group_id}:{artifact_id} recorded without a version"
+            )
         key = (group_id, artifact_id, version)
         if key in seen:
             continue
@@ -202,20 +214,26 @@ def _direct_dependency_children(parent: etree._Element) -> list[etree._Element]:
     return [child for child in parent if _local(child.tag) == "dependency"]
 
 
-def _resolve_version(version_raw: str | None, properties: dict[str, str]) -> str | None:
+def _resolve_version(
+    version_raw: str | None, properties: dict[str, str]
+) -> tuple[str | None, str | None]:
     """Resolve ${name} tokens in `version_raw` to a fixed point.
 
-    Returns None — fail closed — if any referenced property is missing, if
-    a cycle or excessive nesting prevents full resolution, or if any ${...}
-    token survives. A version with no ${...} token is returned as-is. This
-    never emits a half-substituted or token-bearing version into the PURL.
+    Returns (version, failure_reason). The version is None — fail closed —
+    if any referenced property is missing, if a cycle or excessive nesting
+    prevents full resolution, or if any ${...} token survives; in those
+    cases failure_reason says why, so the caller can distinguish "no
+    <version> declared" (a normal parent-managed pom) from "a declared
+    version was erased" (a degraded inventory — round 10). A version with
+    no ${...} token is returned as-is. This never emits a half-substituted
+    or token-bearing version into the PURL.
     """
     if version_raw is None:
-        return None
+        return None, None
     result = version_raw
     for _ in range(_MAX_PROPERTY_DEPTH):
         if _PROPERTY_REF_RE.search(result) is None:
-            return result
+            return result, None
         unresolved = False
 
         def _sub(match: re.Match[str]) -> str:
@@ -227,7 +245,11 @@ def _resolve_version(version_raw: str | None, properties: dict[str, str]) -> str
             return value
 
         substituted = _PROPERTY_REF_RE.sub(_sub, result)
-        if unresolved or substituted == result or len(substituted) > _MAX_RESOLVED_LEN:
-            return None
+        if unresolved:
+            return None, f"unresolved property in pom.xml version {version_raw!r}"
+        if substituted == result:
+            return None, f"property cycle in pom.xml version {version_raw!r}"
+        if len(substituted) > _MAX_RESOLVED_LEN:
+            return None, f"property expansion cap exceeded for pom.xml version {version_raw!r}"
         result = substituted
-    return None
+    return None, f"property nesting cap exceeded for pom.xml version {version_raw!r}"

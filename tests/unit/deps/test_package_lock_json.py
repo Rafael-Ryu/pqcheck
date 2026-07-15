@@ -179,3 +179,20 @@ def test_parse_deeply_nested_dependencies_raise_manifest_error(tmp_path: Path) -
     lock.write_text('{"dependencies": {"a": ' + inner + "}}", encoding="utf-8")
     with pytest.raises(ManifestError):
         parse(lock)
+
+
+def test_parse_deep_v1_tree_is_fully_flattened(tmp_path: Path) -> None:
+    # The recursive v1 walk truncated deep-but-valid locks npm accepts at a
+    # stack-dependent depth with no diagnostic (round-10). The iterative walk
+    # must capture every level.
+    depth = 3000
+    start = '{"name":"deep","lockfileVersion":1,"dependencies":{'
+    chain = "".join(
+        f'"pkg{i}":{{"version":"1.0.{i % 10}","dependencies":{{' for i in range(depth)
+    )
+    text = start + chain + '"leaf":{"version":"9.9.9"}' + "}}" * depth + "}}"
+    f = tmp_path / "package-lock.json"
+    f.write_text(text, encoding="utf-8")
+    deps = parse(f)
+    assert len(deps) == depth + 1
+    assert any(d.name == "leaf" for d in deps)

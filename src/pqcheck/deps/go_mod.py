@@ -56,12 +56,11 @@ _GO_VERSION_RE = re.compile(r"^([1-9][0-9]*)\.(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))
 # ToolchainRE from x/mod/modfile: `default`, or a go1 release name.
 _TOOLCHAIN_RE = re.compile(r"^default$|^go1($|\.)")
 
-# RetractSpec structure only: modfile parses retract with dontFixRetract —
-# the VALUES are deliberately not semver-validated at parse time (the module
-# path needed to fix them may appear later), so `go` accepts `retract
-# vquasar` and even a quoted string with spaces. Only the singleton /
-# bracket-comma interval STRUCTURE is enforced (round-9 differential).
-_RETRACT_INTERVAL_RE = re.compile(r"^\[[^\[\],]+,[^\[\],]+\]$")
+# retract: modfile parses it with dontFixRetract — the VALUES are
+# deliberately not semver-validated at parse time (the module path needed to
+# fix them may appear later), so `go` accepts `retract vquasar` and even a
+# quoted string with spaces. Only the singleton / interval STRUCTURE is
+# enforced, over the token stream (round-9/10 differentials).
 
 _REQUIRE_ENTRY_TOKENS = 2  # module path + version, nothing else
 _MODULE_VERSION_TOKENS = 2  # `module/path v1.2.3` — one side of a replace
@@ -159,20 +158,30 @@ def _path_major_ok(path_major: str, canonical: str) -> bool:
     return major == path_major[2:]
 
 
-def lex_go_mod_line(line: str) -> list[str] | None:
-    """Tokens of one go.mod line, or None when it cannot be lexed safely.
+# The single-character tokens x/mod's read.go lexes as punctuation. A quoted
+# string whose decoded value happens to be one of these is NOT punctuation —
+# `retract "[not,an,interval]"` is a singleton version to go (round 10).
+_PUNCTUATION = frozenset("()[]{},")
+
+# One lexed token: (decoded value, was-a-quoted-string).
+_Token = tuple[str, bool]
+
+
+def _lex_go_mod_tokens(line: str) -> list[_Token] | None:
+    """(value, quoted) tokens of one go.mod line, or None when it cannot be
+    lexed safely.
 
     A minimal fail-closed lexer for the token shapes go.mod's own lexer
     accepts in directives: bare tokens, interpreted strings (`"..."` with the
-    strconv.Unquote escape set), `//` comments, and `(`/`)` as standalone
-    punctuation. Anything it cannot decide — unterminated string, unsupported
-    escape, a raw backtick string (which modfile lexes but refuses as a
-    directive argument) — returns None so callers treat the file as hostile
-    instead of guessing. A naive whitespace split turned a quoted path
-    containing a space into two RHS tokens, which read as a module+version
-    replacement.
+    strconv.Unquote escape set), `//` comments, and x/mod's punctuation set
+    as standalone tokens. Anything it cannot decide — unterminated string,
+    unsupported escape, a raw backtick string (which modfile lexes but
+    refuses as a directive argument) — returns None so callers treat the
+    file as hostile instead of guessing. A naive whitespace split turned a
+    quoted path containing a space into two RHS tokens, which read as a
+    module+version replacement.
     """
-    tokens: list[str] = []
+    tokens: list[_Token] = []
     i, size = 0, len(line)
     while i < size:
         ch = line[i]
@@ -180,15 +189,15 @@ def lex_go_mod_line(line: str) -> list[str] | None:
             i += 1
         elif line.startswith("//", i):
             break
-        elif ch in "()":
-            tokens.append(ch)
+        elif ch in _PUNCTUATION:
+            tokens.append((ch, False))
             i += 1
         elif ch == '"':
             lexed = _lex_interpreted_string(line, i)
             if lexed is None:
                 return None  # unterminated string or an escape we do not model
             token, i = lexed
-            tokens.append(token)
+            tokens.append((token, True))
         elif ch == "`":
             # Raw strings are lexed but rejected as directive arguments by
             # modfile's parseString (`go` errors with "unquoted string cannot
@@ -197,11 +206,29 @@ def lex_go_mod_line(line: str) -> list[str] | None:
             return None
         else:
             j = i
-            while j < size and line[j] not in ' \t"`()' and not line.startswith("//", j):
+            while (
+                j < size
+                and line[j] not in ' \t"`'
+                and line[j] not in _PUNCTUATION
+                and not line.startswith("//", j)
+            ):
                 j += 1
-            tokens.append(line[i:j])
+            tokens.append((line[i:j], False))
             i = j
     return tokens
+
+
+def lex_go_mod_line(line: str) -> list[str] | None:
+    """Decoded token values of one go.mod line (see _lex_go_mod_tokens)."""
+    tokens = _lex_go_mod_tokens(line)
+    if tokens is None:
+        return None
+    return [value for value, _ in tokens]
+
+
+def _is_punctuation(token: _Token) -> bool:
+    value, quoted = token
+    return not quoted and value in _PUNCTUATION
 
 
 def _lex_interpreted_string(line: str, start: int) -> tuple[str, int] | None:
@@ -348,42 +375,51 @@ def _replace_entry_ok(tokens: list[str]) -> bool:
     return len(rhs) == 1 and dir_shaped(rhs[0])
 
 
-def _retract_entry_ok(tokens: list[str]) -> bool:
-    # RetractSpec = Version | "[" Version "," Version "]". The lexer does not
-    # split on `[`/`,`/`]`, so an interval arrives as 1..N tokens depending on
-    # spacing — joining normalizes that before matching. Values themselves
-    # are unvalidated, matching dontFixRetract (see _RETRACT_INTERVAL_RE).
-    joined = "".join(tokens)
-    if joined.startswith("["):
-        return _RETRACT_INTERVAL_RE.match(joined) is not None
-    return len(tokens) == 1
+def _retract_entry_ok(tokens: list[_Token]) -> bool:
+    # RetractSpec = Version | "[" Version "," Version "]", where `[`/`,`/`]`
+    # count only as UNQUOTED punctuation — a quoted singleton is a version
+    # whatever its decoded content looks like. Values themselves are
+    # unvalidated, matching dontFixRetract.
+    if len(tokens) == 1:
+        return not _is_punctuation(tokens[0])
+    interval_len = 5  # [ low , high ]
+    return (
+        len(tokens) == interval_len
+        and tokens[0] == ("[", False)
+        and tokens[2] == (",", False)
+        and tokens[4] == ("]", False)
+        and not _is_punctuation(tokens[1])
+        and not _is_punctuation(tokens[3])
+    )
 
 
-# require is handled inline (its entries feed the inventory); everything else
-# is validate-and-discard.
+# require is handled inline (its entries feed the inventory) and retract in
+# _entry_ok (it needs quote provenance); everything else is
+# validate-and-discard over decoded values.
 _ENTRY_VALIDATORS: dict[str, Callable[[list[str]], bool]] = {
     "module": _module_entry_ok,
     "go": _go_entry_ok,
     "toolchain": _toolchain_entry_ok,
     "exclude": _exclude_entry_ok,
     "replace": _replace_entry_ok,
-    "retract": _retract_entry_ok,
 }
-_KNOWN_DIRECTIVES = frozenset({"require", *_ENTRY_VALIDATORS})
+_KNOWN_DIRECTIVES = frozenset({"require", "retract", *_ENTRY_VALIDATORS})
 # Per go.mod's grammar, go and toolchain are single-line only.
 _BLOCK_FORM_DIRECTIVES = frozenset({"module", "require", "exclude", "replace", "retract"})
 # Directives go.mod admits at most once ("repeated module statement").
 _SINGLETON_DIRECTIVES = frozenset({"module", "go", "toolchain"})
 
 
-def _entry_ok(directive: str, tokens: list[str]) -> bool:
-    if "(" in tokens or ")" in tokens:
+def _entry_ok(directive: str, tokens: list[_Token]) -> bool:
+    if any(not quoted and value in "(){}" for value, quoted in tokens):
         return False
-    # retract values are unvalidated (dontFixRetract) — even an empty quoted
-    # token is accepted by go, so the non-empty guard must not apply there.
-    if directive != "retract" and not all(tokens):
-        return False
-    return _ENTRY_VALIDATORS[directive](tokens)
+    if directive == "retract":
+        return _retract_entry_ok(tokens)
+    if any(not quoted and value in "[]," for value, quoted in tokens):
+        return False  # interval punctuation belongs to retract only
+    # No blanket non-empty guard: `module ""` is valid to modfile (round-10),
+    # and every other validator rejects empty values where go does.
+    return _ENTRY_VALIDATORS[directive]([value for value, _ in tokens])
 
 
 # A go.sum line is `module version hash` (3 whitespace-separated fields).
@@ -452,7 +488,7 @@ def _parse_directives(text: str, add: Callable[[str, str], None]) -> None:
     in_block: str | None = None
     seen_singletons: set[str] = set()
     for lineno, raw_line in enumerate(text.split("\n"), start=1):
-        tokens = lex_go_mod_line(raw_line.rstrip("\r"))
+        tokens = _lex_go_mod_tokens(raw_line.rstrip("\r"))
         if tokens is None:
             raise ManifestError(f"malformed go.mod: line {lineno} cannot be lexed")
         if not tokens:
@@ -476,19 +512,19 @@ def _register_singleton(seen: set[str], directive: str, lineno: int) -> None:
 
 def _block_line(
     directive: str,
-    tokens: list[str],
+    tokens: list[_Token],
     lineno: int,
     add: Callable[[str, str], None],
     seen_singletons: set[str],
 ) -> str | None:
     """One line inside a `directive ( ... )` block; the still-open directive
     (or None once the block closes)."""
-    if tokens == [")"]:
+    if tokens == [(")", False)]:
         return None
     if directive in _SINGLETON_DIRECTIVES:
         _register_singleton(seen_singletons, directive, lineno)
     if directive == "require":
-        entry = _require_entry(tokens)
+        entry = _require_entry([value for value, _ in tokens])
         if entry is None:
             raise ManifestError(f"malformed go.mod: invalid require entry at line {lineno}")
         add(*entry)
@@ -498,20 +534,21 @@ def _block_line(
 
 
 def _directive_line(
-    tokens: list[str],
+    tokens: list[_Token],
     lineno: int,
     add: Callable[[str, str], None],
     seen_singletons: set[str],
 ) -> str | None:
     """One top-level line; the directive whose block it opens, if any."""
-    directive = tokens[0]
-    if directive not in _KNOWN_DIRECTIVES:
+    directive, verb_quoted = tokens[0]
+    if verb_quoted or directive not in _KNOWN_DIRECTIVES:
         # Syntactically valid unknown/future directives (tool, godebug, ...)
         # are not validated: they do not feed this inventory and rejecting
-        # them would break on every new go release.
+        # them would break on every new go release. A quoted verb is not a
+        # directive keyword to modfile either.
         return None
     rest = tokens[1:]
-    if rest == ["("]:
+    if rest == [("(", False)]:
         if directive not in _BLOCK_FORM_DIRECTIVES:
             raise ManifestError(
                 f"malformed go.mod: invalid {directive} directive at line {lineno}"
@@ -520,7 +557,7 @@ def _directive_line(
     if directive in _SINGLETON_DIRECTIVES:
         _register_singleton(seen_singletons, directive, lineno)
     if directive == "require":
-        entry = _require_entry(rest)
+        entry = _require_entry([value for value, _ in rest])
         if entry is None:
             raise ManifestError(
                 f"malformed go.mod: invalid require directive at line {lineno}"

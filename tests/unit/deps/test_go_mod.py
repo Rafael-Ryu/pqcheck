@@ -793,3 +793,38 @@ def test_round9_retract_structure_still_enforced(tmp_path: Path, line: str) -> N
     f.write_text(f"module example.com/m\n{line}\n", encoding="utf-8")
     with pytest.raises(ManifestError, match=r"malformed go\.mod"):
         parse(f)
+
+
+# --- Round 10: quote provenance in retract, empty module token ---
+
+
+def test_retract_quoted_singleton_resembling_interval_accepted(tmp_path: Path) -> None:
+    # `retract "[not,an,interval]"` is a quoted STRING token to go's lexer —
+    # a singleton version, not interval punctuation (round-10 reproducer).
+    f = tmp_path / "go.mod"
+    f.write_text(
+        'module example.com/m\nretract "[not,an,interval]"\n'
+        "require golang.org/x/crypto v0.21.0\n",
+        encoding="utf-8",
+    )
+    assert [d.name for d in parse(f)] == ["golang.org/x/crypto"]
+
+
+def test_empty_quoted_module_token_accepted(tmp_path: Path) -> None:
+    # `module ""` is structurally valid to modfile.Parse (round-10) — the
+    # require inventory must survive it.
+    f = tmp_path / "go.mod"
+    f.write_text('module ""\nrequire golang.org/x/crypto v0.21.0\n', encoding="utf-8")
+    assert [d.name for d in parse(f)] == ["golang.org/x/crypto"]
+
+
+def test_quoted_directive_verb_is_not_a_directive(tmp_path: Path) -> None:
+    # A quoted verb is a string token, not a directive keyword — it must not
+    # open a require block or feed the inventory (treated as unknown line).
+    f = tmp_path / "go.mod"
+    f.write_text(
+        'module example.com/m\n"require" evil.example/pkg v9.9.9\n'
+        "require golang.org/x/crypto v0.21.0\n",
+        encoding="utf-8",
+    )
+    assert [d.name for d in parse(f)] == ["golang.org/x/crypto"]

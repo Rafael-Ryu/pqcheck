@@ -8,6 +8,7 @@ hostile or unreadable file never aborts the scan. Failures are recorded in
 from __future__ import annotations
 
 from collections.abc import Callable
+from functools import partial
 from pathlib import Path
 
 from pqcheck import __version__
@@ -75,13 +76,17 @@ def scan(root: Path, policy: CryptoPolicy | None = None) -> ScanResult:
 
     for manifest in discovery.manifests:
         parser = _MANIFEST_PARSERS.get(manifest.name)
+        if parser is None:
+            continue
+        # go_mod and pom_xml also report non-fatal degradations (a go.sum
+        # companion the integrity cross-reference could not use, a pom
+        # version erased by property resolution) — those must land in
+        # ScanResult.errors, not vanish as "nothing declared".
         if parser is go_mod.parse:
-            # go_mod also reports non-fatal skips (a go.sum companion the
-            # integrity cross-reference could not use) — those must land in
-            # ScanResult.errors, not vanish as "no checksum companion".
-            _swallow(lambda p: go_mod.parse(p, errors=errors), manifest, dependencies, errors)
-        elif parser is not None:
-            _swallow(parser, manifest, dependencies, errors)
+            parser = partial(go_mod.parse, errors=errors)
+        elif parser is pom_xml.parse:
+            parser = partial(pom_xml.parse, errors=errors)
+        _swallow(parser, manifest, dependencies, errors)
 
     for key_material_file in discovery.key_material_files:
         _swallow(detect_key_material_file, key_material_file, findings, errors)

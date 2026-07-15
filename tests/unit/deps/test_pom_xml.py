@@ -518,3 +518,59 @@ def test_parse_entity_bearing_property_emits_none(tmp_path: Path) -> None:
     deps = parse(f)
     assert deps[0].version is None
     assert "1.0-" not in deps[0].purl
+
+
+def test_unresolved_property_version_reports_degradation(tmp_path: Path) -> None:
+    # A declared <version> erased by property resolution is not the same as
+    # "no version declared" (round-10): the dependency stays unversioned and
+    # the errors sink records why.
+    f = tmp_path / "pom.xml"
+    f.write_text(
+        """<project>
+  <dependencies><dependency>
+    <groupId>org.bouncycastle</groupId>
+    <artifactId>bcprov-jdk18on</artifactId>
+    <version>${missing.property}</version>
+  </dependency></dependencies>
+</project>""",
+        encoding="utf-8",
+    )
+    errors: list[str] = []
+    deps = parse(f, errors=errors)
+    assert [d.name for d in deps] == ["bcprov-jdk18on"]
+    assert deps[0].version is None
+    assert len(errors) == 1 and "unresolved property" in errors[0]
+
+
+def test_property_cycle_reports_degradation(tmp_path: Path) -> None:
+    f = tmp_path / "pom.xml"
+    f.write_text(
+        """<project>
+  <properties><a>${b}</a><b>${a}</b></properties>
+  <dependencies><dependency>
+    <groupId>g</groupId><artifactId>x</artifactId><version>${a}</version>
+  </dependency></dependencies>
+</project>""",
+        encoding="utf-8",
+    )
+    errors: list[str] = []
+    deps = parse(f, errors=errors)
+    assert deps[0].version is None
+    assert len(errors) == 1
+
+
+def test_absent_version_is_not_a_degradation(tmp_path: Path) -> None:
+    # Parent-managed dependencies legitimately omit <version> — no diagnostic.
+    f = tmp_path / "pom.xml"
+    f.write_text(
+        """<project>
+  <dependencies><dependency>
+    <groupId>g</groupId><artifactId>x</artifactId>
+  </dependency></dependencies>
+</project>""",
+        encoding="utf-8",
+    )
+    errors: list[str] = []
+    deps = parse(f, errors=errors)
+    assert deps[0].version is None
+    assert errors == []
