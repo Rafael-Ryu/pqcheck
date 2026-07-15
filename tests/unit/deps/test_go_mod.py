@@ -598,11 +598,9 @@ def test_invalid_escapes_fail_closed(tmp_path: Path, string: str) -> None:
         "require example.com/short v7-rc.1",  # suffix after short form (round-6 reproducer)
         "require example.com/nosuffix v9.1.2",  # major 9 without /v9 (round-6 reproducer)
         "require example.com/x/v2 v3.0.0",  # /v2 suffix disagreeing with major
-        "require example.com/x/v2 v2.0.0+incompatible",  # +incompatible with a suffix
         "require gopkg.in/yaml.v2 v3.0.1",  # gopkg.in suffix disagreeing with major
         "require gopkg.in/nodot v1.0.0",  # gopkg.in path without its .vN suffix
         "exclude example.com/nosuffix v9.1.2",  # same check applies to exclude
-        "replace example.com/a => example.com/b v5.0.0",  # RHS major without suffix
         "replace example.com/a v9.0.0 => ./local",  # LHS major without suffix
         "require `example.com/raw` v1.2.3",  # raw string arg: go refuses (round-6)
         "module `example.com/m`",
@@ -683,4 +681,46 @@ def test_repeated_singleton_directives_raise(tmp_path: Path, body: str) -> None:
     f = tmp_path / "go.mod"
     f.write_text(body, encoding="utf-8")
     with pytest.raises(ManifestError, match="repeated"):
+        parse(f)
+
+
+# --- Round 7: SplitPathVersion/CheckPathMajor parity ---
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "require example.com/engine/v12 v12.0.1-0.20260714010203-deadbeefcafe",  # major >= 10
+        "require example.com/big/v20 v20.0.0",
+        "require gopkg.in/acme/codec.v4-unstable v4.2.1",  # -unstable suffix
+        "require gopkg.in/verify.v1 v0.0.0-20190101010101-abcdefabcdef",  # legacy pseudo-version
+        "require example.com/lib/v2 v2.4.0+incompatible",  # matching suffix accepts any build
+        "require gopkg.in/lib.v2 v2.4.0+incompatible",
+        "replace example.com/a/v3 v3.0.0 => example.com/b/v7 v6.9.0",  # RHS not major-checked
+    ],
+)
+def test_round7_valid_forms_accepted(tmp_path: Path, line: str) -> None:
+    f = tmp_path / "go.mod"
+    f.write_text(f"module example.com/m\n{line}\n", encoding="utf-8")
+    parse(f)
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "require example.com/widget/v1 v1.9.3",  # /v1 suffix: invalid module path
+        "require example.com/widget/v0 v0.9.3",
+        "require example.com/widget/v02 v2.0.0+incompatible",  # zero-padded suffix
+        "require example.com/widget/v1.2 v1.2.0",  # dotted suffix
+        "require gopkg.in/lib.v01 v1.0.0",  # gopkg.in zero-padded
+        "require gopkg.in/codec.v4-unstable v5.0.0",  # -unstable major mismatch
+        "require example.com/engine/v12 v11.0.0",  # major >= 10 mismatch
+        "replace example.com/old/v8 v7.2.0 => example.com/new/v5 v5.0.0",  # LHS mismatch
+        "replace example.com/bad/v1 => ./local",  # invalid LHS path suffix
+    ],
+)
+def test_round7_invalid_forms_raise(tmp_path: Path, line: str) -> None:
+    f = tmp_path / "go.mod"
+    f.write_text(f"module example.com/m\n{line}\n", encoding="utf-8")
+    with pytest.raises(ManifestError, match=r"malformed go\.mod"):
         parse(f)

@@ -48,11 +48,6 @@ _SEMVER = (
 )
 _VERSION_RE = re.compile(rf"^{_SEMVER}$")
 
-# module.CheckPathMajor: a path's /vN suffix (or gopkg.in's .vN) must agree
-# with the version's major; without a suffix the major must be 0 or 1 unless
-# the version carries +incompatible (which a suffixed path in turn forbids).
-_PATH_MAJOR_RE = re.compile(r"/v([2-9]\d*)$")
-_GOPKG_MAJOR_RE = re.compile(r"\.v(\d+)$")
 
 # GoVersionRE from x/mod/modfile: `1.21`, `1.21.0`, `1.21rc1` — no leading
 # zeros, minor required.
@@ -78,8 +73,11 @@ def _require_entry(tokens: list[str]) -> tuple[str, str] | None:
         return None
     if not _VERSION_RE.match(tokens[1]):
         return None
+    path_major, ok = _split_path_version(tokens[0])
+    if not ok:
+        return None  # invalid /vN or gopkg.in suffix: "invalid module path" to go
     canonical = _canonical_version(tokens[1])
-    if not _path_major_ok(tokens[0], canonical):
+    if not _path_major_ok(path_major, canonical):
         return None
     return tokens[0], canonical
 
@@ -99,17 +97,62 @@ def _canonical_version(version: str) -> str:
     return "v" + ".".join(parts) + dash + prerelease + build
 
 
-def _path_major_ok(path: str, canonical: str) -> bool:
-    major = canonical[1:].split(".", 1)[0]
-    incompatible = canonical.endswith("+incompatible")
+def _split_path_version(path: str) -> tuple[str, bool]:
+    """(path_major, ok) — a straight port of module.SplitPathVersion.
+
+    path_major is the `/vN` (or gopkg.in `.vN[-unstable]`) suffix, "" when
+    the path has none. ok=False means the suffix itself is invalid (`/v1`,
+    `/v0`, a leading zero, a dotted `/v1.2`, or a gopkg.in path without its
+    mandatory `.vN`) — an invalid module path to go, not merely a mismatch.
+    """
     if path.startswith("gopkg.in/"):
-        # gopkg.in paths always carry a .vN suffix and never +incompatible.
-        gopkg = _GOPKG_MAJOR_RE.search(path)
-        return gopkg is not None and gopkg.group(1) == major and not incompatible
-    suffix = _PATH_MAJOR_RE.search(path)
-    if suffix is not None:
-        return suffix.group(1) == major and not incompatible
-    return major in ("0", "1") or incompatible
+        return _split_gopkg_in(path)
+    i = len(path)
+    dot = False
+    while i > 0 and (path[i - 1].isdigit() or path[i - 1] == "."):
+        if path[i - 1] == ".":
+            dot = True
+        i -= 1
+    if i <= 1 or i == len(path) or path[i - 1] != "v" or path[i - 2] != "/":
+        return "", True  # no version suffix at all
+    path_major = path[i - 2 :]
+    min_suffix_len = 3  # "/v" plus at least one digit
+    if dot or len(path_major) < min_suffix_len or path_major[2] == "0" or path_major == "/v1":
+        return "", False
+    return path_major, True
+
+
+def _split_gopkg_in(path: str) -> tuple[str, bool]:
+    """module.splitGopkgIn: gopkg.in paths must end in .vN (any N, no leading
+    zero except .v0 itself), optionally followed by -unstable."""
+    i = len(path)
+    if path.endswith("-unstable"):
+        i -= len("-unstable")
+    while i > 0 and path[i - 1].isdigit():
+        i -= 1
+    if i <= 1 or path[i - 1] != "v" or path[i - 2] != ".":
+        return "", False  # all gopkg.in paths must end in .vN
+    path_major = path[i - 2 :]  # keeps the -unstable suffix, like x/mod
+    min_suffix_len = 3
+    if len(path_major) < min_suffix_len or (path_major[2] == "0" and path_major != ".v0"):
+        return "", False
+    return path_major, True
+
+
+def _path_major_ok(path_major: str, canonical: str) -> bool:
+    """module.CheckPathMajor: the suffix's major must equal the version's;
+    without a suffix the major must be 0/1 or the version +incompatible.
+    A matching suffix accepts regardless of build metadata — +incompatible
+    is an extra exemption for unsuffixed high majors, not a veto (go accepts
+    `example.com/lib/v2 v2.4.0+incompatible`)."""
+    if path_major.startswith(".v") and path_major.endswith("-unstable"):
+        path_major = path_major.removesuffix("-unstable")
+    if canonical.startswith("v0.0.0-") and path_major == ".v1":
+        return True  # legacy gopkg.in .v1 pseudo-version exception
+    major = canonical[1:].split(".", 1)[0].split("-", 1)[0].split("+", 1)[0]
+    if not path_major:
+        return major in ("0", "1") or canonical.endswith("+incompatible")
+    return major == path_major[2:]
 
 
 def lex_go_mod_line(line: str) -> list[str] | None:
@@ -287,10 +330,20 @@ def _replace_entry_ok(tokens: list[str]) -> bool:
     lhs, rhs = tokens[:split], tokens[split + 1 :]
     if len(lhs) not in (1, _MODULE_VERSION_TOKENS) or dir_shaped(lhs[0]):
         return False
+    if not lhs[0] or not _split_path_version(lhs[0])[1]:
+        return False
     if len(lhs) == _MODULE_VERSION_TOKENS and _require_entry(lhs) is None:
         return False
     if len(rhs) == _MODULE_VERSION_TOKENS:
-        return _require_entry(rhs) is not None and not dir_shaped(rhs[0])
+        # modfile's parseReplace checks path-major agreement on the OLD side
+        # only; the replacement's version is parsed but never matched against
+        # its path's major (go accepts `... => example.com/b/v7 v6.9.0`).
+        return (
+            not dir_shaped(rhs[0])
+            and bool(rhs[0])
+            and _split_path_version(rhs[0])[1]
+            and _VERSION_RE.match(rhs[1]) is not None
+        )
     return len(rhs) == 1 and dir_shaped(rhs[0])
 
 
