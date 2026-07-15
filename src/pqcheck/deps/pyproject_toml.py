@@ -18,7 +18,7 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
-from pqcheck.deps.base import ManifestError, extract_pep508_name, pypi_purl, safe_read_bytes
+from pqcheck.deps.base import ManifestError, pypi_purl, safe_read_bytes, strict_pep508_name
 from pqcheck.deps.packages import lookup_introduces
 from pqcheck.models import CryptoDependency
 
@@ -39,9 +39,12 @@ def parse(path: Path) -> list[CryptoDependency]:
     seen: set[str] = set()  # keyed on PEP 503 lowercased name for dedup
     deps: list[CryptoDependency] = []
     for raw_name in _iter_requirement_strings(data):
-        name = extract_pep508_name(raw_name)
-        if name is None:
-            continue
+        try:
+            name = strict_pep508_name(raw_name)
+        except ValueError as exc:
+            # uv refuses the project on an invalid requirement string — a
+            # silent skip would pass off a partial inventory as complete.
+            raise ManifestError(f"malformed pyproject.toml: {exc}") from exc
         key = name.lower()
         if key in seen:
             continue
@@ -100,7 +103,12 @@ def _expand_one_group(
     expanded.add(group_name)
     items = groups.get(group_name)
     if not isinstance(items, list):
-        return
+        # uv rejects the whole project on a missing or non-list group
+        # ("Failed to find group X included by Y") — silently skipping it
+        # dropped every dependency the include would have contributed.
+        raise ManifestError(
+            f"malformed pyproject.toml: dependency group {group_name!r} is missing or not a list"
+        )
     for item in items:
         if isinstance(item, str):
             yield item

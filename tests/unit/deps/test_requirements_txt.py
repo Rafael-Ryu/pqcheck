@@ -96,3 +96,24 @@ def test_parse_undecodable_bytes_raise_manifest_error(tmp_path: Path) -> None:
 
 def test_parse_missing_file_returns_empty(tmp_path: Path) -> None:
     assert parse(tmp_path / "requirements.txt") == []
+
+
+def test_parse_named_direct_reference_kept(tmp_path: Path) -> None:
+    # PEP 508 `name @ URL` is a NAMED requirement (round-10) — dropping it
+    # with the unnamed-URL lines removed a real dependency.
+    f = _write(tmp_path, """
+cryptography @ file:///tmp/local-cryptography
+pyopenssl[extra] @ https://example.com/pyopenssl-25.1.0.tar.gz ; python_version >= "3.10"
+git+https://github.com/x/y.git#egg=y
+""")
+    deps = {d.name: d for d in parse(f)}
+    assert set(deps) == {"cryptography", "pyopenssl"}
+    assert deps["cryptography"].version is None
+
+
+def test_parse_invalid_requirement_raises(tmp_path: Path) -> None:
+    # pip/uv refuse the file on `=>` (round-10) — a silent skip passed off a
+    # partial inventory as complete.
+    f = _write(tmp_path, "cryptography=>43.0\n")
+    with pytest.raises(ManifestError, match=r"malformed requirements\.txt"):
+        parse(f)

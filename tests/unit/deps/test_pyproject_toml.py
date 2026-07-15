@@ -192,14 +192,16 @@ def test_parse_missing_file_returns_empty_list(tmp_path: Path) -> None:
     assert parse(tmp_path / "no-such-file.toml") == []
 
 
-def test_parse_skips_non_pep508_entries(tmp_path: Path) -> None:
+def test_parse_invalid_requirement_string_raises(tmp_path: Path) -> None:
+    # uv refuses the project on an invalid requirement string (round 10) —
+    # a silent skip passed off a partial inventory as complete.
     f = _write(tmp_path, """
 [project]
 name = "demo"
 dependencies = ["cryptography", ">=1.0", ""]
 """)
-    deps = parse(f)
-    assert [d.name for d in deps] == ["cryptography"]
+    with pytest.raises(ManifestError, match=r"malformed pyproject\.toml"):
+        parse(f)
 
 
 def test_parse_skips_non_string_entries_in_lists(tmp_path: Path) -> None:
@@ -265,4 +267,28 @@ def test_parse_deeply_nested_toml_raises_manifest_error(tmp_path: Path) -> None:
     # as an empty-but-clean parse or a crash.
     f = _write(tmp_path, "a = " + "[" * 3000 + "]" * 3000 + "\n")
     with pytest.raises(ManifestError):
+        parse(f)
+
+
+def test_parse_invalid_specifier_operator_raises(tmp_path: Path) -> None:
+    f = _write(tmp_path, """
+[project]
+name = "demo"
+dependencies = ["cryptography=>43.0"]
+""")
+    with pytest.raises(ManifestError, match=r"malformed pyproject\.toml"):
+        parse(f)
+
+
+def test_parse_missing_include_group_raises(tmp_path: Path) -> None:
+    # uv rejects the project on a missing include-group (round-10) — silently
+    # ignoring it dropped every dependency the include would contribute.
+    f = _write(tmp_path, """
+[project]
+name = "demo"
+version = "0.0.0"
+[dependency-groups]
+audit = [{ include-group = "does-not-exist" }, "pyopenssl==25.1.0"]
+""")
+    with pytest.raises(ManifestError, match="dependency group"):
         parse(f)

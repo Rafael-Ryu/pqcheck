@@ -41,7 +41,9 @@ def parse(path: Path) -> list[CryptoDependency]:
     deps: list[CryptoDependency] = []
     for entry in packages:
         if not isinstance(entry, dict):
-            continue
+            # uv refuses the lock outright — degrading a malformed entry to
+            # "absent" would pass off a partial inventory as complete.
+            raise ManifestError("malformed uv.lock: [[package]] entry is not a table")
         name = entry.get("name")
         if not isinstance(name, str) or not name:
             continue
@@ -53,7 +55,12 @@ def parse(path: Path) -> list[CryptoDependency]:
             # bogus self-dependency.
             continue
         version_raw = entry.get("version")
-        version = version_raw if isinstance(version_raw, str) else None
+        if version_raw is not None and not isinstance(version_raw, str):
+            # A present non-string version is a schema violation uv rejects
+            # ("invalid type ... expected a string"); converting it to None
+            # silently rewrote the inventory (round 10).
+            raise ManifestError(f"malformed uv.lock: package {name!r} version is not a string")
+        version = version_raw
         key = (name.lower(), version)
         if key in seen:
             continue

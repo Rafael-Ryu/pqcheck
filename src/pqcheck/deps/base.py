@@ -161,6 +161,25 @@ def npm_purl(name: str, version: str | None) -> str | None:
 _NAME_RE = re.compile(r"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)")
 
 
+# What may legally follow the distribution name in a PEP 508 requirement:
+# end of string, extras `[`, a parenthesized specifier `(`, a marker `;`, a
+# direct-reference `@`, or a comparison operator. `=>` and other garbage are
+# rejected by every reference parser (packaging, uv, pip) — accepting the
+# name prefix there would silently record a dependency the resolver refuses.
+_PEP508_TAIL_RE = re.compile(r"^\s*(?:$|[\[(;@]|===?|!=|~=|>=?|<=?)")
+
+
+def strict_pep508_name(requirement: str) -> str:
+    """Distribution name of `requirement`, raising ValueError when there is
+    no leading name or the name is followed by invalid requirement syntax."""
+    match = _NAME_RE.match(requirement)
+    if match is None:
+        raise ValueError(f"no distribution name in requirement {requirement!r}")
+    if _PEP508_TAIL_RE.match(requirement[match.end() :]) is None:
+        raise ValueError(f"invalid syntax after name in requirement {requirement!r}")
+    return match.group(1)
+
+
 def extract_pep508_name(requirement: str) -> str | None:
     """Extract the distribution name from a PEP 508 requirement string.
 
