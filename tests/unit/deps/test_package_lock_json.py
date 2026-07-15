@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from pqcheck.deps.base import ManifestError
-from pqcheck.deps.package_lock_json import parse
+from pqcheck.deps.package_lock_json import _collect_from_dependencies, parse
 
 _FIXTURES = Path(__file__).parent.parent.parent / "fixtures" / "deps"
 
@@ -181,11 +181,25 @@ def test_parse_deeply_nested_dependencies_raise_manifest_error(tmp_path: Path) -
         parse(lock)
 
 
-def test_parse_deep_v1_tree_is_fully_flattened(tmp_path: Path) -> None:
+def test_v1_tree_flatten_is_iterative() -> None:
     # The recursive v1 walk truncated deep-but-valid locks npm accepts at a
-    # stack-dependent depth with no diagnostic (round-10). The iterative walk
-    # must capture every level.
-    depth = 3000
+    # stack-dependent depth with no diagnostic (round-10). Exercise the walk
+    # directly on a tree far deeper than any recursion limit — building it
+    # via json.loads would hit the JSON decoder's own (platform-dependent)
+    # stack first, which is the separate, intended ManifestError path.
+    depth = 5000
+    tree: dict = {"leaf": {"version": "9.9.9"}}
+    for i in range(depth):
+        tree = {f"pkg{i}": {"version": "1.0.0", "dependencies": tree}}
+    seen: set = set()
+    deps: list = []
+    _collect_from_dependencies(tree, Path("package-lock.json"), seen, deps)
+    assert len(deps) == depth + 1
+    assert any(d.name == "leaf" for d in deps)
+
+
+def test_parse_moderately_deep_v1_tree_end_to_end(tmp_path: Path) -> None:
+    depth = 200
     start = '{"name":"deep","lockfileVersion":1,"dependencies":{'
     chain = "".join(
         f'"pkg{i}":{{"version":"1.0.{i % 10}","dependencies":{{' for i in range(depth)
