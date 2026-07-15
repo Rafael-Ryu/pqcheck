@@ -506,8 +506,6 @@ def test_go_sum_skip_without_error_sink_still_parses(tmp_path: Path) -> None:
         "exclude example.com/a vbanana",
         "replace example.com/a vbanana => example.com/b v1.0.0",
         "replace example.com/a => example.com/b vbanana",
-        "retract vbanana",
-        "retract [vbanana, v1.0.0]",
         "go 01.24",  # leading zero (round-5 reproducer)
         "go 1",  # modfile's GoVersionRE requires a minor
         "go 1.024",
@@ -746,3 +744,52 @@ def test_round8_replace_rhs_not_suffix_checked(tmp_path: Path, line: str) -> Non
         encoding="utf-8",
     )
     assert [d.name for d in parse(f)] == ["golang.org/x/crypto"]
+
+
+# --- Round 9: retract values are unvalidated (dontFixRetract) ---
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "retract v1.9-rc.3",  # round-9 reproducer: short form + prerelease
+        "retract v2-rc.11",
+        "retract v2.3+orbit.14",
+        "retract v02",
+        "retract v2.3.04",
+        "retract v2.",
+        "retract vquasar",
+        'retract "version with gap"',  # quoted value, spaces and all
+        'retract ""',  # even the empty quoted token is accepted by go
+        "retract [vnebula,vquasar]",
+        "retract [v0.0.1, v2.3+]",
+    ],
+)
+def test_round9_retract_values_unvalidated(tmp_path: Path, line: str) -> None:
+    # modfile parses retract with dontFixRetract: the interval/singleton
+    # STRUCTURE is enforced but the values are not semver-checked at parse
+    # time — the require inventory must survive all of these (round-9
+    # differential: go mod edit -json accepts every one).
+    f = tmp_path / "go.mod"
+    f.write_text(
+        f"module example.com/m\n{line}\nrequire golang.org/x/crypto v0.21.0\n",
+        encoding="utf-8",
+    )
+    assert [d.name for d in parse(f)] == ["golang.org/x/crypto"]
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "retract",  # no version at all
+        "retract v1.0.0 v1.1.0",  # two bare tokens: go errors after the first
+        "retract [v1.0.0,]",  # empty interval side
+        "retract [v1.0.0,] junk",
+        "retract [v1.0.0]",  # interval without a comma
+    ],
+)
+def test_round9_retract_structure_still_enforced(tmp_path: Path, line: str) -> None:
+    f = tmp_path / "go.mod"
+    f.write_text(f"module example.com/m\n{line}\n", encoding="utf-8")
+    with pytest.raises(ManifestError, match=r"malformed go\.mod"):
+        parse(f)
