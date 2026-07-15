@@ -335,15 +335,12 @@ def _replace_entry_ok(tokens: list[str]) -> bool:
     if len(lhs) == _MODULE_VERSION_TOKENS and _require_entry(lhs) is None:
         return False
     if len(rhs) == _MODULE_VERSION_TOKENS:
-        # modfile's parseReplace checks path-major agreement on the OLD side
-        # only; the replacement's version is parsed but never matched against
-        # its path's major (go accepts `... => example.com/b/v7 v6.9.0`).
-        return (
-            not dir_shaped(rhs[0])
-            and bool(rhs[0])
-            and _split_path_version(rhs[0])[1]
-            and _VERSION_RE.match(rhs[1]) is not None
-        )
+        # modfile's parseReplace validates the OLD side only: the
+        # replacement's version is parsed but never matched against its
+        # path's major, and the RHS path is not even suffix-checked —
+        # `go mod edit -json` accepts an RHS of `/v1`, `/v01`, a dotted
+        # suffix, or a gopkg.in path without `.vN` (round-8 differential).
+        return bool(rhs[0]) and not dir_shaped(rhs[0]) and _VERSION_RE.match(rhs[1]) is not None
     return len(rhs) == 1 and dir_shaped(rhs[0])
 
 

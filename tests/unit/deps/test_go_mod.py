@@ -724,3 +724,25 @@ def test_round7_invalid_forms_raise(tmp_path: Path, line: str) -> None:
     f.write_text(f"module example.com/m\n{line}\n", encoding="utf-8")
     with pytest.raises(ManifestError, match=r"malformed go\.mod"):
         parse(f)
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "replace example.com/a => example.com/b/v1 v1.0.0",  # round-8: RHS /v1 accepted by go
+        "replace example.com/a => example.com/b/v0 v0.3.0",
+        "replace example.com/a => example.com/b/v01 v1.0.0",  # zero-padded RHS suffix
+        "replace example.com/a => example.com/b/v1.2 v1.2.0",  # dotted RHS suffix
+        "replace example.com/a => gopkg.in/nodot v1.0.0",  # gopkg.in RHS without .vN
+    ],
+)
+def test_round8_replace_rhs_not_suffix_checked(tmp_path: Path, line: str) -> None:
+    # modfile's parseReplace never suffix-checks the replacement side; the
+    # require inventory must survive these manifests (round-8 differential:
+    # go mod edit -json accepts every one of them).
+    f = tmp_path / "go.mod"
+    f.write_text(
+        f"module example.com/m\n{line}\nrequire golang.org/x/crypto v0.21.0\n",
+        encoding="utf-8",
+    )
+    assert [d.name for d in parse(f)] == ["golang.org/x/crypto"]
