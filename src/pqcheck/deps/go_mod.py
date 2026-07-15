@@ -56,8 +56,12 @@ _GO_VERSION_RE = re.compile(r"^([1-9][0-9]*)\.(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))
 # ToolchainRE from x/mod/modfile: `default`, or a go1 release name.
 _TOOLCHAIN_RE = re.compile(r"^default$|^go1($|\.)")
 
-# RetractSpec = Version | "[" Version "," Version "]" — same semver grammar.
-_RETRACT_INTERVAL_RE = re.compile(rf"^\[{_SEMVER},{_SEMVER}\]$")
+# RetractSpec structure only: modfile parses retract with dontFixRetract —
+# the VALUES are deliberately not semver-validated at parse time (the module
+# path needed to fix them may appear later), so `go` accepts `retract
+# vquasar` and even a quoted string with spaces. Only the singleton /
+# bracket-comma interval STRUCTURE is enforced (round-9 differential).
+_RETRACT_INTERVAL_RE = re.compile(r"^\[[^\[\],]+,[^\[\],]+\]$")
 
 _REQUIRE_ENTRY_TOKENS = 2  # module path + version, nothing else
 _MODULE_VERSION_TOKENS = 2  # `module/path v1.2.3` — one side of a replace
@@ -347,11 +351,12 @@ def _replace_entry_ok(tokens: list[str]) -> bool:
 def _retract_entry_ok(tokens: list[str]) -> bool:
     # RetractSpec = Version | "[" Version "," Version "]". The lexer does not
     # split on `[`/`,`/`]`, so an interval arrives as 1..N tokens depending on
-    # spacing — joining normalizes that before matching.
+    # spacing — joining normalizes that before matching. Values themselves
+    # are unvalidated, matching dontFixRetract (see _RETRACT_INTERVAL_RE).
     joined = "".join(tokens)
-    if len(tokens) == 1 and _VERSION_RE.match(joined):
-        return True
-    return _RETRACT_INTERVAL_RE.match(joined) is not None
+    if joined.startswith("["):
+        return _RETRACT_INTERVAL_RE.match(joined) is not None
+    return len(tokens) == 1
 
 
 # require is handled inline (its entries feed the inventory); everything else
@@ -372,7 +377,11 @@ _SINGLETON_DIRECTIVES = frozenset({"module", "go", "toolchain"})
 
 
 def _entry_ok(directive: str, tokens: list[str]) -> bool:
-    if "(" in tokens or ")" in tokens or not all(tokens):
+    if "(" in tokens or ")" in tokens:
+        return False
+    # retract values are unvalidated (dontFixRetract) — even an empty quoted
+    # token is accepted by go, so the non-empty guard must not apply there.
+    if directive != "retract" and not all(tokens):
         return False
     return _ENTRY_VALIDATORS[directive](tokens)
 
